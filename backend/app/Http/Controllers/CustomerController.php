@@ -32,7 +32,6 @@ class CustomerController extends Controller
         $dataset = env('BIGQUERY_DATASET');
         $project = env('BIGQUERY_PROJECT_ID');
         
-        // Query dengan multiple matching strategy untuk sales_rep
         $sql = "
             SELECT 
                 c.id, 
@@ -45,17 +44,18 @@ class CustomerController extends Controller
                 c.email
             FROM `{$project}.{$dataset}.master_customer` c
             WHERE (
+                -- Match dengan berbagai format sales_rep
                 c.sales_rep = @sales_name
                 OR c.sales_rep = @sales_internal_id
                 OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_name), '%')
                 OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_internal_id), '%')
             )
+            AND c.inactive = 'No'
             AND (
                 LOWER(c.customer_name) LIKE CONCAT('%', LOWER(@query), '%')
                 OR LOWER(c.company_name) LIKE CONCAT('%', LOWER(@query), '%')
             )
             ORDER BY c.customer_name
-            LIMIT 20
         ";
         
         $results = $this->bigQuery->query($sql, [
