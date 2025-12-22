@@ -22,8 +22,8 @@ class CustomerController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q', '');
-        $salesInternalId = $request->sales_internal_id; // dari middleware
-        $salesName = $request->sales_name; // dari middleware
+        $salesInternalId = $request->sales_internal_id;
+        $salesName = $request->sales_name;
 
         if (strlen($query) < 2) {
             return response()->json([]);
@@ -32,31 +32,36 @@ class CustomerController extends Controller
         $dataset = env('BIGQUERY_DATASET');
         $project = env('BIGQUERY_PROJECT_ID');
         
-        // Query berdasarkan sales_rep (yang isinya nama sales)
+        // Query dengan multiple matching strategy untuk sales_rep
         $sql = "
             SELECT 
-                id, 
-                customer_name, 
-                company_name, 
-                address, 
-                city,
-                state,
-                phone,
-                email
-            FROM `{$project}.{$dataset}.master_customer`
-            WHERE sales_rep = @sales_name
-            AND inactive = 'F'
-            AND (
-                LOWER(customer_name) LIKE LOWER(@query)
-                OR LOWER(company_name) LIKE LOWER(@query)
+                c.id, 
+                c.customer_name, 
+                c.company_name, 
+                c.address, 
+                c.city,
+                c.state,
+                c.phone,
+                c.email
+            FROM `{$project}.{$dataset}.master_customer` c
+            WHERE (
+                c.sales_rep = @sales_name
+                OR c.sales_rep = @sales_internal_id
+                OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_name), '%')
+                OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_internal_id), '%')
             )
-            ORDER BY customer_name
+            AND (
+                LOWER(c.customer_name) LIKE CONCAT('%', LOWER(@query), '%')
+                OR LOWER(c.company_name) LIKE CONCAT('%', LOWER(@query), '%')
+            )
+            ORDER BY c.customer_name
             LIMIT 20
         ";
         
         $results = $this->bigQuery->query($sql, [
             'sales_name' => $salesName,
-            'query' => "%{$query}%",
+            'sales_internal_id' => $salesInternalId,
+            'query' => $query,
         ]);
 
         return response()->json($results);

@@ -11,10 +11,10 @@ Route::post('/login', [AuthController::class, 'login']);
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
     
-    // Customer search autocomplete
+    // Customer search autocomplete - PINDAHIN KE PALING ATAS
     Route::get('/customers/search', [CustomerController::class, 'search']);
     
-    // Activity Plans
+    // Activity Plans - urutan PENTING!
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
