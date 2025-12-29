@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -11,6 +11,10 @@ import CloseIcon from '@mui/icons-material/Close';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { apiRequest } from '../config/api';
+import AddressMap from './AddressMap';
+import { getCoordinatesFromAddress } from '../utils/geocoding';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { parse } from 'date-fns';
 
 export default function AddPlan({ open, onClose }) {
   const [formData, setFormData] = useState({
@@ -27,8 +31,11 @@ export default function AddPlan({ open, onClose }) {
   const [customerOptions, setCustomerOptions] = useState([]);
   const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const { invalidateCache, fetchPlansByDate } = useActivityPlans();
+  
+  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
-  // Fungsi untuk mencari customer dari API
   const searchCustomers = useCallback(async (keyword) => {
     if (!keyword || keyword.trim().length < 2) {
       setCustomerOptions([]);
@@ -55,14 +62,6 @@ export default function AddPlan({ open, onClose }) {
         throw new Error('Invalid JSON response from server');
       }
       
-      // Debug: log response untuk troubleshooting
-      console.log('API Response:', data);
-      console.log('Is Array:', Array.isArray(data));
-      console.log('Data length:', Array.isArray(data) ? data.length : 'N/A');
-      
-      // Map response API ke format yang digunakan di form
-      // Backend mengembalikan sesuai dokumentasi: customer_id, customer_name, address
-      // Plus field tambahan: city, state, company_name, phone, email
       let mappedCustomers = [];
       
       if (data && Array.isArray(data)) {
@@ -70,7 +69,7 @@ export default function AddPlan({ open, onClose }) {
           mappedCustomers = data.map(customer => {
             if (!customer) return null;
             return {
-              customer_id: customer.customer_id || '', // Sesuai dokumentasi API
+              customer_id: customer.id || customer.customer_id || '', // Backend menggunakan 'id'
               nama: customer.customer_name || '',
               address1: customer.address || '',
               city: customer.city || '',
@@ -83,11 +82,7 @@ export default function AddPlan({ open, onClose }) {
             };
           }).filter(Boolean); // Filter out null values
         }
-      } else {
-        console.warn('Response is not an array:', typeof data, data);
       }
-      
-      console.log('Mapped Customers:', mappedCustomers);
       setCustomerOptions(mappedCustomers);
     } catch (error) {
       console.error('Error searching customers:', error);
@@ -97,33 +92,38 @@ export default function AddPlan({ open, onClose }) {
     }
   }, []);
 
-  // Debounce function untuk search
   useEffect(() => {
+    // Debounce search untuk mengurangi API calls
     const timeoutId = setTimeout(() => {
-      if (searchInput) {
+      if (searchInput && searchInput.trim().length >= 2) {
         searchCustomers(searchInput);
       } else {
         setCustomerOptions([]);
       }
-    }, 300); // Delay 300ms untuk debounce
+    }, 500); // Increased debounce time untuk mengurangi API calls
 
     return () => clearTimeout(timeoutId);
   }, [searchInput, searchCustomers]);
 
-  // Fungsi untuk membuat alamat lengkap dari customer
   const buildFullAddress = (customer) => {
-    if (!customer) return '';
-    // Jika ada originalAddress (dari API), gunakan itu
-    if (customer.originalAddress) {
-      return customer.originalAddress;
+    try {
+      if (!customer || typeof customer !== 'object') return '';
+      
+      if (customer.originalAddress && customer.originalAddress.trim()) {
+        return customer.originalAddress.trim();
+      }
+      
+      const parts = [
+        customer.address1,
+        customer.city,
+        customer.province
+      ].filter(Boolean).map(part => part ? String(part).trim() : '').filter(Boolean);
+      
+      return parts.length > 0 ? parts.join(', ') : '';
+    } catch (error) {
+      console.error('Error building full address:', error);
+      return '';
     }
-    // Fallback ke format lama
-    const parts = [
-      customer.address1,
-      customer.city,
-      customer.province
-    ].filter(Boolean);
-    return parts.join(', ');
   };
 
   const handleInputChange = (field) => (event) => {
@@ -134,34 +134,65 @@ export default function AddPlan({ open, onClose }) {
   };
 
   const handleCustomerChange = (event, newValue) => {
-    const fullAddress = buildFullAddress(newValue);
-    setFormData({
-      ...formData,
-      customer: newValue,
-      customerId: newValue ? (newValue.customer_id || newValue.nama) : '',
-      alamat: fullAddress,
-    });
-  };
+    try {
+      if (!newValue) {
+        setFormData({
+          ...formData,
+          customer: null,
+          customerId: '',
+          alamat: '',
+        });
+        setInputValue('');
+        setSearchInput('');
+        return;
+      }
 
-  const handleCustomerInputChange = (event, newInputValue) => {
-    setSearchInput(newInputValue);
-  };
-
-  // Fungsi untuk mendapatkan Google Maps URL
-  const getGoogleMapsUrl = (address) => {
-    if (!address) return '';
-    const encodedAddress = encodeURIComponent(address);
-    
-    // Menggunakan Google Maps Embed API jika API key tersedia
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-    if (apiKey) {
-      return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodedAddress}`;
+      const fullAddress = buildFullAddress(newValue);
+      
+      const customerId = newValue.customer_id || newValue.nama || '';
+      const customerName = newValue.nama || '';
+      
+      setFormData({
+        ...formData,
+        customer: newValue,
+        customerId: customerId,
+        alamat: fullAddress,
+      });
+      
+      // Set input value ke nama customer yang dipilih
+      setInputValue(customerName);
+      setSearchInput(''); 
+    } catch (error) {
+      console.error('Error handling customer change:', error);
+      setError('Terjadi kesalahan saat memilih customer. Silakan coba lagi.');
+      // Reset state jika error
+      setFormData({
+        ...formData,
+        customer: null,
+        customerId: '',
+        alamat: '',
+      });
+      setInputValue('');
+      setSearchInput('');
     }
-    
-    // Fallback: menggunakan Google Maps dengan format embed sederhana
-    // Format ini bekerja tanpa API key untuk basic embedding
-    return `https://maps.google.com/maps?q=${encodedAddress}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
   };
+
+  const handleCustomerInputChange = (event, newInputValue, reason) => {
+    setInputValue(newInputValue);
+    
+    if (reason === 'input') {
+      setSearchInput(newInputValue);
+    } else if (reason === 'clear') {
+      setSearchInput('');
+      setFormData({
+        ...formData,
+        customer: null,
+        customerId: '',
+        alamat: '',
+      });
+    }
+  };
+
 
   const handleTujuanClick = (tujuan) => {
     setFormData({
@@ -170,109 +201,7 @@ export default function AddPlan({ open, onClose }) {
     });
   };
 
-  // Fungsi untuk mendapatkan koordinat dari alamat menggunakan OpenStreetMap Nominatim API
-  const getCoordinatesFromAddress = async (address) => {
-    try {
-      const encodedAddress = encodeURIComponent(address);
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`,
-        {
-          headers: {
-            'User-Agent': 'AbsensiSalesApp/1.0', // Required by Nominatim
-          },
-        }
-      );
 
-      const data = await response.json();
-      if (data && data.length > 0) {
-        return {
-          latitude: parseFloat(data[0].lat),
-          longitude: parseFloat(data[0].lon),
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting coordinates:', error);
-      return null;
-    }
-  };
-
-  // Fungsi untuk menyimpan data plan ke server API dan localStorage
-  const savePlanToStorage = async (planData) => {
-    try {
-      // Coba simpan ke server API terlebih dahulu
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      
-      try {
-        const response = await fetch(`${API_URL}/api/plans`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(planData),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save to server');
-        }
-
-        const result = await response.json();
-        
-        // Jika berhasil disimpan ke server, update localStorage juga
-        const existingData = localStorage.getItem('simpanPlan');
-        let plans = [];
-
-        if (existingData) {
-          try {
-            plans = JSON.parse(existingData);
-            if (!Array.isArray(plans)) {
-              plans = [];
-            }
-          } catch (e) {
-            plans = [];
-          }
-        }
-
-        plans.push(result.plan);
-        localStorage.setItem('simpanPlan', JSON.stringify(plans, null, 2));
-
-        return true;
-      } catch (apiError) {
-        // Jika API gagal, fallback ke localStorage saja
-        console.warn('API tidak tersedia, menggunakan localStorage:', apiError);
-        
-        const existingData = localStorage.getItem('simpanPlan');
-        let plans = [];
-
-        if (existingData) {
-          try {
-            plans = JSON.parse(existingData);
-            if (!Array.isArray(plans)) {
-              plans = [];
-            }
-          } catch (e) {
-            plans = [];
-          }
-        }
-
-        const newPlan = {
-          id: Date.now().toString(),
-          ...planData,
-          createdAt: new Date().toISOString(),
-        };
-
-        plans.push(newPlan);
-        localStorage.setItem('simpanPlan', JSON.stringify(plans, null, 2));
-
-        return true;
-      }
-    } catch (error) {
-      console.error('Error saving plan:', error);
-      return false;
-    }
-  };
-
-  // Handler untuk submit form
   const handleCreatePlan = async () => {
     // Validasi form
     if (!formData.date) {
@@ -283,12 +212,19 @@ export default function AddPlan({ open, onClose }) {
       setError('Customer harus dipilih');
       return;
     }
-    if (!formData.alamat) {
-      setError('Alamat harus diisi');
-      return;
-    }
     if (!formData.tujuan) {
       setError('Tujuan harus dipilih');
+      return;
+    }
+
+    // Validasi tanggal harus >= hari ini
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const planDate = new Date(formData.date);
+    planDate.setHours(0, 0, 0, 0);
+    
+    if (planDate < today) {
+      setError('Tanggal harus sama dengan atau setelah hari ini');
       return;
     }
 
@@ -297,59 +233,95 @@ export default function AddPlan({ open, onClose }) {
     setSuccess(false);
 
     try {
-      // Dapatkan koordinat dari alamat
-      const coordinates = await getCoordinatesFromAddress(formData.alamat);
+      // Map tujuan ke format yang benar (Visit atau Follow Up)
+      const tujuanMap = {
+        'visit': 'Visit',
+        'follow up': 'Follow Up',
+        'Visit': 'Visit',
+        'Follow Up': 'Follow Up',
+      };
+      const tujuanFormatted = tujuanMap[formData.tujuan] || formData.tujuan;
 
-      // Siapkan data untuk disimpan
-      const planDataToSave = {
-        date: formData.date,
-        customerId: formData.customerId,
-        customer: {
-          customer_id: formData.customer.customer_id || null,
-          nama: formData.customer.nama,
-          address1: formData.customer.address1 || formData.customer.originalAddress || '',
-          city: formData.customer.city || '',
-          province: formData.customer.province || '',
-          originalAddress: formData.customer.originalAddress || '',
-        },
-        alamat: formData.alamat,
-        coordinates: coordinates || null, // Simpan koordinat (lat, lng) atau null jika tidak ditemukan
-        tujuan: formData.tujuan,
-        keterangan: formData.keterangan || '',
+      // Prepare request body sesuai API spec
+      const requestBody = {
+        customer_id: formData.customerId,
+        customer_name: formData.customer.nama || '',
+        plan_date: formData.date,
+        tujuan: tujuanFormatted,
+        keterangan_tambahan: formData.keterangan || '',
       };
 
-      // Simpan ke server API dan localStorage
-      const saved = await savePlanToStorage(planDataToSave);
+      // Call API endpoint
+      const response = await apiRequest('activity-plans', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
 
-      if (saved) {
-        setSuccess(true);
-        // Reset form
-        setFormData({
-          date: '',
-          customerId: '',
-          customer: null,
-          alamat: '',
-          tujuan: '',
-          keterangan: '',
-        });
-
-        // Tutup drawer setelah 1.5 detik
-        setTimeout(() => {
-          setSuccess(false);
-          onClose();
-        }, 1500);
-      } else {
-        setError('Gagal menyimpan data plan');
+      if (!response.ok) {
+        // Handle error response
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Extract error message
+        let errorMessage = 'Gagal membuat activity plan';
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.errors) {
+          // Handle validation errors
+          const errorFields = Object.keys(errorData.errors);
+          if (errorFields.length > 0) {
+            errorMessage = errorData.errors[errorFields[0]][0] || errorMessage;
+          }
+        }
+        
+        setError(errorMessage);
+        setLoading(false);
+        return;
       }
+
+      // Success response
+      const result = await response.json();
+      
+      // Reset form
+      setFormData({
+        date: '',
+        customerId: '',
+        customer: null,
+        alamat: '',
+        tujuan: '',
+        keterangan: '',
+      });
+      setSearchInput('');
+      setInputValue('');
+      setCustomerOptions([]);
+      setSuccess(false);
+      setError('');
+
+      // Close drawer immediately
+      onClose();
+
+      // Invalidate cache and refresh data for the plan date
+      if (formData.date) {
+        try {
+          const planDate = parse(formData.date, 'yyyy-MM-dd', new Date());
+          invalidateCache(planDate);
+          await fetchPlansByDate(planDate, true);
+        } catch (err) {
+          console.error('Error refreshing cache:', err);
+        }
+      }
+
+      // Dispatch custom event to trigger refresh in other components (for backward compatibility)
+      window.dispatchEvent(new CustomEvent('activityPlanCreated', {
+        detail: { planData: result.data }
+      }));
     } catch (error) {
       console.error('Error creating plan:', error);
-      setError('Terjadi kesalahan saat menyimpan data');
+      setError('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset form dan state saat drawer ditutup
   const handleClose = () => {
     setFormData({
       date: '',
@@ -364,6 +336,7 @@ export default function AddPlan({ open, onClose }) {
     setLoading(false);
     setCustomerOptions([]);
     setSearchInput('');
+    setInputValue('');
     onClose();
   };
 
@@ -486,14 +459,35 @@ export default function AddPlan({ open, onClose }) {
           </Typography>
           <Autocomplete
             options={customerOptions}
-            getOptionLabel={(option) => option.nama || ''}
+            getOptionLabel={(option) => {
+              if (!option || typeof option !== 'object') return '';
+              return option.nama || option.customer_name || '';
+            }}
             value={formData.customer}
+            inputValue={inputValue}
             onChange={handleCustomerChange}
             onInputChange={handleCustomerInputChange}
             loading={searchingCustomers}
-            isOptionEqualToValue={(option, value) => 
-              option.customer_id === value?.customer_id || option.nama === value?.nama
-            }
+            filterOptions={(x) => x} 
+            isOptionEqualToValue={(option, value) => {
+              try {
+                if (!value || !option) return false;
+                if (option.customer_id && value.customer_id) {
+                  return String(option.customer_id) === String(value.customer_id);
+                }
+                if (option.nama && value.nama) {
+                  return String(option.nama) === String(value.nama);
+                }
+                return false;
+              } catch (error) {
+                console.error('Error comparing options:', error);
+                return false;
+              }
+            }}
+            autoComplete={false} 
+            clearOnBlur={false} 
+            selectOnFocus={true}
+            handleHomeEndKeys={true} 
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -520,37 +514,57 @@ export default function AddPlan({ open, onClose }) {
                 }}
               />
             )}
-            renderOption={(props, option) => (
-              <Box
-                component="li"
-                {...props}
-                sx={{
-                  py: 1.5,
-                  px: 2,
-                }}
-              >
-                <Box>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {option.nama}
-                  </Typography>
-                  {option.customer_id && (
-                    <Typography variant="caption" sx={{ color: '#999', mr: 1 }}>
-                      ID: {option.customer_id}
-                    </Typography>
-                  )}
-                  {(option.originalAddress || option.address1) && (
-                    <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
-                      {option.originalAddress || option.address1}
-                    </Typography>
-                  )}
-                  {(option.city || option.province) && (
-                    <Typography variant="caption" sx={{ color: '#999', mt: 0.25 }}>
-                      {[option.city, option.province].filter(Boolean).join(', ')}
-                    </Typography>
-                  )}
+            renderOption={(props, option) => {
+              if (!option || typeof option !== 'object') {
+                return null;
+              }
+              
+              const optionKey = option.customer_id || option.nama || option.id || Math.random();
+              const customerName = option.nama || option.customer_name || '';
+              const customerId = option.customer_id || option.id || '';
+              const address = option.originalAddress || option.address1 || '';
+              const city = option.city || '';
+              const province = option.province || option.state || '';
+              
+              return (
+                <Box
+                  component="li"
+                  {...props}
+                  key={optionKey}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    },
+                  }}
+                >
+                  <Box>
+                    {customerName && (
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {customerName}
+                      </Typography>
+                    )}
+                    {customerId && (
+                      <Typography variant="caption" sx={{ color: '#999', mr: 1 }}>
+                        ID: {customerId}
+                      </Typography>
+                    )}
+                    {address && (
+                      <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
+                        {address}
+                      </Typography>
+                    )}
+                    {(city || province) && (
+                      <Typography variant="caption" sx={{ color: '#999', mt: 0.25 }}>
+                        {[city, province].filter(Boolean).join(', ')}
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
-            )}
+              );
+            }}
             noOptionsText={
               !searchInput || searchInput.trim().length < 2
                 ? "Ketik minimal 2 karakter untuk mencari"
@@ -593,42 +607,10 @@ export default function AddPlan({ open, onClose }) {
               },
             }}
           />
-          {formData.alamat && (
-            <Box sx={{ mt: 2 }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                  color: '#666',
-                  mb: 1,
-                  fontWeight: 600,
-                }}
-              >
-                Peta Lokasi
-              </Typography>
-              <Box
-                sx={{
-                  width: '100%',
-                  height: { xs: '250px', sm: '300px' },
-                  borderRadius: { xs: '8px', sm: '10px' },
-                  overflow: 'hidden',
-                  border: '1px solid rgba(0, 0, 0, 0.23)',
-                }}
-              >
-                <iframe
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  allowFullScreen
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={getGoogleMapsUrl(formData.alamat)}
-                  title="Map Location"
-                />
-              </Box>
-            </Box>
-          )}
         </Box>
+
+        {/* Google Maps - Tampilkan jika alamat sudah terisi */}
+        <AddressMap address={formData.alamat} />
 
         {/* Tujuan */}
         <Box sx={{ mb: 3 }}>

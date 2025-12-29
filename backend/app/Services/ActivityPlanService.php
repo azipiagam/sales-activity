@@ -5,10 +5,12 @@ namespace App\Services;
 
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class ActivityPlanService
 {
     protected $bigQuery;
+    protected $cacheTime = 60; // Cache for 60 seconds
 
     public function __construct(BigQueryService $bigQuery)
     {
@@ -58,6 +60,9 @@ class ActivityPlanService
         
         $this->bigQuery->insert('activity_plans', [$row]);
         
+        // Clear related caches
+        $this->clearCache($data['sales_internal_id']);
+        
         return [
             'id' => $id,
             'plan_no' => $planNo,
@@ -66,28 +71,36 @@ class ActivityPlanService
 
     public function getByDateAndSales($salesInternalId, $date)
     {
-        $dataset = env('BIGQUERY_DATASET');
-        $project = env('BIGQUERY_PROJECT_ID');
+        $cacheKey = "activity_plans:{$salesInternalId}:{$date}";
         
-        $sql = "
-            WITH latest_plans AS (
-                SELECT *,
-                    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                FROM `{$project}.{$dataset}.activity_plans`
-                WHERE sales_internal_id = @sales_internal_id
-                AND plan_date = @plan_date
-                AND status NOT IN ('deleted')
-            )
-            SELECT * EXCEPT(rn)
-            FROM latest_plans
-            WHERE rn = 1
-            ORDER BY created_at DESC
-        ";
-        
-        return $this->bigQuery->query($sql, [
-            'sales_internal_id' => $salesInternalId,
-            'plan_date' => $date,
-        ]);
+        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId, $date) {
+            $dataset = env('BIGQUERY_DATASET');
+            $project = env('BIGQUERY_PROJECT_ID');
+            
+            // Optimized query: filter by date first to reduce data scanned
+            $sql = "
+                WITH filtered_plans AS (
+                    SELECT *
+                    FROM `{$project}.{$dataset}.activity_plans`
+                    WHERE sales_internal_id = @sales_internal_id
+                    AND plan_date = @plan_date
+                ),
+                latest_versions AS (
+                    SELECT *,
+                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+                    FROM filtered_plans
+                )
+                SELECT * EXCEPT(rn)
+                FROM latest_versions
+                WHERE rn = 1
+                ORDER BY created_at DESC
+            ";
+            
+            return $this->bigQuery->query($sql, [
+                'sales_internal_id' => $salesInternalId,
+                'plan_date' => $date,
+            ]);
+        });
     }
 
     /**
@@ -95,26 +108,30 @@ class ActivityPlanService
      */
     public function getAllBySales($salesInternalId)
     {
-        $dataset = env('BIGQUERY_DATASET');
-        $project = env('BIGQUERY_PROJECT_ID');
+        $cacheKey = "activity_plans:all:{$salesInternalId}";
         
-        $sql = "
-            WITH latest_plans AS (
-                SELECT *,
-                    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                FROM `{$project}.{$dataset}.activity_plans`
-                WHERE sales_internal_id = @sales_internal_id
-                AND status NOT IN ('deleted')
-            )
-            SELECT * EXCEPT(rn)
-            FROM latest_plans
-            WHERE rn = 1
-            ORDER BY plan_date DESC, created_at DESC
-        ";
-        
-        return $this->bigQuery->query($sql, [
-            'sales_internal_id' => $salesInternalId,
-        ]);
+        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId) {
+            $dataset = env('BIGQUERY_DATASET');
+            $project = env('BIGQUERY_PROJECT_ID');
+            
+            $sql = "
+                WITH latest_plans AS (
+                    SELECT *,
+                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+                    FROM `{$project}.{$dataset}.activity_plans`
+                    WHERE sales_internal_id = @sales_internal_id
+                    AND status NOT IN ('deleted')
+                )
+                SELECT * EXCEPT(rn)
+                FROM latest_plans
+                WHERE rn = 1
+                ORDER BY plan_date DESC, created_at DESC
+            ";
+            
+            return $this->bigQuery->query($sql, [
+                'sales_internal_id' => $salesInternalId,
+            ]);
+        });
     }
 
     public function markAsDone($planId, $result, $latitude, $longitude, $accuracy = null)
@@ -199,6 +216,9 @@ class ActivityPlanService
         
         $this->bigQuery->insert('activity_plans', [$row]);
         
+        // Clear related caches
+        $this->clearCache($plan['sales_internal_id']);
+        
         // Try cleanup in background
         $this->cleanupDuplicates($planId);
         
@@ -266,8 +286,39 @@ class ActivityPlanService
             throw new \Exception("Cannot reschedule activity plan with status: {$plan['status']}");
         }
         
-        // Insert new version with updated data
-        $row = [
+        // Prepare rows to insert
+        $rowsToInsert = [];
+        
+        // Mark the current record as deleted to prevent duplicate records
+        // This prevents duplicate 'in progress' or 'rescheduled' records from remaining in the database
+        $deleteRow = [
+            'insertId' => $planId . '_deleted_before_reschedule_' . time() . '_' . rand(1000, 9999),
+            'data' => [
+                'id' => $plan['id'],
+                'plan_no' => $plan['plan_no'],
+                'sales_internal_id' => $plan['sales_internal_id'],
+                'sales_name' => $plan['sales_name'],
+                'customer_id' => $plan['customer_id'],
+                'customer_name' => $plan['customer_name'],
+                'plan_date' => $plan['plan_date'],
+                'tujuan' => $plan['tujuan'],
+                'keterangan_tambahan' => $plan['keterangan_tambahan'],
+                'status' => 'deleted',
+                'result' => $plan['result'] ?? null,
+                'result_location_lat' => $plan['result_location_lat'] ?? null,
+                'result_location_lng' => $plan['result_location_lng'] ?? null,
+                'result_location_accuracy' => $plan['result_location_accuracy'] ?? null,
+                'result_location_timestamp' => $plan['result_location_timestamp'] ?? null,
+                'result_saved_at' => $plan['result_saved_at'] ?? null,
+                'created_at' => $plan['created_at'],
+                'updated_at' => $now,
+                'deleted_at' => $now,
+            ]
+        ];
+        $rowsToInsert[] = $deleteRow;
+        
+        // Insert new version with updated data (rescheduled)
+        $rescheduleRow = [
             'insertId' => $planId . '_rescheduled_' . time() . '_' . rand(1000, 9999),
             'data' => [
                 'id' => $plan['id'],
@@ -291,8 +342,13 @@ class ActivityPlanService
                 'deleted_at' => null,
             ]
         ];
+        $rowsToInsert[] = $rescheduleRow;
         
-        $this->bigQuery->insert('activity_plans', [$row]);
+        // Insert all rows at once
+        $this->bigQuery->insert('activity_plans', $rowsToInsert);
+        
+        // Clear related caches
+        $this->clearCache($plan['sales_internal_id']);
         
         // Try cleanup, but don't fail if it doesn't work immediately
         $this->cleanupDuplicates($planId);
@@ -388,6 +444,9 @@ class ActivityPlanService
         
         $this->bigQuery->insert('activity_plans', [$row]);
         
+        // Clear related caches
+        $this->clearCache($plan['sales_internal_id']);
+        
         // Try cleanup
         $this->cleanupDuplicates($planId);
         
@@ -460,6 +519,23 @@ class ActivityPlanService
             // The query GET methods will handle duplicates using ROW_NUMBER()
             \Log::warning("Could not cleanup duplicates for plan {$planId}: " . $e->getMessage());
         }
+    }
+    
+    /**
+     * Clear cache for a specific sales internal ID
+     */
+    protected function clearCache($salesInternalId, $date = null)
+    {
+        // Clear all plans cache
+        Cache::forget("activity_plans:all:{$salesInternalId}");
+        
+        // Clear specific date cache if provided
+        if ($date) {
+            Cache::forget("activity_plans:{$salesInternalId}:{$date}");
+        }
+        
+        // Note: For production, consider using cache tags with Redis
+        // which allows pattern-based cache clearing more efficiently
     }
     
 }

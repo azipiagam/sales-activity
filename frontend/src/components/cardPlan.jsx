@@ -1,11 +1,157 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import CircularProgress from '@mui/material/CircularProgress';
+import { format } from 'date-fns';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
-export default function CardPlan() {
+export default function CardPlan({ selectedDate }) {
+  const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate } = useActivityPlans();
+  
+  // Memoize dateToUse to ensure it updates when selectedDate changes
+  const dateToUse = useMemo(() => {
+    if (selectedDate) {
+      // Create a new date object from selectedDate to ensure it's a proper Date object
+      const date = new Date(selectedDate);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, [selectedDate]);
+
+  const dateStr = format(dateToUse, 'yyyy-MM-dd');
+  const loading = isLoading(`date:${dateStr}`);
+  const error = getError(`date:${dateStr}`);
+
+  // Fetch and calculate stats based on selected date
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStats = async () => {
+      try {
+        // Try to get from cache first
+        let data = getPlansByDate(dateToUse);
+        
+        // If not in cache, fetch it
+        if (!data) {
+          data = await fetchPlansByDate(dateToUse);
+        }
+
+        if (isMounted && data) {
+          // Filter out cancelled/deleted status
+          const allTasks = Array.isArray(data) 
+            ? data.filter(task => {
+                const normalizedStatus = (task.status || '').toLowerCase().trim();
+                return normalizedStatus !== 'cancelled' && 
+                       normalizedStatus !== 'cancel' &&
+                       normalizedStatus !== 'deleted';
+              })
+            : [];
+
+          // Calculate stats according to requirements:
+          // Plan = done + in progress + rescheduled (all except cancelled)
+          // Done = done only
+          // More to go = in progress + rescheduled only (without done)
+          const inProgress = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'in progress';
+          }).length;
+          
+          const rescheduled = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'rescheduled';
+          }).length;
+          
+          const done = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'done';
+          }).length;
+
+          const plan = done + inProgress + rescheduled;
+          const more = inProgress + rescheduled;
+
+          console.log(`[CardPlan] Date: ${dateStr}, Stats:`, { 
+            plan, done, more, 
+            inProgress, rescheduled, 
+            totalTasks: allTasks.length 
+          });
+
+          setStats({ plan, done, more });
+        } else if (isMounted) {
+          // No data for this date
+          console.log(`[CardPlan] No data for date: ${dateStr}`);
+          setStats({ plan: 0, done: 0, more: 0 });
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error fetching stats:', err);
+          setStats({ plan: 0, done: 0, more: 0 });
+        }
+      }
+    };
+
+    fetchStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchPlansByDate, getPlansByDate, dateToUse, dateStr]);
+
+  // Update stats when data changes (for the selected date)
+  useEffect(() => {
+    const data = getPlansByDate(dateToUse);
+    if (data) {
+      // Filter out cancelled/deleted status
+      const allTasks = Array.isArray(data) 
+        ? data.filter(task => {
+            const normalizedStatus = (task.status || '').toLowerCase().trim();
+            return normalizedStatus !== 'cancelled' && 
+                   normalizedStatus !== 'cancel' &&
+                   normalizedStatus !== 'deleted';
+          })
+        : [];
+
+      // Calculate stats according to requirements:
+      // Plan = done + in progress + rescheduled (all except cancelled)
+      // Done = done only
+      // More to go = in progress + rescheduled only (without done)
+      const inProgress = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'in progress';
+      }).length;
+      
+      const rescheduled = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'rescheduled';
+      }).length;
+      
+      const done = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'done';
+      }).length;
+
+      const plan = done + inProgress + rescheduled;
+      const more = inProgress + rescheduled;
+
+      console.log(`[CardPlan] Data updated for ${dateStr}:`, { 
+        plan, done, more, 
+        inProgress, rescheduled, 
+        totalTasks: allTasks.length 
+      });
+
+      setStats({ plan, done, more });
+    } else {
+      // No data for this date, reset stats
+      setStats({ plan: 0, done: 0, more: 0 });
+    }
+  }, [getPlansByDate, dateToUse, dateStr, dataByDate]);
+
   return (
     <Box
       sx={{
@@ -89,20 +235,30 @@ export default function CardPlan() {
           >
             Plan
           </Typography>
-          <Typography
-            variant="body2"
-            component="div"
-            sx={{
-              fontWeight: 700,
-              color: '#6BA3D0',
-              textAlign: 'left',
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-              width: '100%',
-              lineHeight: 1,
-            }}
-          >
-            5
-          </Typography>
+          {loading ? (
+            <CircularProgress 
+              size={20} 
+              sx={{ 
+                color: '#6BA3D0',
+                mt: 0.5
+              }} 
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                color: '#6BA3D0',
+                textAlign: 'left',
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                width: '100%',
+                lineHeight: 1,
+              }}
+            >
+              {stats.plan}
+            </Typography>
+          )}
         </Box>
 
         {/* Card Done */}
@@ -164,20 +320,30 @@ export default function CardPlan() {
           >
             Done
           </Typography>
-          <Typography
-            variant="body2"
-            component="div"
-            sx={{
-              fontWeight: 700,
-              color: '#5A9BC8',
-              textAlign: 'left',
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-              width: '100%',
-              lineHeight: 1,
-            }}
-          >
-            12
-          </Typography>
+          {loading ? (
+            <CircularProgress 
+              size={20} 
+              sx={{ 
+                color: '#5A9BC8',
+                mt: 0.5
+              }} 
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                color: '#5A9BC8',
+                textAlign: 'left',
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                width: '100%',
+                lineHeight: 1,
+              }}
+            >
+              {stats.done}
+            </Typography>
+          )}
         </Box>
 
         {/* Card More */}
@@ -239,20 +405,30 @@ export default function CardPlan() {
           >
             More
           </Typography>
-          <Typography
-            variant="body2"
-            component="div"
-            sx={{
-              fontWeight: 700,
-              color: '#4A8BC0',
-              textAlign: 'left',
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-              width: '100%',
-              lineHeight: 1,
-            }}
-          >
-            8
-          </Typography>
+          {loading ? (
+            <CircularProgress 
+              size={20} 
+              sx={{ 
+                color: '#4A8BC0',
+                mt: 0.5
+              }} 
+            />
+          ) : (
+            <Typography
+              variant="body2"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                color: '#4A8BC0',
+                textAlign: 'left',
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                width: '100%',
+                lineHeight: 1,
+              }}
+            >
+              {stats.more}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Box>

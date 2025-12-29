@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { keyframes } from '@mui/system';
+import { parse, format } from 'date-fns';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 const fadeOut = keyframes`
   from {
@@ -27,6 +31,154 @@ const fadeIn = keyframes`
 export default function HistoryList() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const { fetchAllPlans, allPlans, isLoading, getError } = useActivityPlans();
+  
+  const loading = isLoading('all');
+  const error = getError('all');
+
+  // Fetch history data using shared context
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchHistory = async () => {
+      try {
+        // Try to get from cache first
+        let data = allPlans;
+        
+        // If not in cache, fetch it
+        if (!data) {
+          data = await fetchAllPlans();
+        }
+
+        if (!isMounted || !data) {
+          return;
+        }
+
+        // Filter only completed tasks (status = 'done')
+        const completedTasks = Array.isArray(data)
+          ? data.filter(task => task.status === 'done')
+          : [];
+
+        // Process and format history data
+        const processedHistory = completedTasks.map((task, index) => {
+          // Parse plan_date
+          let visitDate = new Date();
+          if (task.plan_date) {
+            visitDate = parse(task.plan_date, 'yyyy-MM-dd', new Date());
+            if (isNaN(visitDate.getTime())) {
+              visitDate = new Date(task.plan_date);
+            }
+          }
+
+          // Parse actual_visit_date if available
+          let actualDate = visitDate;
+          if (task.actual_visit_date) {
+            actualDate = parse(task.actual_visit_date, 'yyyy-MM-dd', new Date());
+            if (isNaN(actualDate.getTime())) {
+              actualDate = new Date(task.actual_visit_date);
+            }
+          }
+
+          // Format tujuan
+          let formattedTujuan = 'Visit';
+          if (task.tujuan) {
+            formattedTujuan = task.tujuan.charAt(0).toUpperCase() + task.tujuan.slice(1).toLowerCase();
+            if (formattedTujuan.toLowerCase() === 'follow up') {
+              formattedTujuan = 'Follow Up';
+            }
+          }
+
+          return {
+            id: task.id || index,
+            title: task.customer_name || 'N/A',
+            date: format(actualDate, 'dd-MM-yyyy'),
+            time: task.actual_visit_time || format(actualDate, 'hh:mm a'),
+            planNo: task.plan_no || 'N/A',
+            tujuan: formattedTujuan,
+            tambahan: task.keterangan_tambahan || '',
+            status: 'done',
+          };
+        });
+
+        // Sort by date descending (newest first)
+        processedHistory.sort((a, b) => {
+          const dateA = parse(a.date, 'dd-MM-yyyy', new Date());
+          const dateB = parse(b.date, 'dd-MM-yyyy', new Date());
+          return dateB - dateA;
+        });
+
+        if (isMounted) {
+          setHistoryData(processedHistory);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error fetching history:', err);
+          setHistoryData([]);
+        }
+      }
+    };
+
+    fetchHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchAllPlans, allPlans]);
+
+  // Update history data when allPlans changes
+  useEffect(() => {
+    if (allPlans) {
+      const completedTasks = Array.isArray(allPlans)
+        ? allPlans.filter(task => task.status === 'done')
+        : [];
+
+      const processedHistory = completedTasks.map((task, index) => {
+        let visitDate = new Date();
+        if (task.plan_date) {
+          visitDate = parse(task.plan_date, 'yyyy-MM-dd', new Date());
+          if (isNaN(visitDate.getTime())) {
+            visitDate = new Date(task.plan_date);
+          }
+        }
+
+        let actualDate = visitDate;
+        if (task.actual_visit_date) {
+          actualDate = parse(task.actual_visit_date, 'yyyy-MM-dd', new Date());
+          if (isNaN(actualDate.getTime())) {
+            actualDate = new Date(task.actual_visit_date);
+          }
+        }
+
+        let formattedTujuan = 'Visit';
+        if (task.tujuan) {
+          formattedTujuan = task.tujuan.charAt(0).toUpperCase() + task.tujuan.slice(1).toLowerCase();
+          if (formattedTujuan.toLowerCase() === 'follow up') {
+            formattedTujuan = 'Follow Up';
+          }
+        }
+
+        return {
+          id: task.id || index,
+          title: task.customer_name || 'N/A',
+          date: format(actualDate, 'dd-MM-yyyy'),
+          time: task.actual_visit_time || format(actualDate, 'hh:mm a'),
+          planNo: task.plan_no || 'N/A',
+          tujuan: formattedTujuan,
+          tambahan: task.keterangan_tambahan || '',
+          status: 'done',
+        };
+      });
+
+      processedHistory.sort((a, b) => {
+        const dateA = parse(a.date, 'dd-MM-yyyy', new Date());
+        const dateB = parse(b.date, 'dd-MM-yyyy', new Date());
+        return dateB - dateA;
+      });
+
+      setHistoryData(processedHistory);
+    }
+  }, [allPlans]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -52,59 +204,6 @@ export default function HistoryList() {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-  // Dummy history data
-  const historyData = [
-    {
-      id: 1,
-      title: 'GOLDEN INDO TEKNIK',
-      date: '18-12-2025',
-      time: '06:00 PM',
-      planNo: 'P0021',
-      tujuan: 'Visit',
-      tambahan: 'Berikan Promosi terbaru webbing sling',
-      status: 'done',
-    },
-    {
-      id: 2,
-      title: 'PT MAKMUR SEJAHTERA',
-      date: '17-12-2025',
-      time: '02:30 PM',
-      planNo: 'P0020',
-      tujuan: 'Follow Up',
-      tambahan: 'Diskusi kontrak baru untuk Q1 2026',
-      status: 'done',
-    },
-    {
-      id: 3,
-      title: 'CV BERKAH ABADI',
-      date: '16-12-2025',
-      time: '10:00 AM',
-      planNo: 'P0019',
-      tujuan: 'Visit',
-      tambahan: 'Presentasi produk chain block terbaru',
-      status: 'done',
-    },
-    {
-      id: 4,
-      title: 'PT SINAR JAYA',
-      date: '15-12-2025',
-      time: '03:45 PM',
-      planNo: 'P0018',
-      tujuan: 'Meeting',
-      tambahan: 'Review order bulanan dan diskon khusus',
-      status: 'done',
-    },
-    {
-      id: 5,
-      title: 'UD MAJU BERSAMA',
-      date: '14-12-2025',
-      time: '11:15 AM',
-      planNo: 'P0017',
-      tujuan: 'Visit',
-      tambahan: 'Survey kebutuhan produk rigging',
-      status: 'done',
-    },
-  ];
 
   return (
     <Container 
@@ -170,14 +269,48 @@ export default function HistoryList() {
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        {historyData.map((item) => (
+      {error && (
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="error" onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        </Box>
+      )}
+
+      {loading ? (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '200px',
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      ) : historyData.length === 0 ? (
+        <Box
+          sx={{
+            backgroundColor: 'white',
+            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+            padding: { xs: 2, sm: 2.5, md: 3 },
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+            textAlign: 'center',
+          }}
+        >
+          <Typography color="text.secondary">
+            Tidak ada history activity
+          </Typography>
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          {historyData.map((item) => (
           <Box
             key={item.id}
             sx={{
@@ -329,8 +462,9 @@ export default function HistoryList() {
               </Typography>
             </Box>
           </Box>
-        ))}
-      </Box>
+          ))}
+        </Box>
+      )}
     </Container>
   );
 }

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import CircularProgress from '@mui/material/CircularProgress';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { keyframes } from '@mui/system';
+import { format } from 'date-fns';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 const fadeOut = keyframes`
   from {
@@ -23,9 +26,138 @@ const fadeIn = keyframes`
   }
 `;
 
-export default function MyTasks() {
+export default function MyTasks({ selectedDate }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
+  const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate } = useActivityPlans();
+  
+  // Use selectedDate if provided, otherwise use today
+  const dateToUse = useMemo(() => {
+    if (selectedDate) {
+      const date = new Date(selectedDate);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [selectedDate]);
+  
+  const dateStr = format(dateToUse, 'yyyy-MM-dd');
+  const loading = isLoading(`date:${dateStr}`);
+  const error = getError(`date:${dateStr}`);
+
+  // Fetch statistics using shared context
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStats = async () => {
+      try {
+        // Try to get from cache first
+        let data = getPlansByDate(dateToUse);
+        
+        // If not in cache, fetch it
+        if (!data) {
+          data = await fetchPlansByDate(dateToUse);
+        }
+
+        if (isMounted && data) {
+          // Filter out cancelled/deleted status
+          const allTasks = Array.isArray(data) 
+            ? data.filter(task => {
+                const normalizedStatus = (task.status || '').toLowerCase().trim();
+                return normalizedStatus !== 'cancelled' && 
+                       normalizedStatus !== 'cancel' &&
+                       normalizedStatus !== 'deleted';
+              })
+            : [];
+
+          // Calculate stats according to requirements:
+          // Plan = done + in progress + rescheduled (all except cancelled)
+          // Done = done only
+          // More to go = in progress + rescheduled only (without done)
+          const inProgress = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'in progress';
+          }).length;
+          
+          const rescheduled = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'rescheduled';
+          }).length;
+          
+          const done = allTasks.filter(t => {
+            const status = (t.status || '').toLowerCase().trim();
+            return status === 'done';
+          }).length;
+
+          const plan = done + inProgress + rescheduled;
+          const more = inProgress + rescheduled;
+
+          setStats({ plan, done, more });
+        } else if (isMounted) {
+          // No data for this date
+          setStats({ plan: 0, done: 0, more: 0 });
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error fetching stats:', err);
+          // Set default values on error
+          setStats({ plan: 0, done: 0, more: 0 });
+        }
+      }
+    };
+
+    fetchStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchPlansByDate, getPlansByDate, dateToUse]);
+
+  // Update stats when data changes - trigger ketika dataByDate berubah
+  useEffect(() => {
+    const data = getPlansByDate(dateToUse);
+    if (data) {
+      // Filter out cancelled/deleted status
+      const allTasks = Array.isArray(data) 
+        ? data.filter(task => {
+            const normalizedStatus = (task.status || '').toLowerCase().trim();
+            return normalizedStatus !== 'cancelled' && 
+                   normalizedStatus !== 'cancel' &&
+                   normalizedStatus !== 'deleted';
+          })
+        : [];
+
+      // Calculate stats according to requirements:
+      // Plan = done + in progress + rescheduled (all except cancelled)
+      // Done = done only
+      // More to go = in progress + rescheduled only (without done)
+      const inProgress = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'in progress';
+      }).length;
+      
+      const rescheduled = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'rescheduled';
+      }).length;
+      
+      const done = allTasks.filter(t => {
+        const status = (t.status || '').toLowerCase().trim();
+        return status === 'done';
+      }).length;
+
+      const plan = done + inProgress + rescheduled;
+      const more = inProgress + rescheduled;
+
+      setStats({ plan, done, more });
+    } else {
+      // No data for this date
+      setStats({ plan: 0, done: 0, more: 0 });
+    }
+  }, [getPlansByDate, dateToUse, dataByDate]); // Tambah dataByDate sebagai dependency
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -56,7 +188,7 @@ export default function MyTasks() {
     <Container 
       maxWidth="md" 
       sx={{ 
-        mt: { xs: 2, sm: 2.5, md: 3 },
+        mt: 0,
         mb: 1,
         px: { xs: 2, sm: 3 },
       }}
@@ -66,6 +198,7 @@ export default function MyTasks() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          mt: { xs: 4.1, sm: 4, md: 4.5 },
           mb: 2,
         }}
       >
@@ -126,7 +259,7 @@ export default function MyTasks() {
         {/* In Progress Card */}
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -149,23 +282,27 @@ export default function MyTasks() {
           >
             Plan
           </Typography>
-          <Typography
-            variant="h4"
-            sx={{
-              color: '#6BA3D0',
-              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-              fontWeight: 700,
-              lineHeight: 1,
-            }}
-          >
-            5
-          </Typography>
+          {loading ? (
+            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+          ) : (
+            <Typography
+              variant="h4"
+              sx={{
+                color: '#6BA3D0',
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {stats.plan}
+            </Typography>
+          )}
         </Box>
 
         {/* Task Completed Card */}
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -188,23 +325,27 @@ export default function MyTasks() {
           >
             Done
           </Typography>
-          <Typography
-            variant="h4"
-            sx={{
-              color: '#6BA3D0',
-              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-              fontWeight: 700,
-              lineHeight: 1,
-            }}
-          >
-            35
-          </Typography>
+          {loading ? (
+            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+          ) : (
+            <Typography
+              variant="h4"
+              sx={{
+                color: '#6BA3D0',
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {stats.done}
+            </Typography>
+          )}
         </Box>
 
         {/* On Review Card */}
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -227,17 +368,21 @@ export default function MyTasks() {
           >
             More To Go
           </Typography>
-          <Typography
-            variant="h4"
-            sx={{
-              color: '#6BA3D0',
-              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-              fontWeight: 700,
-              lineHeight: 1,
-            }}
-          >
-            7
-          </Typography>
+          {loading ? (
+            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+          ) : (
+            <Typography
+              variant="h4"
+              sx={{
+                color: '#6BA3D0',
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {stats.more}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Container>

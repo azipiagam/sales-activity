@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -7,22 +7,30 @@ import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
-export default function DateCarousel() {
+export default function DateCarousel({ selectedDate: propSelectedDate, onDateChange }) {
   const theme = useTheme();
   const primaryColor = '#6BA3D0'; 
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const scrollContainerRef = useRef(null);
+
+  // Sync internal state with prop
+  useEffect(() => {
+    if (propSelectedDate) {
+      setSelectedDate(propSelectedDate);
+    }
+  }, [propSelectedDate]);
 
   const getDates = () => {
     const dates = [];
-    const today = new Date();
+    // Use selectedDate instead of today to get the week containing the selected date
+    const baseDate = selectedDate || new Date();
     
-    const dayOfWeek = today.getDay();
+    const dayOfWeek = baseDate.getDay();
     
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysToMonday);
+    const monday = new Date(baseDate);
+    monday.setDate(baseDate.getDate() - daysToMonday);
     
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
@@ -60,6 +68,9 @@ export default function DateCarousel() {
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
+    if (onDateChange) {
+      onDateChange(date);
+    }
   };
 
   const scrollLeft = () => {
@@ -92,7 +103,7 @@ export default function DateCarousel() {
           gap: 1,
           mb: 0,
           mt: 0,
-          backgroundColor: 'white',
+          backgroundColor: '#FFFFFF',
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           px: { xs: 1, sm: 1.5 },
           py: 1,
@@ -103,7 +114,7 @@ export default function DateCarousel() {
           onClick={scrollLeft}
           sx={{
             color: primaryColor,
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             '&:hover': {
               backgroundColor: alpha(primaryColor, 0.1),
             },
@@ -123,7 +134,7 @@ export default function DateCarousel() {
             maxWidth: 'fit-content',
             overflowX: 'hidden',
             overflowY: 'hidden',
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             py: 0.5,
           }}
         >
@@ -146,7 +157,7 @@ export default function DateCarousel() {
                 justifyContent: 'center',
                 padding: { xs: '6px 3px', sm: '8px 4px', md: '10px 5px' },
                 cursor: 'pointer',
-                backgroundColor: selected ? primaryColor : 'white',
+                backgroundColor: selected ? primaryColor : '#FFFFFF',
                 color: selected ? 'white' : primaryColor,
                 borderRadius: { xs: '8px', sm: '10px', md: '12px' },
                 boxShadow: selected
@@ -196,7 +207,7 @@ export default function DateCarousel() {
           onClick={scrollRight}
           sx={{
             color: primaryColor,
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             '&:hover': {
               backgroundColor: alpha(primaryColor, 0.1),
             },

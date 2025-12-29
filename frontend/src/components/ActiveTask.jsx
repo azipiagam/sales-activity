@@ -1,137 +1,321 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Modal from '@mui/material/Modal';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import EventIcon from '@mui/icons-material/Event';
+import CancelIcon from '@mui/icons-material/Cancel';
+import Tooltip from '@mui/material/Tooltip';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CircularProgress from '@mui/material/CircularProgress';
+import WarningIcon from '@mui/icons-material/Warning';
+import Chip from '@mui/material/Chip';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
 import { apiRequest } from '../config/api';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
-export default function ActiveTask() {
+export default function ActiveTask({ selectedDate }) {
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState(null);
-  const [error, setError] = useState(null);
+  const [activeTasks, setActiveTasks] = useState([]);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
   const [actualVisitDate, setActualVisitDate] = useState(new Date());
   const [newVisitDate, setNewVisitDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
 
-  // Fetch active task data
-  useEffect(() => {
-    const fetchActiveTask = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate } = useActivityPlans();
+  
+  const dateToUse = selectedDate || new Date();
+  const dateStr = format(dateToUse, 'yyyy-MM-dd');
+  const loading = isLoading(`date:${dateStr}`);
+  const error = getError(`date:${dateStr}`);
+
+  const fetchActiveTask = useCallback(async () => {
+    try {
+      // Try to get from cache first
+      let data = getPlansByDate(dateToUse);
+      
+      // If not in cache, fetch it
+      if (!data) {
+        data = await fetchPlansByDate(dateToUse);
+      }
+      
+      const activeTasksData = Array.isArray(data) 
+        ? data.filter(task => {
+            const normalizedStatus = (task.status || '').toLowerCase().trim();
+            return normalizedStatus === 'in progress' || 
+                   normalizedStatus === 'rescheduled' || 
+                   normalizedStatus === 'done' || 
+                   normalizedStatus === 'missed' || 
+                   normalizedStatus === 'deleted';
+          })
+        : [];
+      
+      if (activeTasksData.length > 0) {
+        // Process all active tasks
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        const response = await apiRequest('activity-plans');
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Failed to fetch: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Find first task with status "in progress" or "rescheduled"
-        const activeTaskData = Array.isArray(data) 
-          ? data.find(task => task.status === 'in progress' || task.status === 'rescheduled')
-          : null;
-        
-        if (activeTaskData) {
+        const processedTasks = activeTasksData.map(taskData => {
           // Parse plan_date
           let visitDate = new Date();
-          if (activeTaskData.plan_date) {
-            visitDate = parse(activeTaskData.plan_date, 'yyyy-MM-dd', new Date());
+          if (taskData.plan_date) {
+            visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
             if (isNaN(visitDate.getTime())) {
-              visitDate = new Date(activeTaskData.plan_date);
+              visitDate = new Date(taskData.plan_date);
             }
+          }
+          
+          const taskDate = new Date(visitDate);
+          taskDate.setHours(0, 0, 0, 0);
+          
+          let status = (taskData.status || 'in progress').toLowerCase().trim();
+          if (status !== 'done' && status !== 'deleted' && taskDate < today) {
+            status = 'missed';
           }
           
           // Format tujuan
           let formattedTujuan = 'Visit';
-          if (activeTaskData.tujuan) {
-            formattedTujuan = activeTaskData.tujuan.charAt(0).toUpperCase() + activeTaskData.tujuan.slice(1).toLowerCase();
+          if (taskData.tujuan) {
+            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
             if (formattedTujuan.toLowerCase() === 'follow up') {
               formattedTujuan = 'Follow Up';
             }
           }
           
-          setActiveTask({
-            id: activeTaskData.id,
-            namaCustomer: activeTaskData.customer_name || 'N/A',
-            idPlan: activeTaskData.plan_no || 'N/A',
+          return {
+            id: taskData.id,
+            namaCustomer: taskData.customer_name || 'N/A',
+            idPlan: taskData.plan_no || 'N/A',
             tujuan: formattedTujuan,
-            tambahan: activeTaskData.keterangan_tambahan || '',
+            tambahan: taskData.keterangan_tambahan || '',
             visitDate: visitDate,
-          });
+            status: status,
+          };
+        });
+        
+        processedTasks.sort((a, b) => {
+          const statusPriority = {
+            'deleted': 1,
+            'done': 2,
+            'missed': 3,
+            'rescheduled': 4,
+            'in progress': 5
+          };
+          const aPriority = statusPriority[a.status] || 99;
+          const bPriority = statusPriority[b.status] || 99;
           
-          setActualVisitDate(visitDate);
-          setNewVisitDate(visitDate);
-        } else {
-          setActiveTask(null);
-        }
-      } catch (err) {
-        console.error('Error fetching active task:', err);
-        setError(err.message);
-        setActiveTask(null);
-      } finally {
-        setLoading(false);
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+          }
+          
+          return b.visitDate - a.visitDate;
+        });
+        
+        setActiveTasks(processedTasks);
+      } else {
+        setActiveTasks([]);
       }
+    } catch (err) {
+      console.error('Error fetching active task:', err);
+      setActiveTasks([]);
+    }
+  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate]);
+
+  useEffect(() => {
+    fetchActiveTask();
+  }, [fetchActiveTask]);
+
+  // Also update when data changes in context
+  useEffect(() => {
+    const data = getPlansByDate(dateToUse);
+    if (data) {
+      const activeTasksData = Array.isArray(data) 
+        ? data.filter(task => {
+            const normalizedStatus = (task.status || '').toLowerCase().trim();
+            return normalizedStatus === 'in progress' || 
+                   normalizedStatus === 'rescheduled' || 
+                   normalizedStatus === 'done' || 
+                   normalizedStatus === 'missed' || 
+                   normalizedStatus === 'deleted';
+          })
+        : [];
+      
+      if (activeTasksData.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const processedTasks = activeTasksData.map(taskData => {
+          let visitDate = new Date();
+          if (taskData.plan_date) {
+            visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
+            if (isNaN(visitDate.getTime())) {
+              visitDate = new Date(taskData.plan_date);
+            }
+          }
+          
+          const taskDate = new Date(visitDate);
+          taskDate.setHours(0, 0, 0, 0);
+          
+          let status = (taskData.status || 'in progress').toLowerCase().trim();
+          if (status !== 'done' && status !== 'deleted' && taskDate < today) {
+            status = 'missed';
+          }
+          
+          let formattedTujuan = 'Visit';
+          if (taskData.tujuan) {
+            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
+            if (formattedTujuan.toLowerCase() === 'follow up') {
+              formattedTujuan = 'Follow Up';
+            }
+          }
+          
+          return {
+            id: taskData.id,
+            namaCustomer: taskData.customer_name || 'N/A',
+            idPlan: taskData.plan_no || 'N/A',
+            tujuan: formattedTujuan,
+            tambahan: taskData.keterangan_tambahan || '',
+            visitDate: visitDate,
+            status: status,
+          };
+        });
+        
+        processedTasks.sort((a, b) => {
+          const statusPriority = {
+            'deleted': 1,
+            'done': 2,
+            'missed': 3,
+            'rescheduled': 4,
+            'in progress': 5
+          };
+          const aPriority = statusPriority[a.status] || 99;
+          const bPriority = statusPriority[b.status] || 99;
+          
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+          }
+          
+          return b.visitDate - a.visitDate;
+        });
+        
+        setActiveTasks(processedTasks);
+      } else {
+        setActiveTasks([]);
+      }
+    }
+  }, [getPlansByDate, dateToUse, dataByDate]); // Tambah dataByDate untuk trigger update
+
+  useEffect(() => {
+    const handlePlanCreated = () => {
+      fetchActiveTask();
     };
 
-    fetchActiveTask();
-  }, []);
+    window.addEventListener('activityPlanCreated', handlePlanCreated);
 
-  const handleOpenModal = () => {
+    return () => {
+      window.removeEventListener('activityPlanCreated', handlePlanCreated);
+    };
+  }, [fetchActiveTask]);
+
+  const handleOpenModal = (taskId) => {
+    setCurrentTaskId(taskId);
     setOpenModal(true);
   };
 
   const handleCloseModal = () => {
     setOpenModal(false);
     setResult('');
+    setCurrentTaskId(null);
   };
 
   const handleSaveResult = async () => {
-    if (!result.trim() || !activeTask) return;
+    if (!result.trim() || !currentTaskId) return;
+    
+    const activeTask = activeTasks.find(task => task.id === currentTaskId);
+    if (!activeTask) return;
     
     try {
       setSaving(true);
       
-      // Get GPS location
-      let latitude = 0;
-      let longitude = 0;
+      // Get GPS location (required field according to API)
+      let latitude = null;
+      let longitude = null;
       let accuracy = null;
       
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 10000,
-            });
-          });
-          latitude = position.coords.latitude;
-          longitude = position.coords.longitude;
-          accuracy = position.coords.accuracy;
-        } catch (geoError) {
-          console.warn('GPS error:', geoError);
-        }
+      if (!navigator.geolocation) {
+        throw new Error('GPS tidak tersedia di perangkat ini. Silakan gunakan perangkat yang mendukung GPS.');
       }
       
-      const response = await apiRequest(`activity-plans/${activeTask.id}/done`, {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+        accuracy = position.coords.accuracy;
+      } catch (geoError) {
+        let errorMessage = 'Gagal mendapatkan lokasi GPS. ';
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          errorMessage += 'Izin akses lokasi ditolak. Silakan berikan izin akses lokasi di pengaturan browser.';
+        } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+          errorMessage += 'Lokasi tidak tersedia.';
+        } else if (geoError.code === geoError.TIMEOUT) {
+          errorMessage += 'Waktu tunggu habis. Silakan coba lagi.';
+        } else {
+          errorMessage += 'Silakan coba lagi.';
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Validate GPS coordinates
+      if (latitude === null || longitude === null) {
+        throw new Error('Koordinat GPS tidak valid. Silakan coba lagi.');
+      }
+      
+      // OPTIMISTIC UPDATE: Langsung update UI sebelum API call
+      const resultText = result.trim();
+      updatePlanInCache(currentTaskId, {
+        status: 'done',
+        result: resultText,
+        result_location_lat: latitude,
+        result_location_lng: longitude,
+        result_location_accuracy: accuracy,
+        result_saved_at: new Date().toISOString(),
+      });
+      
+      // Update local state juga untuk immediate feedback
+      setActiveTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === currentTaskId 
+            ? { ...task, status: 'done' }
+            : task
+        )
+      );
+      
+      // Close modal immediately untuk UX yang lebih baik
+      handleCloseModal();
+      setResult('');
+      
+      // API call di background
+      const response = await apiRequest(`activity-plans/${currentTaskId}/done`, {
         method: 'PUT',
         body: JSON.stringify({
-          result: result.trim(),
+          result: resultText,
           latitude,
           longitude,
           accuracy,
@@ -139,17 +323,18 @@ export default function ActiveTask() {
       });
       
       if (!response.ok) {
+        // Jika API gagal, rollback optimistic update
         const errorData = await response.json().catch(() => ({}));
+        invalidateCache(dateToUse);
+        await fetchPlansByDate(dateToUse, true);
         throw new Error(errorData.message || 'Failed to save result');
       }
       
-      // Refresh task list
-      setActiveTask(null);
-      handleCloseModal();
-      setResult('');
-      
-      // Reload to get updated task list
-      window.location.reload();
+      // Refresh data untuk memastikan sync dengan backend (tapi tidak blocking UI)
+      invalidateCache(dateToUse);
+      fetchPlansByDate(dateToUse, true).catch(err => {
+        console.error('Error refreshing after done:', err);
+      });
     } catch (err) {
       console.error('Error saving result:', err);
       alert(`Error: ${err.message}`);
@@ -158,27 +343,53 @@ export default function ActiveTask() {
     }
   };
 
-  const handleOpenRescheduleModal = () => {
-    setOpenRescheduleModal(true);
-    setNewVisitDate(actualVisitDate);
+  const handleOpenRescheduleModal = (taskId) => {
+    const activeTask = activeTasks.find(task => task.id === taskId);
+    if (activeTask) {
+      setCurrentTaskId(taskId);
+      setActualVisitDate(activeTask.visitDate);
+      setNewVisitDate(activeTask.visitDate);
+      setOpenRescheduleModal(true);
+    }
   };
 
   const handleCloseRescheduleModal = () => {
     setOpenRescheduleModal(false);
-    if (activeTask) {
-      setNewVisitDate(activeTask.visitDate);
+    setCurrentTaskId(null);
+    if (currentTaskId) {
+      const activeTask = activeTasks.find(task => task.id === currentTaskId);
+      if (activeTask) {
+        setNewVisitDate(activeTask.visitDate);
+      }
     }
   };
 
   const handleConfirmReschedule = async () => {
-    if (!activeTask || !newVisitDate) return;
+    if (!currentTaskId || !newVisitDate) {
+      alert('Mohon pilih tanggal baru untuk reschedule');
+      return;
+    }
+    
+    const activeTask = activeTasks.find(task => task.id === currentTaskId);
+    if (!activeTask) return;
+    
+    // Validate date >= today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(newVisitDate);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      alert('Tanggal baru harus >= hari ini');
+      return;
+    }
     
     try {
       setSaving(true);
       
       const newDateStr = format(newVisitDate, 'yyyy-MM-dd');
       
-      const response = await apiRequest(`activity-plans/${activeTask.id}/reschedule`, {
+      const response = await apiRequest(`activity-plans/${currentTaskId}/reschedule`, {
         method: 'PUT',
         body: JSON.stringify({
           new_date: newDateStr,
@@ -190,19 +401,14 @@ export default function ActiveTask() {
         throw new Error(errorData.message || 'Failed to reschedule');
       }
       
-      // Update local state
-      setActualVisitDate(newVisitDate);
-      if (activeTask) {
-        setActiveTask({
-          ...activeTask,
-          visitDate: newVisitDate,
-        });
-      }
+      setActiveTasks(prevTasks => prevTasks.filter(task => task.id !== currentTaskId));
       
       handleCloseRescheduleModal();
       
-      // Reload to get updated task list
-      window.location.reload();
+      // Invalidate cache and refresh data after reschedule
+      invalidateCache(dateToUse);
+      await fetchPlansByDate(dateToUse, true);
+      fetchActiveTask();
     } catch (err) {
       console.error('Error rescheduling:', err);
       alert(`Error: ${err.message}`);
@@ -211,12 +417,43 @@ export default function ActiveTask() {
     }
   };
 
-  // Format date and time for display
+  const handleCancelTask = async (taskId) => {
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan task ini?')) {
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      
+      const response = await apiRequest(`activity-plans/${taskId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to cancel task');
+      }
+      
+      // Remove the cancelled task from current list
+      setActiveTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      
+      // Invalidate cache and refresh data after delete
+      invalidateCache(dateToUse);
+      await fetchPlansByDate(dateToUse, true);
+      fetchActiveTask();
+    } catch (err) {
+      console.error('Error canceling task:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Format date for display (without time)
   const formatDateTime = (date) => {
     if (!date) return 'N/A';
     const dateStr = format(date, 'dd-MM-yyyy');
-    const timeStr = format(date, 'hh:mm a');
-    return `${dateStr} ${timeStr}`;
+    return dateStr;
   };
 
   // Show loading state
@@ -252,7 +489,7 @@ export default function ActiveTask() {
       >
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '16px', sm: '18px', md: '20px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
@@ -268,7 +505,7 @@ export default function ActiveTask() {
   }
 
   // Show no active task state
-  if (!activeTask) {
+  if (activeTasks.length === 0) {
     return (
       <Container 
         maxWidth="md" 
@@ -280,7 +517,7 @@ export default function ActiveTask() {
       >
         <Box
           sx={{
-            backgroundColor: 'white',
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '16px', sm: '18px', md: '20px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
@@ -304,104 +541,173 @@ export default function ActiveTask() {
         px: { xs: 2, sm: 3 },
       }}
     >
-      <Box
-        sx={{
-          backgroundColor: 'white',
-          borderRadius: { xs: '16px', sm: '18px', md: '20px' },
-          padding: { xs: 2, sm: 2.5, md: 3 },
-          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-          position: 'relative',
-        }}
-        >
-        {/* Task Title */}
-        <Typography
-          variant="h6"
-          sx={{
-            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-            fontWeight: 700,
-            color: '#333',
-            mb: 2,
-          }}
-        >
-          {activeTask.namaCustomer}
-        </Typography>
-
-        {/* Date and Time */}
+      {activeTasks.map((activeTask, index) => (
         <Box
+          key={activeTask.id}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            mb: 2,
-            gap: 1,
+            backgroundColor: '#FFFFFF',
+            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+            padding: { xs: 2, sm: 2.5, md: 3 },
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+            position: 'relative',
+            mb: index < activeTasks.length - 1 ? 2 : 0,
+            opacity: activeTask.status === 'done' || activeTask.status === 'deleted' ? 0.7 : 1,
           }}
         >
-          <AccessTimeIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.1rem' },
-              color: '#81c784', // Light green color
-            }}
-          />
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-              color: '#999', // Light grey color
-            }}
-          >
-            {formatDateTime(actualVisitDate)}
-          </Typography>
-        </Box>
+          {/* Status Badge */}
+          {activeTask.status === 'done' ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+              }}
+            >
+              <Chip
+                icon={<CheckCircleIcon />}
+                label="Done"
+                sx={{
+                  backgroundColor: '#81c784',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Box>
+          ) : activeTask.status === 'deleted' ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+              }}
+            >
+              <Chip
+                icon={<CancelIcon />}
+                label="Cancel"
+                sx={{
+                  backgroundColor: '#9e9e9e',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Box>
+          ) : activeTask.status === 'missed' ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+              }}
+            >
+              <Chip
+                icon={<WarningIcon />}
+                label="Missed"
+                sx={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Box>
+          ) : activeTask.status === 'rescheduled' ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+              }}
+            >
+              <Chip
+                icon={<EventIcon />}
+                label="Rescheduled"
+                sx={{
+                  backgroundColor: '#ff9800',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: { xs: 16, sm: 20 },
+                right: { xs: 16, sm: 20 },
+              }}
+            >
+              <Chip
+                icon={<PlayCircleIcon />}
+                label="In Progress"
+                sx={{
+                  backgroundColor: '#6BA3D0',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                  },
+                }}
+              />
+            </Box>
+          )}
 
-        {/* Plan No */}
-        <Box sx={{ mb: 2 }}>
+          {/* Task Title */}
           <Typography
-            variant="body2"
+            variant="h6"
             sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-              color: '#999',
-              mb: 0.5,
-            }}
-          >
-            Plan No
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+              fontWeight: 700,
               color: '#333',
-              fontWeight: 600,
+              mb: 2,
+              pr: { xs: 8, sm: 10 },
             }}
           >
-            {activeTask.idPlan}
+            {activeTask.namaCustomer}
           </Typography>
-        </Box>
 
-        {/* Tujuan */}
-        <Box sx={{ mb: 2 }}>
-          <Typography
-            variant="body2"
+          {/* Date and Time */}
+          <Box
             sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-              color: '#999',
-              mb: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              mb: 2,
+              gap: 1,
             }}
           >
-            Tujuan
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              color: '#333',
-              fontWeight: 600,
-            }}
-          >
-            {activeTask.tujuan}
-          </Typography>
-        </Box>
+            <AccessTimeIcon
+              sx={{
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                color: '#81c784', // Light green color
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
+                color: '#999', // Light grey color
+              }}
+            >
+              {formatDateTime(activeTask.visitDate)}
+            </Typography>
+          </Box>
 
-        {/* Tambahan */}
-        {activeTask.tambahan && (
+          {/* Plan No */}
           <Box sx={{ mb: 2 }}>
             <Typography
               variant="body2"
@@ -411,73 +717,147 @@ export default function ActiveTask() {
                 mb: 0.5,
               }}
             >
-              Tambahan
+              Plan No
             </Typography>
             <Typography
               variant="body1"
               sx={{
                 fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#666',
-                lineHeight: 1.6,
+                color: '#333',
+                fontWeight: 600,
               }}
             >
-              {activeTask.tambahan}
+              {activeTask.idPlan}
             </Typography>
           </Box>
-        )}
 
-        {/* Action Buttons */}
-        <Box
-          sx={{
-            display: 'flex',
-            gap: { xs: 1.5, sm: 2 },
-            mt: 3,
-            pt: 2,
-            borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleOpenRescheduleModal}
-            sx={{
-              py: { xs: 1.25, sm: 1.5 },
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
-              borderRadius: { xs: '8px', sm: '10px' },
-              textTransform: 'none',
-              '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
-              },
-            }}
-          >
-            Reschedule
-          </Button>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleOpenModal}
-            sx={{
-              py: { xs: 1.25, sm: 1.5 },
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              fontWeight: 600,
-              backgroundColor: '#6BA3D0',
-              color: 'white',
-              borderRadius: { xs: '8px', sm: '10px' },
-              textTransform: 'none',
-              '&:hover': {
-                backgroundColor: '#5a8fb8',
-                color: 'white',
-              },
-            }}
-          >
-            Done
-          </Button>
+          {/* Tujuan */}
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
+                color: '#999',
+                mb: 0.5,
+              }}
+            >
+              Tujuan
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                color: '#333',
+                fontWeight: 600,
+              }}
+            >
+              {activeTask.tujuan}
+            </Typography>
+          </Box>
+
+          {/* Tambahan */}
+          {activeTask.tambahan && (
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
+                  color: '#999',
+                  mb: 0.5,
+                }}
+              >
+                Tambahan
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  color: '#666',
+                  lineHeight: 1.6,
+                }}
+              >
+                {activeTask.tambahan}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Action Buttons - Only show if status is not "done" or "deleted" */}
+          {activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: { xs: 1, sm: 1.5 },
+                mt: 3,
+                pt: 2,
+                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <Tooltip title="Cancel" arrow>
+                <IconButton
+                  onClick={() => handleCancelTask(activeTask.id)}
+                  disabled={saving}
+                  sx={{
+                    color: '#f44336',
+                    '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.08)',
+                      color: '#d32f2f',
+                    },
+                    '&:disabled': {
+                      color: '#ccc',
+                    },
+                  }}
+                >
+                  <CancelIcon />
+                </IconButton>
+              </Tooltip>
+              {/* Reschedule and Done buttons - only show if status is not "missed" */}
+              {activeTask.status !== 'missed' && (
+                <>
+                  <Tooltip title="Reschedule" arrow>
+                    <IconButton
+                      onClick={() => handleOpenRescheduleModal(activeTask.id)}
+                      disabled={saving}
+                      sx={{
+                        color: '#6BA3D0',
+                        '&:hover': {
+                          backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                          color: '#5a8fb8',
+                        },
+                        '&:disabled': {
+                          color: '#ccc',
+                        },
+                      }}
+                    >
+                      <EventIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Done" arrow>
+                    <IconButton
+                      onClick={() => handleOpenModal(activeTask.id)}
+                      disabled={saving}
+                      sx={{
+                        color: '#6BA3D0',
+                        backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(107, 163, 208, 0.2)',
+                          color: '#5a8fb8',
+                        },
+                        '&:disabled': {
+                          backgroundColor: '#f5f5f5',
+                          color: '#ccc',
+                        },
+                      }}
+                    >
+                      <CheckCircleIcon />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+            </Box>
+          )}
         </Box>
-      </Box>
+      ))}
 
       {/* Result Modal */}
       <Modal
@@ -663,7 +1043,7 @@ export default function ActiveTask() {
           </Box>
 
           {/* Actual Visit Date */}
-          {activeTask && (
+          {currentTaskId && (
             <Box sx={{ mb: 3 }}>
               <Typography
                 variant="body2"
@@ -711,9 +1091,12 @@ export default function ActiveTask() {
               <DatePicker
                 value={newVisitDate}
                 onChange={(newValue) => setNewVisitDate(newValue)}
+                minDate={new Date()}
                 slotProps={{
                   textField: {
                     fullWidth: true,
+                    placeholder: 'Pilih tanggal baru untuk visit',
+                    helperText: 'Tanggal harus >= hari ini',
                     sx: {
                       '& .MuiOutlinedInput-root': {
                         borderRadius: { xs: '8px', sm: '10px' },
