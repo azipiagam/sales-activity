@@ -13,7 +13,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const scrollContainerRef = useRef(null);
 
-  // Sync internal state with prop
   useEffect(() => {
     if (propSelectedDate) {
       setSelectedDate(propSelectedDate);
@@ -22,7 +21,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
 
   const getDates = () => {
     const dates = [];
-    // Use selectedDate instead of today to get the week containing the selected date
     const baseDate = selectedDate || new Date();
     
     const dayOfWeek = baseDate.getDay();

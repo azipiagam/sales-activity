@@ -12,10 +12,8 @@ export default function CardPlan({ selectedDate }) {
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate } = useActivityPlans();
   
-  // Memoize dateToUse to ensure it updates when selectedDate changes
   const dateToUse = useMemo(() => {
     if (selectedDate) {
-      // Create a new date object from selectedDate to ensure it's a proper Date object
       const date = new Date(selectedDate);
       date.setHours(0, 0, 0, 0);
       return date;
@@ -29,22 +27,18 @@ export default function CardPlan({ selectedDate }) {
   const loading = isLoading(`date:${dateStr}`);
   const error = getError(`date:${dateStr}`);
 
-  // Fetch and calculate stats based on selected date
   useEffect(() => {
     let isMounted = true;
 
     const fetchStats = async () => {
       try {
-        // Try to get from cache first
         let data = getPlansByDate(dateToUse);
         
-        // If not in cache, fetch it
         if (!data) {
           data = await fetchPlansByDate(dateToUse);
         }
 
         if (isMounted && data) {
-          // Filter out cancelled/deleted status
           const allTasks = Array.isArray(data) 
             ? data.filter(task => {
                 const normalizedStatus = (task.status || '').toLowerCase().trim();
@@ -54,10 +48,6 @@ export default function CardPlan({ selectedDate }) {
               })
             : [];
 
-          // Calculate stats according to requirements:
-          // Plan = done + in progress + rescheduled (all except cancelled)
-          // Done = done only
-          // More to go = in progress + rescheduled only (without done)
           const inProgress = allTasks.filter(t => {
             const status = (t.status || '').toLowerCase().trim();
             return status === 'in progress';
@@ -84,7 +74,6 @@ export default function CardPlan({ selectedDate }) {
 
           setStats({ plan, done, more });
         } else if (isMounted) {
-          // No data for this date
           console.log(`[CardPlan] No data for date: ${dateStr}`);
           setStats({ plan: 0, done: 0, more: 0 });
         }
@@ -103,11 +92,9 @@ export default function CardPlan({ selectedDate }) {
     };
   }, [fetchPlansByDate, getPlansByDate, dateToUse, dateStr]);
 
-  // Update stats when data changes (for the selected date)
   useEffect(() => {
     const data = getPlansByDate(dateToUse);
     if (data) {
-      // Filter out cancelled/deleted status
       const allTasks = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
@@ -117,10 +104,6 @@ export default function CardPlan({ selectedDate }) {
           })
         : [];
 
-      // Calculate stats according to requirements:
-      // Plan = done + in progress + rescheduled (all except cancelled)
-      // Done = done only
-      // More to go = in progress + rescheduled only (without done)
       const inProgress = allTasks.filter(t => {
         const status = (t.status || '').toLowerCase().trim();
         return status === 'in progress';
@@ -147,7 +130,6 @@ export default function CardPlan({ selectedDate }) {
 
       setStats({ plan, done, more });
     } else {
-      // No data for this date, reset stats
       setStats({ plan: 0, done: 0, more: 0 });
     }
   }, [getPlansByDate, dateToUse, dateStr, dataByDate]);

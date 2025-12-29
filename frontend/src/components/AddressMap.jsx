@@ -37,7 +37,7 @@ const MarkerComponent = ({ lat, lng }) => (
       }}
     />
   </div>
-);
+); 
 
 export default function AddressMap({ address }) {
   const [mapCoordinates, setMapCoordinates] = useState(null);

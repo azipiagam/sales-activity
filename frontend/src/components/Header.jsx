@@ -109,6 +109,14 @@ export default function Header({
             pointerEvents: 'none',
             zIndex: 0,
           },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.08) 100%)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          },
         }}
       >
         <Box
@@ -121,13 +129,21 @@ export default function Header({
             justifyContent: 'space-between',
             px: { xs: 2.5, sm: 3 },
             py: { xs: 1.5, sm: 2 },
-            backgroundColor: 'primary.main',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              background:
+                'radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 60%)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            },
             '&::after': {
               content: '""',
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+                'radial-gradient(ellipse at 80% 50%, rgba(255,255,255,0.08) 0%, transparent 60%)',
               pointerEvents: 'none',
               zIndex: 0,
             },
@@ -333,7 +349,6 @@ export default function Header({
           sx={{
             px: { xs: 2, sm: 3 },
             py: { xs: 1, sm: 1.25 },
-            backgroundColor: 'primary.main',
             position: 'relative',
             '&::before': {
               content: '""',
@@ -342,6 +357,14 @@ export default function Header({
               backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(patternSvg)}")`,
               backgroundRepeat: 'repeat',
               opacity: 0.4,
+              pointerEvents: 'none',
+              zIndex: 0,
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)',
               pointerEvents: 'none',
               zIndex: 0,
             },
