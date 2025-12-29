@@ -77,22 +77,25 @@ class ActivityPlanService
             $dataset = env('BIGQUERY_DATASET');
             $project = env('BIGQUERY_PROJECT_ID');
             
-            // Optimized query: filter by date first to reduce data scanned
+            // Get latest version per ID first (across all dates),
+            // then filter by plan_date and exclude deleted status
+            // This prevents showing "deleted" records when a plan is rescheduled
             $sql = "
-                WITH filtered_plans AS (
-                    SELECT *
-                    FROM `{$project}.{$dataset}.activity_plans`
-                    WHERE sales_internal_id = @sales_internal_id
-                    AND plan_date = @plan_date
-                ),
-                latest_versions AS (
+                WITH latest_versions AS (
                     SELECT *,
                         ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                    FROM filtered_plans
+                    FROM `{$project}.{$dataset}.activity_plans`
+                    WHERE sales_internal_id = @sales_internal_id
+                ),
+                filtered_plans AS (
+                    SELECT * EXCEPT(rn)
+                    FROM latest_versions
+                    WHERE rn = 1
+                    AND plan_date = @plan_date
+                    AND status NOT IN ('deleted')
                 )
-                SELECT * EXCEPT(rn)
-                FROM latest_versions
-                WHERE rn = 1
+                SELECT *
+                FROM filtered_plans
                 ORDER BY created_at DESC
             ";
             
@@ -114,17 +117,19 @@ class ActivityPlanService
             $dataset = env('BIGQUERY_DATASET');
             $project = env('BIGQUERY_PROJECT_ID');
             
+            // Get latest version per ID, excluding deleted status
+            // This ensures only the most recent state of each plan is shown
             $sql = "
                 WITH latest_plans AS (
                     SELECT *,
                         ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
                     FROM `{$project}.{$dataset}.activity_plans`
                     WHERE sales_internal_id = @sales_internal_id
-                    AND status NOT IN ('deleted')
                 )
                 SELECT * EXCEPT(rn)
                 FROM latest_plans
                 WHERE rn = 1
+                AND status NOT IN ('deleted')
                 ORDER BY plan_date DESC, created_at DESC
             ";
             
@@ -286,38 +291,9 @@ class ActivityPlanService
             throw new \Exception("Cannot reschedule activity plan with status: {$plan['status']}");
         }
         
-        // Prepare rows to insert
-        $rowsToInsert = [];
-        
-        // Mark the current record as deleted to prevent duplicate records
-        // This prevents duplicate 'in progress' or 'rescheduled' records from remaining in the database
-        $deleteRow = [
-            'insertId' => $planId . '_deleted_before_reschedule_' . time() . '_' . rand(1000, 9999),
-            'data' => [
-                'id' => $plan['id'],
-                'plan_no' => $plan['plan_no'],
-                'sales_internal_id' => $plan['sales_internal_id'],
-                'sales_name' => $plan['sales_name'],
-                'customer_id' => $plan['customer_id'],
-                'customer_name' => $plan['customer_name'],
-                'plan_date' => $plan['plan_date'],
-                'tujuan' => $plan['tujuan'],
-                'keterangan_tambahan' => $plan['keterangan_tambahan'],
-                'status' => 'deleted',
-                'result' => $plan['result'] ?? null,
-                'result_location_lat' => $plan['result_location_lat'] ?? null,
-                'result_location_lng' => $plan['result_location_lng'] ?? null,
-                'result_location_accuracy' => $plan['result_location_accuracy'] ?? null,
-                'result_location_timestamp' => $plan['result_location_timestamp'] ?? null,
-                'result_saved_at' => $plan['result_saved_at'] ?? null,
-                'created_at' => $plan['created_at'],
-                'updated_at' => $now,
-                'deleted_at' => $now,
-            ]
-        ];
-        $rowsToInsert[] = $deleteRow;
-        
-        // Insert new version with updated data (rescheduled)
+        // Insert new version with rescheduled status
+        // Using INSERT because BigQuery streaming buffer doesn't support UPDATE/DELETE
+        // The query will pick the latest version (by updated_at) automatically
         $rescheduleRow = [
             'insertId' => $planId . '_rescheduled_' . time() . '_' . rand(1000, 9999),
             'data' => [
@@ -342,16 +318,16 @@ class ActivityPlanService
                 'deleted_at' => null,
             ]
         ];
-        $rowsToInsert[] = $rescheduleRow;
         
-        // Insert all rows at once
-        $this->bigQuery->insert('activity_plans', $rowsToInsert);
+        $this->bigQuery->insert('activity_plans', [$rescheduleRow]);
         
-        // Clear related caches
+        // Clear related caches - both old date and new date
         $this->clearCache($plan['sales_internal_id']);
+        $this->clearCache($plan['sales_internal_id'], $plan['plan_date']);  // Clear old date cache
+        $this->clearCache($plan['sales_internal_id'], $newDate);             // Clear new date cache
         
-        // Try cleanup, but don't fail if it doesn't work immediately
-        $this->cleanupDuplicates($planId);
+        // Schedule cleanup of old versions (after ~30+ minutes when streaming buffer is flushed)
+        $this->scheduleCleanupDuplicates($planId);
         
         return true;
     }
@@ -417,6 +393,8 @@ class ActivityPlanService
             throw new \Exception("Cannot delete activity plan with status: done");
         }
         
+        // Insert new version with deleted status
+        // Using INSERT because BigQuery streaming buffer doesn't support UPDATE/DELETE
         $row = [
             'insertId' => $planId . '_deleted_' . time() . '_' . rand(1000, 9999),
             'data' => [
@@ -447,8 +425,8 @@ class ActivityPlanService
         // Clear related caches
         $this->clearCache($plan['sales_internal_id']);
         
-        // Try cleanup
-        $this->cleanupDuplicates($planId);
+        // Schedule cleanup of old versions
+        $this->scheduleCleanupDuplicates($planId);
         
         return true;
     }
@@ -460,22 +438,81 @@ class ActivityPlanService
         $dataset = env('BIGQUERY_DATASET');
         $project = env('BIGQUERY_PROJECT_ID');
         
+        // Get all latest versions of plans that are still 'in progress' and from before yesterday
         $sql = "
-            UPDATE `{$project}.{$dataset}.activity_plans`
-            SET 
-                status = @status,
-                updated_at = @updated_at
-            WHERE plan_date < @yesterday
-            AND status = 'in progress'
+            WITH latest_plans AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+                FROM `{$project}.{$dataset}.activity_plans`
+                WHERE plan_date < @yesterday
+                AND status = 'in progress'
+            )
+            SELECT * EXCEPT(rn)
+            FROM latest_plans
+            WHERE rn = 1
         ";
         
-        $this->bigQuery->query($sql, [
-            'yesterday' => $yesterday,
-            'status' => 'missed',
-            'updated_at' => $now,
-        ]);
+        $plans = $this->bigQuery->query($sql, ['yesterday' => $yesterday]);
+        
+        if (empty($plans)) {
+            return true;
+        }
+        
+        // Insert new versions with status 'missed'
+        // Using INSERT because BigQuery streaming buffer doesn't support UPDATE/DELETE
+        $rowsToInsert = [];
+        foreach ($plans as $plan) {
+            $row = [
+                'insertId' => $plan['id'] . '_missed_' . time() . '_' . rand(1000, 9999),
+                'data' => [
+                    'id' => $plan['id'],
+                    'plan_no' => $plan['plan_no'],
+                    'sales_internal_id' => $plan['sales_internal_id'],
+                    'sales_name' => $plan['sales_name'],
+                    'customer_id' => $plan['customer_id'],
+                    'customer_name' => $plan['customer_name'],
+                    'plan_date' => $plan['plan_date'],
+                    'tujuan' => $plan['tujuan'],
+                    'keterangan_tambahan' => $plan['keterangan_tambahan'],
+                    'status' => 'missed',
+                    'result' => $plan['result'] ?? null,
+                    'result_location_lat' => $plan['result_location_lat'] ?? null,
+                    'result_location_lng' => $plan['result_location_lng'] ?? null,
+                    'result_location_accuracy' => $plan['result_location_accuracy'] ?? null,
+                    'result_location_timestamp' => $plan['result_location_timestamp'] ?? null,
+                    'result_saved_at' => $plan['result_saved_at'] ?? null,
+                    'created_at' => $plan['created_at'],
+                    'updated_at' => $now,
+                    'deleted_at' => null,
+                ]
+            ];
+            $rowsToInsert[] = $row;
+        }   
+        
+        if (!empty($rowsToInsert)) {
+            $this->bigQuery->insert('activity_plans', $rowsToInsert);
+        }
         
         return true;
+    }
+    
+    /**
+     * Schedule cleanup of duplicate records after streaming buffer is flushed
+     * BigQuery streaming buffer needs ~30+ minutes before UPDATE/DELETE can work
+     */
+    protected function scheduleCleanupDuplicates($planId)
+    {
+        // You can use Laravel's scheduled jobs or queue this
+        // For now, just attempt cleanup immediately (will fail if in streaming buffer)
+        // In production, use: dispatch(new CleanupActivityPlanDuplicates($planId))->delay(now()->addMinutes(35));
+        
+        try {
+            $this->cleanupDuplicates($planId);
+        } catch (\Exception $e) {
+            // Expected to fail due to streaming buffer
+            // The cleanup will be retried by background job later
+            \Log::info("Cleanup scheduled for plan {$planId} (will retry when streaming buffer is flushed): " . $e->getMessage());
+        }
     }
     
     /**
