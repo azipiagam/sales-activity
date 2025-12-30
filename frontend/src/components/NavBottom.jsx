@@ -55,7 +55,7 @@ export default function NavBottom({ value, onChange }) {
               minWidth: 'auto',
               padding: '6px 12px',
               '&.Mui-selected': {
-                color: '#6BA3D0',
+                color: '#4e8ec2',
                 backgroundColor: 'rgba(107, 163, 208, 0.1)',
                 borderRadius: '12px',
               },
@@ -100,7 +100,7 @@ export default function NavBottom({ value, onChange }) {
             position: 'absolute',
             bottom: 20,
             left: { xs: 'calc(50% - 28px)', sm: 'calc(50% - 30px)' },
-            backgroundColor: '#6BA3D0',
+            backgroundColor: '#4e8ec2',
             color: 'white',
             width: { xs: 56, sm: 60 },
             height: { xs: 56, sm: 60 },

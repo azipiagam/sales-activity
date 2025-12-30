@@ -43,10 +43,8 @@ export default function HistoryList() {
 
     const fetchHistory = async () => {
       try {
-        // Try to get from cache first
         let data = allPlans;
         
-        // If not in cache, fetch it
         if (!data) {
           data = await fetchAllPlans();
         }
@@ -55,14 +53,11 @@ export default function HistoryList() {
           return;
         }
 
-        // Filter only completed tasks (status = 'done')
         const completedTasks = Array.isArray(data)
           ? data.filter(task => task.status === 'done')
           : [];
 
-        // Process and format history data
         const processedHistory = completedTasks.map((task, index) => {
-          // Parse plan_date
           let visitDate = new Date();
           if (task.plan_date) {
             visitDate = parse(task.plan_date, 'yyyy-MM-dd', new Date());
@@ -71,7 +66,6 @@ export default function HistoryList() {
             }
           }
 
-          // Parse actual_visit_date if available
           let actualDate = visitDate;
           if (task.actual_visit_date) {
             actualDate = parse(task.actual_visit_date, 'yyyy-MM-dd', new Date());
@@ -80,7 +74,6 @@ export default function HistoryList() {
             }
           }
 
-          // Format tujuan
           let formattedTujuan = 'Visit';
           if (task.tujuan) {
             formattedTujuan = task.tujuan.charAt(0).toUpperCase() + task.tujuan.slice(1).toLowerCase();
@@ -101,7 +94,6 @@ export default function HistoryList() {
           };
         });
 
-        // Sort by date descending (newest first)
         processedHistory.sort((a, b) => {
           const dateA = parse(a.date, 'dd-MM-yyyy', new Date());
           const dateB = parse(b.date, 'dd-MM-yyyy', new Date());
@@ -126,7 +118,6 @@ export default function HistoryList() {
     };
   }, [fetchAllPlans, allPlans]);
 
-  // Update history data when allPlans changes
   useEffect(() => {
     if (allPlans) {
       const completedTasks = Array.isArray(allPlans)

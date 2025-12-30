@@ -4,13 +4,13 @@ import Typography from '@mui/material/Typography';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import CircularProgress from '@mui/material/CircularProgress';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import LoadingScreen from './LoadingScreen';
 
 export default function CardPlan({ selectedDate }) {
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate } = useActivityPlans();
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
   
   const dateToUse = useMemo(() => {
     if (selectedDate) {
@@ -26,6 +26,11 @@ export default function CardPlan({ selectedDate }) {
   const dateStr = format(dateToUse, 'yyyy-MM-dd');
   const loading = isLoading(`date:${dateStr}`);
   const error = getError(`date:${dateStr}`);
+
+  // Show loading screen when loading
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -160,9 +165,10 @@ export default function CardPlan({ selectedDate }) {
       >
         {/* Card Plan */}
         <Box
+          onClick={() => setSelectedFilter('plan')}
           sx={{
             flex: 1,
-            backgroundColor: 'white',
+            backgroundColor: selectedFilter === 'plan' ? 'rgba(107, 163, 208, 0.08)' : 'white',
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
             padding: { xs: 1.5, sm: 2, md: 2.5 },
             minHeight: { xs: '70px', sm: '80px', md: '90px' },
@@ -172,10 +178,16 @@ export default function CardPlan({ selectedDate }) {
             alignItems: 'flex-start',
             position: 'relative',
             overflow: 'hidden',
-            border: '1px solid rgba(107, 163, 208, 0.2)',
-            transition: 'border-bottom 0.2s ease',
+            border: selectedFilter === 'plan' 
+              ? '2px solid #4e8ec2' 
+              : '1px solid rgba(107, 163, 208, 0.2)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
             '&:hover': {
-              borderBottom: '1px solid #6BA3D0',
+              borderBottom: '2px solid #4e8ec2',
+              backgroundColor: selectedFilter === 'plan' 
+                ? 'rgba(107, 163, 208, 0.12)' 
+                : 'rgba(107, 163, 208, 0.05)',
             },
           }}
         >
@@ -217,37 +229,28 @@ export default function CardPlan({ selectedDate }) {
           >
             Plan
           </Typography>
-          {loading ? (
-            <CircularProgress 
-              size={20} 
-              sx={{ 
-                color: '#6BA3D0',
-                mt: 0.5
-              }} 
-            />
-          ) : (
-            <Typography
-              variant="body2"
-              component="div"
-              sx={{
-                fontWeight: 700,
-                color: '#6BA3D0',
-                textAlign: 'left',
-                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-                width: '100%',
-                lineHeight: 1,
-              }}
-            >
-              {stats.plan}
-            </Typography>
-          )}
+          <Typography
+            variant="body2"
+            component="div"
+            sx={{
+              fontWeight: 700,
+              color: '#6BA3D0',
+              textAlign: 'left',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+              width: '100%',
+              lineHeight: 1,
+            }}
+          >
+            {stats.plan}
+          </Typography>
         </Box>
 
         {/* Card Done */}
         <Box
+          onClick={() => setSelectedFilter('done')}
           sx={{
             flex: 1,
-            backgroundColor: 'white',
+            backgroundColor: selectedFilter === 'done' ? 'rgba(90, 155, 200, 0.08)' : 'white',
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
             padding: { xs: 1.5, sm: 2, md: 2.5 },
             minHeight: { xs: '70px', sm: '80px', md: '90px' },
@@ -257,10 +260,16 @@ export default function CardPlan({ selectedDate }) {
             alignItems: 'flex-start',
             position: 'relative',
             overflow: 'hidden',
-            border: '1px solid rgba(107, 163, 208, 0.2)',
-            transition: 'border-bottom 0.2s ease',
+            border: selectedFilter === 'done' 
+              ? '2px solid #5A9BC8' 
+              : '1px solid rgba(107, 163, 208, 0.2)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
             '&:hover': {
-              borderBottom: '1px solid #5A9BC8',
+              borderBottom: '2px solid #5A9BC8',
+              backgroundColor: selectedFilter === 'done' 
+                ? 'rgba(90, 155, 200, 0.12)' 
+                : 'rgba(90, 155, 200, 0.05)',
             },
           }}
         >
@@ -302,37 +311,28 @@ export default function CardPlan({ selectedDate }) {
           >
             Done
           </Typography>
-          {loading ? (
-            <CircularProgress 
-              size={20} 
-              sx={{ 
-                color: '#5A9BC8',
-                mt: 0.5
-              }} 
-            />
-          ) : (
-            <Typography
-              variant="body2"
-              component="div"
-              sx={{
-                fontWeight: 700,
-                color: '#5A9BC8',
-                textAlign: 'left',
-                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-                width: '100%',
-                lineHeight: 1,
-              }}
-            >
-              {stats.done}
-            </Typography>
-          )}
+          <Typography
+            variant="body2"
+            component="div"
+            sx={{
+              fontWeight: 700,
+              color: '#5A9BC8',
+              textAlign: 'left',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+              width: '100%',
+              lineHeight: 1,
+            }}
+          >
+            {stats.done}
+          </Typography>
         </Box>
 
         {/* Card More */}
         <Box
+          onClick={() => setSelectedFilter('more')}
           sx={{
             flex: 1,
-            backgroundColor: 'white',
+            backgroundColor: selectedFilter === 'more' ? 'rgba(74, 139, 192, 0.08)' : 'white',
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
             padding: { xs: 1.5, sm: 2, md: 2.5 },
             minHeight: { xs: '70px', sm: '80px', md: '90px' },
@@ -342,10 +342,16 @@ export default function CardPlan({ selectedDate }) {
             alignItems: 'flex-start',
             position: 'relative',
             overflow: 'hidden',
-            border: '1px solid rgba(107, 163, 208, 0.2)',
-            transition: 'border-bottom 0.2s ease',
+            border: selectedFilter === 'more' 
+              ? '2px solid #4A8BC0' 
+              : '1px solid rgba(107, 163, 208, 0.2)',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
             '&:hover': {
-              borderBottom: '1px solid #4A8BC0',
+              borderBottom: '2px solid #4A8BC0',
+              backgroundColor: selectedFilter === 'more' 
+                ? 'rgba(74, 139, 192, 0.12)' 
+                : 'rgba(74, 139, 192, 0.05)',
             },
           }}
         >
@@ -387,30 +393,20 @@ export default function CardPlan({ selectedDate }) {
           >
             More
           </Typography>
-          {loading ? (
-            <CircularProgress 
-              size={20} 
-              sx={{ 
-                color: '#4A8BC0',
-                mt: 0.5
-              }} 
-            />
-          ) : (
-            <Typography
-              variant="body2"
-              component="div"
-              sx={{
-                fontWeight: 700,
-                color: '#4A8BC0',
-                textAlign: 'left',
-                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-                width: '100%',
-                lineHeight: 1,
-              }}
-            >
-              {stats.more}
-            </Typography>
-          )}
+          <Typography
+            variant="body2"
+            component="div"
+            sx={{
+              fontWeight: 700,
+              color: '#4A8BC0',
+              textAlign: 'left',
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+              width: '100%',
+              lineHeight: 1,
+            }}
+          >
+            {stats.more}
+          </Typography>
         </Box>
       </Box>
     </Box>

@@ -45,7 +45,7 @@ export default function AddressMap({ address }) {
   const [geocodingError, setGeocodingError] = useState(null);
   
   const GOOGLE_MAPS_API_KEY = useMemo(() => import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '', []);
-
+  
   const getGoogleMapsEmbedUrl = useCallback((address) => {
     if (!address || !address.trim()) return '';
     const encodedAddress = encodeURIComponent(address);

@@ -15,13 +15,22 @@ import Tooltip from '@mui/material/Tooltip';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
+import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import Chip from '@mui/material/Chip';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
 import { apiRequest } from '../config/api';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import LoadingScreen from './LoadingScreen';
+import Lottie from 'lottie-react';
+import emptyBoxAnimation from '../media/Empty Box (3).json';
 
 export default function ActiveTask({ selectedDate }) {
   const [openModal, setOpenModal] = useState(false);
@@ -32,8 +41,10 @@ export default function ActiveTask({ selectedDate }) {
   const [actualVisitDate, setActualVisitDate] = useState(new Date());
   const [newVisitDate, setNewVisitDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuTaskId, setMenuTaskId] = useState(null);
 
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate } = useActivityPlans();
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
   
   const dateToUse = selectedDate || new Date();
   const dateStr = format(dateToUse, 'yyyy-MM-dd');
@@ -42,32 +53,63 @@ export default function ActiveTask({ selectedDate }) {
 
   const fetchActiveTask = useCallback(async () => {
     try {
-      // Try to get from cache first
       let data = getPlansByDate(dateToUse);
       
-      // If not in cache, fetch it
       if (!data) {
         data = await fetchPlansByDate(dateToUse);
       }
       
+      console.log('[ActiveTask] fetchActiveTask - Raw data:', {
+        date: dateStr,
+        dataLength: Array.isArray(data) ? data.length : 0,
+        data: Array.isArray(data) ? data.map(t => ({
+          id: t.id,
+          plan_no: t.plan_no,
+          status: t.status,
+          plan_date: t.plan_date
+        })) : null
+      });
+      
       const activeTasksData = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
-            return normalizedStatus === 'in progress' || 
+            const shouldInclude = normalizedStatus === 'in progress' || 
                    normalizedStatus === 'rescheduled' || 
                    normalizedStatus === 'done' || 
                    normalizedStatus === 'missed' || 
                    normalizedStatus === 'deleted';
+            
+            if (normalizedStatus === 'in progress') {
+              console.log('[ActiveTask] In progress task found:', {
+                id: task.id,
+                plan_no: task.plan_no,
+                plan_date: task.plan_date,
+                status: normalizedStatus,
+                shouldInclude
+              });
+            }
+            
+            return shouldInclude;
           })
         : [];
       
+      console.log('[ActiveTask] Filtered activeTasksData:', {
+        count: activeTasksData.length,
+        tasks: activeTasksData.map(t => ({
+          id: t.id,
+          plan_no: t.plan_no,
+          status: t.status,
+          plan_date: t.plan_date
+        }))
+      });
+      
       if (activeTasksData.length > 0) {
-        // Process all active tasks
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const todayStr = format(today, 'yyyy-MM-dd');
+        
+        console.log('[ActiveTask] Date comparison - todayStr:', todayStr);
         
         const processedTasks = activeTasksData.map(taskData => {
-          // Parse plan_date
           let visitDate = new Date();
           if (taskData.plan_date) {
             visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
@@ -76,12 +118,21 @@ export default function ActiveTask({ selectedDate }) {
             }
           }
           
-          const taskDate = new Date(visitDate);
-          taskDate.setHours(0, 0, 0, 0);
+          const taskDateStr = format(visitDate, 'yyyy-MM-dd');
           
           let status = (taskData.status || 'in progress').toLowerCase().trim();
-          if (status !== 'done' && status !== 'deleted' && taskDate < today) {
+          const originalStatus = status;
+          
+          if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
             status = 'missed';
+            console.log('[ActiveTask] Status changed to missed:', {
+              id: taskData.id,
+              plan_no: taskData.plan_no,
+              originalStatus,
+              newStatus: status,
+              taskDateStr,
+              todayStr
+            });
           }
           
           // Format tujuan
@@ -104,7 +155,25 @@ export default function ActiveTask({ selectedDate }) {
           };
         });
         
-        processedTasks.sort((a, b) => {
+        // Filter tasks based on selectedFilter
+        let filteredTasks = processedTasks;
+        if (selectedFilter === 'done') {
+          filteredTasks = processedTasks.filter(t => t.status === 'done');
+        } else if (selectedFilter === 'more') {
+          filteredTasks = processedTasks.filter(t => 
+            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
+          );
+        } else if (selectedFilter === 'plan') {
+          // Show all (done + in progress + rescheduled + missed)
+          filteredTasks = processedTasks.filter(t => 
+            t.status === 'done' || 
+            t.status === 'in progress' || 
+            t.status === 'rescheduled' || 
+            t.status === 'missed'
+          );
+        }
+        
+        filteredTasks.sort((a, b) => {
           const statusPriority = {
             'deleted': 1,
             'done': 2,
@@ -122,7 +191,19 @@ export default function ActiveTask({ selectedDate }) {
           return b.visitDate - a.visitDate;
         });
         
-        setActiveTasks(processedTasks);
+        console.log('[ActiveTask] Final processedTasks (fetchActiveTask):', {
+          count: filteredTasks.length,
+          selectedFilter,
+          tasks: filteredTasks.map(t => ({
+            id: t.id,
+            plan_no: t.idPlan,
+            status: t.status,
+            visitDate: format(t.visitDate, 'yyyy-MM-dd')
+          })),
+          todayStr: format(new Date(), 'yyyy-MM-dd')
+        });
+        
+        setActiveTasks(filteredTasks);
       } else {
         setActiveTasks([]);
       }
@@ -130,7 +211,7 @@ export default function ActiveTask({ selectedDate }) {
       console.error('Error fetching active task:', err);
       setActiveTasks([]);
     }
-  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate]);
+  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter]);
 
   useEffect(() => {
     fetchActiveTask();
@@ -152,8 +233,9 @@ export default function ActiveTask({ selectedDate }) {
         : [];
       
       if (activeTasksData.length > 0) {
+        // Use string date comparison to avoid timezone issues between desktop and mobile
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const todayStr = format(today, 'yyyy-MM-dd');
         
         const processedTasks = activeTasksData.map(taskData => {
           let visitDate = new Date();
@@ -164,11 +246,16 @@ export default function ActiveTask({ selectedDate }) {
             }
           }
           
-          const taskDate = new Date(visitDate);
-          taskDate.setHours(0, 0, 0, 0);
+          // Use string comparison for date to avoid timezone issues
+          const taskDateStr = format(visitDate, 'yyyy-MM-dd');
           
           let status = (taskData.status || 'in progress').toLowerCase().trim();
-          if (status !== 'done' && status !== 'deleted' && taskDate < today) {
+          const originalStatus = status;
+          
+          // Only mark as missed if status is actually "in progress" or "rescheduled" and date has passed
+          // Don't change status if it's already "done" or "deleted"
+          // Use string comparison to avoid timezone issues between desktop and mobile
+          if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
             status = 'missed';
           }
           
@@ -191,7 +278,25 @@ export default function ActiveTask({ selectedDate }) {
           };
         });
         
-        processedTasks.sort((a, b) => {
+        // Filter tasks based on selectedFilter
+        let filteredTasks = processedTasks;
+        if (selectedFilter === 'done') {
+          filteredTasks = processedTasks.filter(t => t.status === 'done');
+        } else if (selectedFilter === 'more') {
+          filteredTasks = processedTasks.filter(t => 
+            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
+          );
+        } else if (selectedFilter === 'plan') {
+          // Show all (done + in progress + rescheduled + missed)
+          filteredTasks = processedTasks.filter(t => 
+            t.status === 'done' || 
+            t.status === 'in progress' || 
+            t.status === 'rescheduled' || 
+            t.status === 'missed'
+          );
+        }
+        
+        filteredTasks.sort((a, b) => {
           const statusPriority = {
             'deleted': 1,
             'done': 2,
@@ -209,12 +314,12 @@ export default function ActiveTask({ selectedDate }) {
           return b.visitDate - a.visitDate;
         });
         
-        setActiveTasks(processedTasks);
+        setActiveTasks(filteredTasks);
       } else {
         setActiveTasks([]);
       }
     }
-  }, [getPlansByDate, dateToUse, dataByDate]); // Tambah dataByDate untuk trigger update
+  }, [getPlansByDate, dateToUse, dataByDate, selectedFilter]); // Tambah dataByDate dan selectedFilter untuk trigger update
 
   useEffect(() => {
     const handlePlanCreated = () => {
@@ -237,6 +342,26 @@ export default function ActiveTask({ selectedDate }) {
     setOpenModal(false);
     setResult('');
     setCurrentTaskId(null);
+  };
+
+  const handleOpenMenu = (event, taskId) => {
+    setMenuAnchor(event.currentTarget);
+    setMenuTaskId(taskId);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchor(null);
+    setMenuTaskId(null);
+  };
+
+  const handleMenuCancel = (taskId) => {
+    handleCloseMenu();
+    handleCancelTask(taskId);
+  };
+
+  const handleMenuReschedule = (taskId) => {
+    handleCloseMenu();
+    handleOpenRescheduleModal(taskId);
   };
 
   const handleSaveResult = async () => {
@@ -458,22 +583,7 @@ export default function ActiveTask({ selectedDate }) {
 
   // Show loading state
   if (loading) {
-    return (
-      <Container 
-        maxWidth="md" 
-        sx={{ 
-          mt: 2,
-          mb: 2,
-          px: { xs: 2, sm: 3 },
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '200px',
-        }}
-      >
-        <CircularProgress />
-      </Container>
-    );
+    return <LoadingScreen />;
   }
 
   // Show error state
@@ -513,19 +623,50 @@ export default function ActiveTask({ selectedDate }) {
           mt: 2,
           mb: 2,
           px: { xs: 2, sm: 3 },
+          minHeight: { xs: 'calc(100vh - 500px)', sm: 'calc(100vh - 450px)', md: 'calc(100vh - 400px)' },
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <Box
           sx={{
             backgroundColor: '#FFFFFF',
             borderRadius: { xs: '16px', sm: '18px', md: '20px' },
-            padding: { xs: 2, sm: 2.5, md: 3 },
+            padding: { xs: 3, sm: 4, md: 5 },
             boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
             textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            flex: 1,
+            minHeight: { xs: '200px', sm: '250px', md: '300px' },
           }}
         >
-          <Typography color="text.secondary">
-            Tidak ada active task saat ini
+          <Box
+            sx={{
+              width: { xs: '200px', sm: '250px', md: '300px' },
+              height: { xs: '200px', sm: '250px', md: '300px' },
+              mb: 2,
+            }}
+          >
+            <Lottie
+              animationData={emptyBoxAnimation}
+              loop={true}
+            />
+          </Box>
+          <Typography 
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
+            }}
+          >
+            {selectedFilter === 'done' 
+              ? 'Tidak ada task yang sudah selesai' 
+              : selectedFilter === 'more' 
+              ? 'Tidak ada task yang perlu dikerjakan' 
+              : 'Tidak ada active task saat ini'}
           </Typography>
         </Box>
       </Container>
@@ -546,125 +687,36 @@ export default function ActiveTask({ selectedDate }) {
           key={activeTask.id}
           sx={{
             backgroundColor: '#FFFFFF',
-            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
-            padding: { xs: 2, sm: 2.5, md: 3 },
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+            borderRadius: { xs: '8px', sm: '10px', md: '12px' },
+            padding: { xs: 1.5, sm: 2, md: 2.5 },
+            border: '1px solid rgba(107, 163, 208, 0.2)',
             position: 'relative',
             mb: index < activeTasks.length - 1 ? 2 : 0,
             opacity: activeTask.status === 'done' || activeTask.status === 'deleted' ? 0.7 : 1,
+            transition: 'border-bottom 0.2s ease',
+            '&:hover': {
+              borderBottom: '1px solid #6BA3D0',
+            },
           }}
         >
-          {/* Status Badge */}
-          {activeTask.status === 'done' ? (
-            <Box
+          {/* Menu Button - Only show if status is not "done" or "deleted" */}
+          {activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
+            <IconButton
+              onClick={(e) => handleOpenMenu(e, activeTask.id)}
               sx={{
                 position: 'absolute',
-                top: { xs: 16, sm: 20 },
-                right: { xs: 16, sm: 20 },
+                top: { xs: 8, sm: 12 },
+                right: { xs: 8, sm: 12 },
+                color: '#666',
+                zIndex: 10,
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                  color: '#333',
+                },
               }}
             >
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Done"
-                sx={{
-                  backgroundColor: '#81c784',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
-            </Box>
-          ) : activeTask.status === 'deleted' ? (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: { xs: 16, sm: 20 },
-                right: { xs: 16, sm: 20 },
-              }}
-            >
-              <Chip
-                icon={<CancelIcon />}
-                label="Cancel"
-                sx={{
-                  backgroundColor: '#9e9e9e',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
-            </Box>
-          ) : activeTask.status === 'missed' ? (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: { xs: 16, sm: 20 },
-                right: { xs: 16, sm: 20 },
-              }}
-            >
-              <Chip
-                icon={<WarningIcon />}
-                label="Missed"
-                sx={{
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
-            </Box>
-          ) : activeTask.status === 'rescheduled' ? (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: { xs: 16, sm: 20 },
-                right: { xs: 16, sm: 20 },
-              }}
-            >
-              <Chip
-                icon={<EventIcon />}
-                label="Rescheduled"
-                sx={{
-                  backgroundColor: '#ff9800',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: { xs: 16, sm: 20 },
-                right: { xs: 16, sm: 20 },
-              }}
-            >
-              <Chip
-                icon={<PlayCircleIcon />}
-                label="In Progress"
-                sx={{
-                  backgroundColor: '#6BA3D0',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  '& .MuiChip-icon': {
-                    color: 'white',
-                  },
-                }}
-              />
-            </Box>
+              <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+            </IconButton>
           )}
 
           {/* Task Title */}
@@ -675,7 +727,6 @@ export default function ActiveTask({ selectedDate }) {
               fontWeight: 700,
               color: '#333',
               mb: 2,
-              pr: { xs: 8, sm: 10 },
             }}
           >
             {activeTask.namaCustomer}
@@ -729,6 +780,106 @@ export default function ActiveTask({ selectedDate }) {
             >
               {activeTask.idPlan}
             </Typography>
+          </Box>
+
+          {/* Status Badge */}
+          <Box sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
+                color: '#999',
+                mb: 0.5,
+              }}
+            >
+              Status
+            </Typography>
+            {activeTask.status === 'done' ? (
+              <Chip
+                icon={<CheckCircleIcon sx={{ fontSize: '0.875rem !important' }} />}
+                label="Done"
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(129, 199, 132, 0.15)',
+                  color: '#4caf50',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  height: '24px',
+                  '& .MuiChip-icon': {
+                    color: '#4caf50',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+            ) : activeTask.status === 'deleted' ? (
+              <Chip
+                icon={<CancelIcon sx={{ fontSize: '0.875rem !important' }} />}
+                label="Cancel"
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(158, 158, 158, 0.15)',
+                  color: '#757575',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  height: '24px',
+                  '& .MuiChip-icon': {
+                    color: '#757575',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+            ) : activeTask.status === 'missed' ? (
+              <Chip
+                icon={<WarningIcon sx={{ fontSize: '0.875rem !important' }} />}
+                label="Missed"
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                  color: '#d32f2f',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  height: '24px',
+                  '& .MuiChip-icon': {
+                    color: '#d32f2f',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+            ) : activeTask.status === 'rescheduled' ? (
+              <Chip
+                icon={<EventIcon sx={{ fontSize: '0.875rem !important' }} />}
+                label="Rescheduled"
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                  color: '#f57c00',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  height: '24px',
+                  '& .MuiChip-icon': {
+                    color: '#f57c00',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+            ) : (
+              <Chip
+                icon={<PlayCircleIcon sx={{ fontSize: '0.875rem !important' }} />}
+                label="In Progress"
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(107, 163, 208, 0.15)',
+                  color: '#5a8fb8',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  height: '24px',
+                  '& .MuiChip-icon': {
+                    color: '#5a8fb8',
+                    fontSize: '0.875rem',
+                  },
+                }}
+              />
+            )}
           </Box>
 
           {/* Tujuan */}
@@ -793,71 +944,108 @@ export default function ActiveTask({ selectedDate }) {
                 borderTop: '1px solid rgba(0, 0, 0, 0.08)',
               }}
             >
-              <Tooltip title="Cancel" arrow>
-                <IconButton
-                  onClick={() => handleCancelTask(activeTask.id)}
+              {/* Done button - only show if status is not "missed" */}
+              {activeTask.status !== 'missed' && (
+                <Button
+                  onClick={() => handleOpenModal(activeTask.id)}
                   disabled={saving}
+                  startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{
-                    color: '#f44336',
+                    color: 'white',
+                    backgroundColor: '#6BA3D0',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                    px: { xs: 3, sm: 4, md: 5 },
+                    py: { xs: 1, sm: 1.25, md: 1.5 },
+                    minWidth: { xs: '120px', sm: '140px', md: '160px' },
+                    borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover': {
-                      backgroundColor: 'rgba(244, 67, 54, 0.08)',
-                      color: '#d32f2f',
+                      backgroundColor: '#5a8fb8',
+                      color: 'white',
                     },
                     '&:disabled': {
+                      backgroundColor: '#f5f5f5',
                       color: '#ccc',
                     },
                   }}
                 >
-                  <CancelIcon />
-                </IconButton>
-              </Tooltip>
-              {/* Reschedule and Done buttons - only show if status is not "missed" */}
-              {activeTask.status !== 'missed' && (
-                <>
-                  <Tooltip title="Reschedule" arrow>
-                    <IconButton
-                      onClick={() => handleOpenRescheduleModal(activeTask.id)}
-                      disabled={saving}
-                      sx={{
-                        color: '#6BA3D0',
-                        '&:hover': {
-                          backgroundColor: 'rgba(107, 163, 208, 0.08)',
-                          color: '#5a8fb8',
-                        },
-                        '&:disabled': {
-                          color: '#ccc',
-                        },
-                      }}
-                    >
-                      <EventIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Done" arrow>
-                    <IconButton
-                      onClick={() => handleOpenModal(activeTask.id)}
-                      disabled={saving}
-                      sx={{
-                        color: '#6BA3D0',
-                        backgroundColor: 'rgba(107, 163, 208, 0.1)',
-                        '&:hover': {
-                          backgroundColor: 'rgba(107, 163, 208, 0.2)',
-                          color: '#5a8fb8',
-                        },
-                        '&:disabled': {
-                          backgroundColor: '#f5f5f5',
-                          color: '#ccc',
-                        },
-                      }}
-                    >
-                      <CheckCircleIcon />
-                    </IconButton>
-                  </Tooltip>
-                </>
+                  Done
+                </Button>
               )}
             </Box>
           )}
         </Box>
       ))}
+
+      {/* Menu */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleCloseMenu}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: '8px', sm: '10px' },
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            minWidth: '160px',
+            mt: 0.5,
+          },
+        }}
+      >
+        {menuTaskId && (() => {
+          const task = activeTasks.find(t => t.id === menuTaskId);
+          if (!task) return null;
+          
+          return (
+            <>
+              {task.status !== 'missed' && (
+                <MenuItem
+                  onClick={() => handleMenuReschedule(menuTaskId)}
+                  disabled={saving}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    '&:hover': {
+                      backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <EventIcon sx={{ fontSize: '1.25rem', color: '#6BA3D0' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="Reschedule" />
+                </MenuItem>
+              )}
+              <MenuItem
+                onClick={() => handleMenuCancel(menuTaskId)}
+                disabled={saving}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                  '&:hover': {
+                    backgroundColor: 'rgba(244, 67, 54, 0.08)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <CancelIcon sx={{ fontSize: '1.25rem', color: '#f44336' }} />
+                </ListItemIcon>
+                <ListItemText primary="Cancel" />
+              </MenuItem>
+            </>
+          );
+        })()}
+      </Menu>
 
       {/* Result Modal */}
       <Modal

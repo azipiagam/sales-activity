@@ -22,6 +22,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { id } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { logout, getSales } from '../utils/auth';
+import backgroundHeader from '../media/bgh1.svg';
 
 export default function Header({ 
   calendarAnchorEl, 
@@ -69,22 +70,6 @@ export default function Header({
     navigate('/login');
   };
 
-  const patternSvg = `
-    <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="geometric-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-          <circle cx="5" cy="5" r="2" fill="rgba(255,255,255,0.08)"/>
-          <rect x="15" y="5" width="8" height="8" fill="rgba(255,255,255,0.06)" rx="1"/>
-          <path d="M 30 5 L 35 10 L 30 10 Z" fill="rgba(255,255,255,0.07)"/>
-          <circle cx="25" cy="25" r="3" fill="rgba(255,255,255,0.05)"/>
-          <rect x="5" y="20" width="6" height="6" fill="rgba(255,255,255,0.06)" rx="1"/>
-          <path d="M 20 30 L 25 35 L 20 35 Z" fill="rgba(255,255,255,0.07)"/>
-        </pattern>
-      </defs>
-      <rect width="100" height="100" fill="url(#geometric-pattern)"/>
-    </svg>
-  `;
-
   return (
     <>
       <Box 
@@ -103,9 +88,11 @@ export default function Header({
             content: '""',
             position: 'absolute',
             inset: 0,
-            backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(patternSvg)}")`,
-            backgroundRepeat: 'repeat',
-            opacity: 0.4,
+            backgroundImage: `url(${backgroundHeader})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: 0.6,
             pointerEvents: 'none',
             zIndex: 0,
           },
@@ -354,9 +341,11 @@ export default function Header({
               content: '""',
               position: 'absolute',
               inset: 0,
-              backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(patternSvg)}")`,
-              backgroundRepeat: 'repeat',
-              opacity: 0.4,
+              backgroundImage: `url(${backgroundHeader})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              opacity: 0.6,
               pointerEvents: 'none',
               zIndex: 0,
             },
@@ -370,7 +359,14 @@ export default function Header({
             },
           }}
         >
-          <DateCarousel selectedDate={selectedDate} onDateChange={onDateChange} />
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            <DateCarousel selectedDate={selectedDate} onDateChange={onDateChange} />
+          </Box>
         </Box>
       </Box>
 

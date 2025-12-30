@@ -15,6 +15,7 @@ import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
+import backgroundSvg from './media/4.svg';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -74,7 +75,7 @@ function AppContent() {
   };
 
   const handleCalendarClick = (event) => {
-    setPickerDate(selectedDate); // Sync pickerDate with selectedDate when opening calendar
+    setPickerDate(selectedDate); 
     setCalendarAnchorEl(event.currentTarget);
   };
 
@@ -85,7 +86,7 @@ function AppContent() {
   const handlePickerDateChange = (newDate) => {
     if (newDate) {
       setPickerDate(newDate);
-      setSelectedDate(newDate); // Update selectedDate when picker date changes
+      setSelectedDate(newDate); 
       handleCalendarClose();
     }
   };
@@ -98,7 +99,7 @@ function AppContent() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#F5F7FA',
+        backgroundColor: 'transparent',
       }}
     >
       {/* HEADER - Always visible, fixed at top */}
@@ -125,7 +126,11 @@ function AppContent() {
           sx={{
             minHeight: '100%',
             overflowY: 'auto',
-            backgroundColor: '#FFFFFF',
+            backgroundImage: `url(${backgroundSvg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
             pb: 10,
             mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
@@ -174,10 +179,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Minimal loading time untuk smooth transition, tapi tidak delay terlalu lama
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 300); // Reduced from 1500ms to 300ms
+    }, 300);
 
     return () => clearTimeout(timer);
   }, []);

@@ -7,7 +7,8 @@ import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import { motion } from 'framer-motion';
-import BusinessIcon from '@mui/icons-material/Business';
+import Lottie from 'lottie-react';
+import salesmanAnimation from '../media/salesman.json';
 import { getApiUrl } from '../config/api';
 
 export default function Login() {
@@ -126,14 +127,21 @@ export default function Login() {
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              overflow: 'hidden',
             }}
           >
-            <BusinessIcon
+            <Box
               sx={{
-                fontSize: { xs: 48, sm: 60 },
-                color: 'primary.main',
+                width: { xs: 70, sm: 90 },
+                height: { xs: 70, sm: 90 },
               }}
-            />
+            >
+              <Lottie
+                animationData={salesmanAnimation}
+                loop={true}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </Box>
           </Box>
         </motion.div>
       </Box>
