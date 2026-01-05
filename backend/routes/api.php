@@ -17,6 +17,7 @@ Route::middleware('auth.sales')->group(function () {
     // Activity Plans - urutan PENTING!
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
+    Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
     Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
