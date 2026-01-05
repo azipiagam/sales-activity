@@ -7,8 +7,8 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
-import historyList from './HistoryList';
-
+import Home from './Home';
+s
 export default function Tes({
 
 }) {
@@ -48,13 +48,7 @@ export default function Tes({
     );
     return (
         <Box>
-            {historyList.map((history) => {
-                return (
-                    <Box key={history.id}>
-                        <Typography>{history.name}</Typography>
-                    </Box>
-                );
-            })}
+            {/* This component appears to be unused/test code */}
         </Box>
     );
 }

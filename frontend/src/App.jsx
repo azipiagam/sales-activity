@@ -9,13 +9,14 @@ import NavBottom from './components/NavBottom';
 import Header from './components/Header';
 import MyTasks from './components/MyTasks';
 import ActiveTask from './components/ActiveTask';
-import History from './history/History';
+import Home from './Home';
 import LoadingScreen from './components/LoadingScreen';
 import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import backgroundSvg from './media/4.svg';
+import CustomerDetailPage from './pages/CustomerDetailPage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -45,16 +46,20 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [navValue, setNavValue] = useState(location.pathname === '/history' ? 1 : 0);
+  const [navValue, setNavValue] = useState(location.pathname === '/plan' ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [direction, setDirection] = useState(0); 
 
   useEffect(() => {
-    if (location.pathname === '/history') {
+    // Pastikan setelah login pertama kali, user selalu melihat Home
+    // navValue = 0 → Home
+    // navValue = 1 → Plan (My Activity Plan)
+    if (location.pathname === '/plan') {
       setNavValue(1);
     } else {
+      // Default ke Home (navValue = 0) untuk route '/' atau route lainnya
       setNavValue(0);
     }
   }, [location.pathname]);
@@ -67,10 +72,12 @@ function AppContent() {
     }
     
     setNavValue(newValue);
+    // navValue = 0 → Home → route '/'
+    // navValue = 1 → Plan (My Activity Plan) → route '/plan'
     if (newValue === 0) {
       navigate('/', { replace: false });
     } else {
-      navigate('/history', { replace: false });
+      navigate('/plan', { replace: false });
     }
   };
 
@@ -138,7 +145,7 @@ function AppContent() {
         <AnimatePresence mode="wait" initial={false}>
           {navValue === 0 ? (
             <motion.div
-              key="plan"
+              key="home"
               initial={{ opacity: 0, x: direction === -1 ? -50 : 50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction === -1 ? 50 : -50 }}
@@ -148,12 +155,11 @@ function AppContent() {
               }}
               style={{ width: '100%' }}
             >
-              <MyTasks selectedDate={selectedDate} />
-              <ActiveTask selectedDate={selectedDate} />
+              <Home />
             </motion.div>
           ) : (
             <motion.div
-              key="history"
+              key="plan"
               initial={{ opacity: 0, x: direction === 1 ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction === 1 ? -50 : 50 }}
@@ -163,7 +169,8 @@ function AppContent() {
               }}
               style={{ width: '100%' }}
             >
-              <History />
+              <MyTasks selectedDate={selectedDate} />
+              <ActiveTask selectedDate={selectedDate} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -213,10 +220,18 @@ function App() {
                   }
                 />
                 <Route
-                  path="/history"
+                  path="/plan"
                   element={
                     <ProtectedRoute>
                       <AppContent />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/customers/:id"
+                  element={
+                    <ProtectedRoute>
+                      <CustomerDetailPage />
                     </ProtectedRoute>
                   }
                 />

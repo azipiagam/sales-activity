@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
-import RestoreIcon from '@mui/icons-material/Restore';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import Fab from '@mui/material/Fab';
 import AddIcon from '@mui/icons-material/Add';
@@ -37,8 +37,9 @@ export default function NavBottom({ value, onChange }) {
           value={value === 0 ? 0 : 2}
           onChange={(event, newValue) => {
             if (onChange && newValue !== 1) { 
-              // Map: 0 (Plan) -> 0, 2 (History) -> 1
-              onChange(newValue > 1 ? 1 : newValue);
+              // Map: BottomNavigation index 0 (Dashboard) -> navValue 0 (Dashboard)
+              //      BottomNavigation index 2 (Plan) -> navValue 1 (Plan/My Activity Plan)
+              onChange(newValue === 0 ? 0 : 1);
             }
           }}
           sx={{
@@ -63,8 +64,8 @@ export default function NavBottom({ value, onChange }) {
           }}
         >
           <BottomNavigationAction 
-            label="Plan" 
-            icon={<LocationOnIcon />} 
+            label="Dashboard" 
+            icon={<DashboardIcon />}
             sx={{
               '&.Mui-selected': {
                 '& .MuiBottomNavigationAction-label': {
@@ -80,8 +81,8 @@ export default function NavBottom({ value, onChange }) {
             sx={{ minWidth: '60px', maxWidth: '60px' }}
           />
           <BottomNavigationAction 
-            label="History" 
-            icon={<RestoreIcon />}
+            label="Plan" 
+            icon={<LocationOnIcon />} 
             sx={{
               '&.Mui-selected': {
                 '& .MuiBottomNavigationAction-label': {

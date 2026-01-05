@@ -30,7 +30,7 @@ export default function MyTasks({ selectedDate }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate } = useActivityPlans();
+  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
   
   // Use selectedDate if provided, otherwise use today
   const dateToUse = useMemo(() => {
@@ -48,22 +48,18 @@ export default function MyTasks({ selectedDate }) {
   const loading = isLoading(`date:${dateStr}`);
   const error = getError(`date:${dateStr}`);
 
-  // Fetch statistics using shared context
   useEffect(() => {
     let isMounted = true;
 
     const fetchStats = async () => {
       try {
-        // Try to get from cache first
         let data = getPlansByDate(dateToUse);
         
-        // If not in cache, fetch it
         if (!data) {
           data = await fetchPlansByDate(dateToUse);
         }
 
         if (isMounted && data) {
-          // Filter out cancelled/deleted status
           const allTasks = Array.isArray(data) 
             ? data.filter(task => {
                 const normalizedStatus = (task.status || '').toLowerCase().trim();
@@ -73,10 +69,6 @@ export default function MyTasks({ selectedDate }) {
               })
             : [];
 
-          // Calculate stats according to requirements:
-          // Plan = done + in progress + rescheduled (all except cancelled)
-          // Done = done only
-          // More to go = in progress + rescheduled only (without done)
           const inProgress = allTasks.filter(t => {
             const status = (t.status || '').toLowerCase().trim();
             return status === 'in progress';
@@ -97,13 +89,13 @@ export default function MyTasks({ selectedDate }) {
 
           setStats({ plan, done, more });
         } else if (isMounted) {
-          // No data for this date
+
           setStats({ plan: 0, done: 0, more: 0 });
         }
       } catch (err) {
         if (isMounted) {
           console.error('Error fetching stats:', err);
-          // Set default values on error
+
           setStats({ plan: 0, done: 0, more: 0 });
         }
       }
@@ -116,11 +108,9 @@ export default function MyTasks({ selectedDate }) {
     };
   }, [fetchPlansByDate, getPlansByDate, dateToUse]);
 
-  // Update stats when data changes - trigger ketika dataByDate berubah
   useEffect(() => {
     const data = getPlansByDate(dateToUse);
     if (data) {
-      // Filter out cancelled/deleted status
       const allTasks = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
@@ -130,10 +120,6 @@ export default function MyTasks({ selectedDate }) {
           })
         : [];
 
-      // Calculate stats according to requirements:
-      // Plan = done + in progress + rescheduled (all except cancelled)
-      // Done = done only
-      // More to go = in progress + rescheduled only (without done)
       const inProgress = allTasks.filter(t => {
         const status = (t.status || '').toLowerCase().trim();
         return status === 'in progress';
@@ -154,10 +140,10 @@ export default function MyTasks({ selectedDate }) {
 
       setStats({ plan, done, more });
     } else {
-      // No data for this date
+      
       setStats({ plan: 0, done: 0, more: 0 });
     }
-  }, [getPlansByDate, dateToUse, dataByDate]); // Tambah dataByDate sebagai dependency
+  }, [getPlansByDate, dateToUse, dataByDate]); 
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -258,8 +244,9 @@ export default function MyTasks({ selectedDate }) {
       >
         {/* In Progress Card */}
         <Box
+          onClick={() => setSelectedFilter('plan')}
           sx={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: selectedFilter === 'plan' ? '#E3F2FD' : '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -267,8 +254,18 @@ export default function MyTasks({ selectedDate }) {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'flex-start',
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: selectedFilter === 'plan' 
+              ? '0 4px 16px rgba(107, 163, 208, 0.3)' 
+              : '0 2px 12px rgba(0, 0, 0, 0.08)',
+            border: selectedFilter === 'plan' 
+              ? '2px solid #6BA3D0' 
+              : '1px solid rgba(0, 0, 0, 0.06)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-in-out',
+            '&:hover': {
+              backgroundColor: selectedFilter === 'plan' ? '#E3F2FD' : '#F5F5F5',
+              boxShadow: '0 4px 16px rgba(107, 163, 208, 0.2)',
+            },
           }}
         >
           <Typography
@@ -301,8 +298,9 @@ export default function MyTasks({ selectedDate }) {
 
         {/* Task Completed Card */}
         <Box
+          onClick={() => setSelectedFilter('done')}
           sx={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: selectedFilter === 'done' ? '#E3F2FD' : '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -310,8 +308,18 @@ export default function MyTasks({ selectedDate }) {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'flex-start',
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: selectedFilter === 'done' 
+              ? '0 4px 16px rgba(107, 163, 208, 0.3)' 
+              : '0 2px 12px rgba(0, 0, 0, 0.08)',
+            border: selectedFilter === 'done' 
+              ? '2px solid #6BA3D0' 
+              : '1px solid rgba(0, 0, 0, 0.06)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-in-out',
+            '&:hover': {
+              backgroundColor: selectedFilter === 'done' ? '#E3F2FD' : '#F5F5F5',
+              boxShadow: '0 4px 16px rgba(107, 163, 208, 0.2)',
+            },
           }}
         >
           <Typography
@@ -344,8 +352,9 @@ export default function MyTasks({ selectedDate }) {
 
         {/* On Review Card */}
         <Box
+          onClick={() => setSelectedFilter('more')}
           sx={{
-            backgroundColor: '#FFFFFF',
+            backgroundColor: selectedFilter === 'more' ? '#E3F2FD' : '#FFFFFF',
             borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             padding: { xs: 2, sm: 2.5, md: 3 },
             minHeight: { xs: '100px', sm: '110px', md: '120px' },
@@ -353,8 +362,18 @@ export default function MyTasks({ selectedDate }) {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'flex-start',
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: selectedFilter === 'more' 
+              ? '0 4px 16px rgba(107, 163, 208, 0.3)' 
+              : '0 2px 12px rgba(0, 0, 0, 0.08)',
+            border: selectedFilter === 'more' 
+              ? '2px solid #6BA3D0' 
+              : '1px solid rgba(0, 0, 0, 0.06)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-in-out',
+            '&:hover': {
+              backgroundColor: selectedFilter === 'more' ? '#E3F2FD' : '#F5F5F5',
+              boxShadow: '0 4px 16px rgba(107, 163, 208, 0.2)',
+            },
           }}
         >
           <Typography

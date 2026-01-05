@@ -43,6 +43,7 @@ coverage/
 .next/
 
 # Vite specific
+.vite/
 vite.config.ts.timestamp-*
 
 # Turbopack

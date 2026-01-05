@@ -11,6 +11,7 @@
     "@fontsource/roboto": "^5.2.9",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@mui/x-charts": "^8.23.0",
     "@mui/x-date-pickers": "^8.22.0",
     "cors": "^2.8.5",
     "date-carousel": "^5.2.1",

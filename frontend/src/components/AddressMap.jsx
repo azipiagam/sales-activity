@@ -87,7 +87,6 @@ export default function AddressMap({ address }) {
       }
     };
 
-    // Debounce geocoding
     const timeoutId = setTimeout(() => {
       performGeocoding();
     }, 800);
@@ -140,7 +139,6 @@ export default function AddressMap({ address }) {
           }}
         >
           {GOOGLE_MAPS_API_KEY ? (
-            // Gunakan GoogleMapReact jika ada API key
             <GoogleMapReact
               bootstrapURLKeys={{ key: GOOGLE_MAPS_API_KEY }}
               defaultCenter={{
@@ -159,7 +157,6 @@ export default function AddressMap({ address }) {
               />
             </GoogleMapReact>
           ) : (
-            // Fallback ke Google Maps Embed (iframe) jika tidak ada API key
             <iframe
               width="100%"
               height="100%"
