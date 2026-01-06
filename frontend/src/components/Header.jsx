@@ -31,7 +31,8 @@ export default function Header({
   pickerDate, 
   onPickerDateChange,
   selectedDate,
-  onDateChange
+  onDateChange,
+  onDateCarouselLoadingChange
 }) {
   const navigate = useNavigate();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
@@ -365,7 +366,7 @@ export default function Header({
               zIndex: 1,
             }}
           >
-            <DateCarousel selectedDate={selectedDate} onDateChange={onDateChange} />
+            <DateCarousel selectedDate={selectedDate} onDateChange={onDateChange} onLoadingChange={onDateCarouselLoadingChange} />
           </Box>
         </Box>
       </Box>

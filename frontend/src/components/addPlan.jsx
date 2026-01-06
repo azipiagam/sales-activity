@@ -12,7 +12,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { apiRequest } from '../config/api';
 import AddressMap from './AddressMap';
-import { getCoordinatesFromAddress } from '../utils/geocoding';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import { parse } from 'date-fns';
 
@@ -25,6 +24,8 @@ export default function AddPlan({ open, onClose }) {
     tujuan: '',
     keterangan: '',
   });
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -33,8 +34,6 @@ export default function AddPlan({ open, onClose }) {
   const [searchInput, setSearchInput] = useState('');
   const [inputValue, setInputValue] = useState('');
   const { invalidateCache, fetchPlansByDate } = useActivityPlans();
-  
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   const searchCustomers = useCallback(async (keyword) => {
     if (!keyword || keyword.trim().length < 2) {
@@ -228,6 +227,24 @@ export default function AddPlan({ open, onClose }) {
       return;
     }
 
+    // Validasi koordinat - pastikan tidak null dan bukan default center Jakarta
+    const defaultCenterLat = -6.2088;
+    const defaultCenterLng = 106.8456;
+    
+    if (!latitude || !longitude) {
+      setError('Koordinat lokasi belum ditentukan. Silakan tunggu geocoding selesai atau geser marker pada peta untuk menentukan lokasi secara manual.');
+      return;
+    }
+    
+    // Cek apakah koordinat masih di default center (Jakarta)
+    const isDefaultCenter = Math.abs(latitude - defaultCenterLat) < 0.0001 && 
+                           Math.abs(longitude - defaultCenterLng) < 0.0001;
+    
+    if (isDefaultCenter) {
+      setError('Koordinat masih di lokasi default. Silakan geser marker pada peta ke lokasi yang sesuai dengan alamat customer, atau tunggu geocoding selesai.');
+      return;
+    }
+
     setError('');
     setLoading(true);
     setSuccess(false);
@@ -249,6 +266,8 @@ export default function AddPlan({ open, onClose }) {
         plan_date: formData.date,
         tujuan: tujuanFormatted,
         keterangan_tambahan: formData.keterangan || '',
+        customer_location_lat: latitude || null,
+        customer_location_lng: longitude || null,
       };
 
       // Call API endpoint
@@ -290,6 +309,8 @@ export default function AddPlan({ open, onClose }) {
         tujuan: '',
         keterangan: '',
       });
+      setLatitude(null);
+      setLongitude(null);
       setSearchInput('');
       setInputValue('');
       setCustomerOptions([]);
@@ -331,6 +352,8 @@ export default function AddPlan({ open, onClose }) {
       tujuan: '',
       keterangan: '',
     });
+    setLatitude(null);
+    setLongitude(null);
     setError('');
     setSuccess(false);
     setLoading(false);
@@ -338,6 +361,11 @@ export default function AddPlan({ open, onClose }) {
     setSearchInput('');
     setInputValue('');
     onClose();
+  };
+
+  const handleLocationChange = (lat, lng) => {
+    setLatitude(lat);
+    setLongitude(lng);
   };
 
   return (
@@ -609,8 +637,11 @@ export default function AddPlan({ open, onClose }) {
           />
         </Box>
 
-        {/* Google Maps - Tampilkan jika alamat sudah terisi */}
-        <AddressMap address={formData.alamat} />
+        {/* OpenStreetMap - Tampilkan jika alamat sudah terisi */}
+        <AddressMap 
+          address={formData.alamat} 
+          onLocationChange={handleLocationChange}
+        />
 
         {/* Tujuan */}
         <Box sx={{ mb: 3 }}>

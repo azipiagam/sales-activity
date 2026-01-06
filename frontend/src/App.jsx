@@ -10,7 +10,7 @@ import Header from './components/Header';
 import MyTasks from './components/MyTasks';
 import ActiveTask from './components/ActiveTask';
 import Home from './Home';
-import LoadingScreen from './components/LoadingScreen';
+import LoadingManager from './components/loading/LoadingManager';
 import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
@@ -50,7 +50,8 @@ function AppContent() {
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [direction, setDirection] = useState(0); 
+  const [direction, setDirection] = useState(0);
+  const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false); 
 
   useEffect(() => {
     // Pastikan setelah login pertama kali, user selalu melihat Home
@@ -118,6 +119,7 @@ function AppContent() {
         onPickerDateChange={handlePickerDateChange}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
+        onDateCarouselLoadingChange={setIsDateCarouselLoading}
       />
 
       {/* CONTENT - Scrollable area with animation */}
@@ -169,8 +171,8 @@ function AppContent() {
               }}
               style={{ width: '100%' }}
             >
-              <MyTasks selectedDate={selectedDate} />
-              <ActiveTask selectedDate={selectedDate} />
+              <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+              <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -197,7 +199,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <LoadingScreen />
+        <LoadingManager type="default" />
       </ThemeProvider>
     );
   }

@@ -28,11 +28,12 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
 import { apiRequest } from '../config/api';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import LoadingScreen from './LoadingScreen';
+import { getSales } from '../utils/auth';
+import LoadingManager from './loading/LoadingManager';
 import Lottie from 'lottie-react';
 import emptyBoxAnimation from '../media/Empty Box (3).json';
 
-export default function ActiveTask({ selectedDate }) {
+export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
@@ -53,6 +54,15 @@ export default function ActiveTask({ selectedDate }) {
 
   const fetchActiveTask = useCallback(async () => {
     try {
+      // Get current logged in user
+      const currentUser = getSales();
+      const currentUserId = currentUser?.internal_id;
+
+      if (!currentUserId) {
+        setActiveTasks([]);
+        return;
+      }
+
       let data = getPlansByDate(dateToUse);
       
       if (!data) {
@@ -66,20 +76,23 @@ export default function ActiveTask({ selectedDate }) {
           id: t.id,
           plan_no: t.plan_no,
           status: t.status,
-          plan_date: t.plan_date
+          plan_date: t.plan_date,
+          sales_internal_id: t.sales_internal_id
         })) : null
       });
       
+      // Filter tasks berdasarkan user yang login dan status yang valid
       const activeTasksData = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
+            const isUserTask = task.sales_internal_id === currentUserId;
             const shouldInclude = normalizedStatus === 'in progress' || 
                    normalizedStatus === 'rescheduled' || 
                    normalizedStatus === 'done' || 
                    normalizedStatus === 'missed' || 
                    normalizedStatus === 'deleted';
             
-            if (normalizedStatus === 'in progress') {
+            if (normalizedStatus === 'in progress' && isUserTask) {
               console.log('[ActiveTask] In progress task found:', {
                 id: task.id,
                 plan_no: task.plan_no,
@@ -89,7 +102,7 @@ export default function ActiveTask({ selectedDate }) {
               });
             }
             
-            return shouldInclude;
+            return isUserTask && shouldInclude;
           })
         : [];
       
@@ -581,9 +594,9 @@ export default function ActiveTask({ selectedDate }) {
     return dateStr;
   };
 
-  // Show loading state
-  if (loading) {
-    return <LoadingScreen />;
+  // Show loading state (but not if DateCarousel is loading - it has priority)
+  if (loading && !isDateCarouselLoading) {
+    return <LoadingManager type="default" />;
   }
 
   // Show error state
@@ -1089,7 +1102,7 @@ export default function ActiveTask({ selectedDate }) {
                 color: '#333',
               }}
             >
-              Result
+              Ups, di luar 200 m
             </Typography>
             <IconButton
               onClick={handleCloseModal}
@@ -1116,7 +1129,7 @@ export default function ActiveTask({ selectedDate }) {
                 fontWeight: 500,
               }}
             >
-              Hasil dari aktivitas :
+              Berikan Alasan :
             </Typography>
             <TextField
               multiline

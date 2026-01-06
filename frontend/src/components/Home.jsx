@@ -7,6 +7,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { keyframes } from '@mui/system';
 import { parse, format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { getSales } from '../utils/auth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
@@ -43,6 +44,14 @@ export default function Home() {
 
     const fetchHome = async () => {
       try {
+        // Get current logged in user
+        const currentUser = getSales();
+        const currentUserId = currentUser?.internal_id;
+
+        if (!currentUserId) {
+          return;
+        }
+
         let data = allPlans;
         
         if (!data) {
@@ -53,8 +62,13 @@ export default function Home() {
           return;
         }
 
+        // Filter tasks berdasarkan user yang login dan status done
         const completedTasks = Array.isArray(data)
-          ? data.filter(task => task.status === 'done')
+          ? data.filter(task => {
+              const isUserTask = task.sales_internal_id === currentUserId;
+              const isDone = task.status === 'done';
+              return isUserTask && isDone;
+            })
           : [];
 
         const processedData = completedTasks.map((task, index) => {
@@ -142,9 +156,22 @@ export default function Home() {
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
 
   useEffect(() => {
+    // Get current logged in user
+    const currentUser = getSales();
+    const currentUserId = currentUser?.internal_id;
+
+    if (!currentUserId) {
+      return;
+    }
+
     if (allPlans) {
+      // Filter tasks berdasarkan user yang login dan status done
       const completedTasks = Array.isArray(allPlans)
-        ? allPlans.filter(task => task.status === 'done')
+        ? allPlans.filter(task => {
+            const isUserTask = task.sales_internal_id === currentUserId;
+            const isDone = task.status === 'done';
+            return isUserTask && isDone;
+          })
         : [];
 
       const processedData = completedTasks.map((task, index) => {

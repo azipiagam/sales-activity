@@ -6,19 +6,22 @@ import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LoadingManager from './loading/LoadingManager';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { format } from 'date-fns';
 
-export default function DateCarousel({ selectedDate: propSelectedDate, onDateChange }) {
+export default function DateCarousel({ selectedDate: propSelectedDate, onDateChange, onLoadingChange }) {
   const primaryColor = '#6BA3D0'; 
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
+  const [isLoading, setIsLoading] = useState(false);
   const userClickTimeRef = useRef(0);
+  const { isLoading: checkDataLoading } = useActivityPlans();
   
-  // Helper function to get Monday of a given date
   const getMondayOfWeek = (date) => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     const day = d.getDay();
-    // Calculate days to subtract to get to Monday
-    // Sunday (0) -> subtract 6 days, Monday (1) -> subtract 0, Tuesday (2) -> subtract 1, etc.
+  
     const diff = day === 0 ? -6 : 1 - day;
     const monday = new Date(d);
     monday.setDate(d.getDate() + diff);
@@ -31,8 +34,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   });
 
   useEffect(() => {
-    // Only sync with propSelectedDate if it's provided and different
-    // Don't override if user just clicked a date (within last 500ms)
     const timeSinceUserClick = Date.now() - userClickTimeRef.current;
     if (propSelectedDate && timeSinceUserClick > 500) {
       const propDate = new Date(propSelectedDate);
@@ -104,38 +105,131 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
     const clickedDate = new Date(date);
     clickedDate.setHours(0, 0, 0, 0);
     
-    // Mark the time when user clicked
-    userClickTimeRef.current = Date.now();
+    // Check if the clicked date is different from currently selected date
+    const currentSelectedDate = new Date(selectedDate);
+    currentSelectedDate.setHours(0, 0, 0, 0);
     
-    setSelectedDate(clickedDate);
-    setCurrentWeekMonday(getMondayOfWeek(clickedDate));
-    
-    if (onDateChange) {
-      // Pass a new date object to avoid reference issues
-      onDateChange(new Date(clickedDate));
+    // Only show loading if date is actually different
+    if (clickedDate.getTime() !== currentSelectedDate.getTime()) {
+      // Set loading FIRST before changing date to ensure priority
+      setIsLoading(true);
+      if (onLoadingChange) {
+        // Call this synchronously before onDateChange to prevent race condition
+        onLoadingChange(true);
+      }
+      
+      const dateStr = format(clickedDate, 'yyyy-MM-dd');
+      const cacheKey = `date:${dateStr}`;
+      
+      // Mark the time when user clicked
+      userClickTimeRef.current = Date.now();
+      
+      setSelectedDate(clickedDate);
+      setCurrentWeekMonday(getMondayOfWeek(clickedDate));
+      
+      if (onDateChange) {
+        // Pass a new date object to avoid reference issues
+        onDateChange(new Date(clickedDate));
+      }
+      
+      // Start checking loading state after date change
+      // Wait until data is loaded - keep LoadingMoveDate visible until data is ready
+      let checkCount = 0;
+      const maxChecks = 50; // Maximum 10 seconds (50 * 200ms)
+      
+      const checkLoading = () => {
+        checkCount++;
+        const dataLoading = checkDataLoading(cacheKey);
+        
+        if (!dataLoading || checkCount >= maxChecks) {
+          // Data is loaded or max time reached, stop loading
+          setIsLoading(false);
+          if (onLoadingChange) {
+            onLoadingChange(false);
+          }
+        } else {
+          // Still loading, check again after 200ms
+          setTimeout(checkLoading, 200);
+        }
+      };
+      
+      // Start checking after minimum 300ms to allow UI transition and data fetch to start
+      setTimeout(() => {
+        checkLoading();
+      }, 300);
+    } else {
+      // Date is the same, just update normally
+      userClickTimeRef.current = Date.now();
+      setSelectedDate(clickedDate);
+      setCurrentWeekMonday(getMondayOfWeek(clickedDate));
+      
+      if (onDateChange) {
+        onDateChange(new Date(clickedDate));
+      }
     }
   };
 
   const handlePreviousWeek = () => {
+    // Set loading first
+    setIsLoading(true);
+    if (onLoadingChange) {
+      onLoadingChange(true);
+    }
+    
     // Navigate to previous 5 working days (Monday to Friday)
     // Subtract exactly 5 days (one working week) from current Monday
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const previousMonday = new Date(mondayTime - fiveDaysInMs);
-    setCurrentWeekMonday(previousMonday);
+    
+    // Use setTimeout to ensure loading state is rendered first
+    setTimeout(() => {
+      setCurrentWeekMonday(previousMonday);
+      
+      // Hide loading after transition (no need to wait for data as selectedDate doesn't change)
+      setTimeout(() => {
+        setIsLoading(false);
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+      }, 600);
+    }, 50);
   };
 
   const handleNextWeek = () => {
+    // Set loading first
+    setIsLoading(true);
+    if (onLoadingChange) {
+      onLoadingChange(true);
+    }
+    
     // Navigate to next 5 working days (Monday to Friday)
     // Add exactly 5 days (one working week) to current Monday
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const nextMonday = new Date(mondayTime + fiveDaysInMs);
-    setCurrentWeekMonday(nextMonday);
+    
+    // Use setTimeout to ensure loading state is rendered first
+    setTimeout(() => {
+      setCurrentWeekMonday(nextMonday);
+      
+      // Hide loading after transition (no need to wait for data as selectedDate doesn't change)
+      setTimeout(() => {
+        setIsLoading(false);
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+      }, 600);
+    }, 50);
   };
 
+  // Show loading screen when loading
+  if (isLoading) {
+    return <LoadingManager type="moveDate" />;
+  }
+
   return (
-      <Paper
+    <Paper
         elevation={2}
         sx={{
           width: '100%',

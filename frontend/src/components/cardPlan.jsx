@@ -6,9 +6,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import LoadingScreen from './LoadingScreen';
+import { getSales } from '../utils/auth';
+import LoadingManager from './loading/LoadingManager';
 
-export default function CardPlan({ selectedDate }) {
+export default function CardPlan({ selectedDate, isDateCarouselLoading = false }) {
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
   
@@ -27,9 +28,9 @@ export default function CardPlan({ selectedDate }) {
   const loading = isLoading(`date:${dateStr}`);
   const error = getError(`date:${dateStr}`);
 
-  // Show loading screen when loading
-  if (loading) {
-    return <LoadingScreen />;
+  // Show loading screen when loading (but not if DateCarousel is loading - it has priority)
+  if (loading && !isDateCarouselLoading) {
+    return <LoadingManager type="default" />;
   }
 
   useEffect(() => {
@@ -37,6 +38,17 @@ export default function CardPlan({ selectedDate }) {
 
     const fetchStats = async () => {
       try {
+        // Get current logged in user
+        const currentUser = getSales();
+        const currentUserId = currentUser?.internal_id;
+
+        if (!currentUserId) {
+          if (isMounted) {
+            setStats({ plan: 0, done: 0, more: 0 });
+          }
+          return;
+        }
+
         let data = getPlansByDate(dateToUse);
         
         if (!data) {
@@ -44,12 +56,15 @@ export default function CardPlan({ selectedDate }) {
         }
 
         if (isMounted && data) {
+          // Filter tasks berdasarkan user yang login dan status yang valid
           const allTasks = Array.isArray(data) 
             ? data.filter(task => {
                 const normalizedStatus = (task.status || '').toLowerCase().trim();
-                return normalizedStatus !== 'cancelled' && 
-                       normalizedStatus !== 'cancel' &&
-                       normalizedStatus !== 'deleted';
+                const isUserTask = task.sales_internal_id === currentUserId;
+                const isValidStatus = normalizedStatus !== 'cancelled' && 
+                                     normalizedStatus !== 'cancel' &&
+                                     normalizedStatus !== 'deleted';
+                return isUserTask && isValidStatus;
               })
             : [];
 
@@ -98,14 +113,26 @@ export default function CardPlan({ selectedDate }) {
   }, [fetchPlansByDate, getPlansByDate, dateToUse, dateStr]);
 
   useEffect(() => {
+    // Get current logged in user
+    const currentUser = getSales();
+    const currentUserId = currentUser?.internal_id;
+
+    if (!currentUserId) {
+      setStats({ plan: 0, done: 0, more: 0 });
+      return;
+    }
+
     const data = getPlansByDate(dateToUse);
     if (data) {
+      // Filter tasks berdasarkan user yang login dan status yang valid
       const allTasks = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
-            return normalizedStatus !== 'cancelled' && 
-                   normalizedStatus !== 'cancel' &&
-                   normalizedStatus !== 'deleted';
+            const isUserTask = task.sales_internal_id === currentUserId;
+            const isValidStatus = normalizedStatus !== 'cancelled' && 
+                                 normalizedStatus !== 'cancel' &&
+                                 normalizedStatus !== 'deleted';
+            return isUserTask && isValidStatus;
           })
         : [];
 

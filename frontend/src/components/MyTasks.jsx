@@ -7,6 +7,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { getSales } from '../utils/auth';
 
 const fadeOut = keyframes`
   from {
@@ -53,6 +54,17 @@ export default function MyTasks({ selectedDate }) {
 
     const fetchStats = async () => {
       try {
+        // Get current logged in user
+        const currentUser = getSales();
+        const currentUserId = currentUser?.internal_id;
+
+        if (!currentUserId) {
+          if (isMounted) {
+            setStats({ plan: 0, done: 0, more: 0 });
+          }
+          return;
+        }
+
         let data = getPlansByDate(dateToUse);
         
         if (!data) {
@@ -60,12 +72,15 @@ export default function MyTasks({ selectedDate }) {
         }
 
         if (isMounted && data) {
+          // Filter tasks berdasarkan user yang login dan status yang valid
           const allTasks = Array.isArray(data) 
             ? data.filter(task => {
                 const normalizedStatus = (task.status || '').toLowerCase().trim();
-                return normalizedStatus !== 'cancelled' && 
-                       normalizedStatus !== 'cancel' &&
-                       normalizedStatus !== 'deleted';
+                const isUserTask = task.sales_internal_id === currentUserId;
+                const isValidStatus = normalizedStatus !== 'cancelled' && 
+                                     normalizedStatus !== 'cancel' &&
+                                     normalizedStatus !== 'deleted';
+                return isUserTask && isValidStatus;
               })
             : [];
 
@@ -109,14 +124,26 @@ export default function MyTasks({ selectedDate }) {
   }, [fetchPlansByDate, getPlansByDate, dateToUse]);
 
   useEffect(() => {
+    // Get current logged in user
+    const currentUser = getSales();
+    const currentUserId = currentUser?.internal_id;
+
+    if (!currentUserId) {
+      setStats({ plan: 0, done: 0, more: 0 });
+      return;
+    }
+
     const data = getPlansByDate(dateToUse);
     if (data) {
+      // Filter tasks berdasarkan user yang login dan status yang valid
       const allTasks = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
-            return normalizedStatus !== 'cancelled' && 
-                   normalizedStatus !== 'cancel' &&
-                   normalizedStatus !== 'deleted';
+            const isUserTask = task.sales_internal_id === currentUserId;
+            const isValidStatus = normalizedStatus !== 'cancelled' && 
+                                 normalizedStatus !== 'cancel' &&
+                                 normalizedStatus !== 'deleted';
+            return isUserTask && isValidStatus;
           })
         : [];
 
@@ -140,7 +167,6 @@ export default function MyTasks({ selectedDate }) {
 
       setStats({ plan, done, more });
     } else {
-      
       setStats({ plan: 0, done: 0, more: 0 });
     }
   }, [getPlansByDate, dateToUse, dataByDate]); 
