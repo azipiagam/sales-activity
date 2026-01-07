@@ -37,8 +37,6 @@ export default function NavBottom({ value, onChange }) {
           value={value === 0 ? 0 : 2}
           onChange={(event, newValue) => {
             if (onChange && newValue !== 1) { 
-              // Map: BottomNavigation index 0 (Dashboard) -> navValue 0 (Dashboard)
-              //      BottomNavigation index 2 (Plan) -> navValue 1 (Plan/My Activity Plan)
               onChange(newValue === 0 ? 0 : 1);
             }
           }}

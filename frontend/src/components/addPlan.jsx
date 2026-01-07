@@ -19,6 +19,7 @@ import CloseIcon from '@mui/icons-material/Close';
 // Custom imports
 import { apiRequest } from '../config/api';
 import AddressMap from './AddressMap';
+import AddAddress from './AddAddress';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 // Utilities
@@ -217,6 +218,7 @@ export default function AddPlan({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [addAddressOpen, setAddAddressOpen] = useState(false);
 
   // Custom Hooks
   const { formData, updateField, resetForm } = useFormState();
@@ -430,6 +432,14 @@ export default function AddPlan({ open, onClose }) {
     setInputValue('');
     onClose();
   }, [resetForm, resetLocation, onClose]);
+
+  const handleAddressConfirm = useCallback((addressData) => {
+    // Update alamat yang dipilih jika ada
+    if (addressData.address) {
+      setCustomerAddress(addressData.address);
+    }
+    // Lokasi sudah diupdate melalui handleLocationChange
+  }, []);
 
   return (
     <Drawer
@@ -666,11 +676,53 @@ export default function AddPlan({ open, onClose }) {
           />
         </Box>
 
-        {/* Cari Lokasi - OpenStreetMap */}
-        <AddressMap
-          address={customerAddress}
-          onLocationChange={handleLocationChange}
-        />
+        {/* Cari Lokasi Button */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              color: '#666',
+              mb: 1,
+              fontWeight: 600,
+            }}
+          >
+            Cari Lokasi
+          </Typography>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => setAddAddressOpen(true)}
+            disabled={!formData.customer}
+            sx={{
+              py: { xs: 1.5, sm: 1.75 },
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              fontWeight: 600,
+              borderColor: '#6BA3D0',
+              color: '#6BA3D0',
+              borderRadius: { xs: '8px', sm: '10px' },
+              textTransform: 'none',
+              borderStyle: latitude && longitude ? 'solid' : 'dashed',
+              borderWidth: latitude && longitude ? '1px' : '2px',
+              backgroundColor: latitude && longitude ? 'rgba(107, 163, 208, 0.08)' : 'transparent',
+              '&:hover': {
+                borderColor: '#5a8fb8',
+                backgroundColor: latitude && longitude ? 'rgba(107, 163, 208, 0.12)' : 'rgba(107, 163, 208, 0.08)',
+              },
+              '&:disabled': {
+                borderColor: '#ccc',
+                color: '#ccc',
+              },
+            }}
+          >
+            {latitude && longitude
+              ? `Lokasi Terpilih: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+              : customerAddress
+                ? 'Klik untuk memilih lokasi'
+                : 'Pilih customer terlebih dahulu'
+            }
+          </Button>
+        </Box>
 
         {/* Tujuan */}
         <Box sx={{ mb: 3 }}>
@@ -806,6 +858,15 @@ export default function AddPlan({ open, onClose }) {
           </Button>
         </Box>
       </Box>
+
+      {/* Add Address Drawer */}
+      <AddAddress
+        open={addAddressOpen}
+        onClose={() => setAddAddressOpen(false)}
+        customerAddress={customerAddress}
+        onLocationChange={handleLocationChange}
+        onAddressConfirm={handleAddressConfirm}
+      />
     </Drawer>
   );
 }

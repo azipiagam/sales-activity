@@ -1,22 +1,18 @@
-import React, { useState } from 'react';
-import typography from '@mui/material/Typography';
-import autocomplete from '@mui/material/Autocomplete';
+import React from 'react';
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import renderOption from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import addplan from './addPlan';
 
 export default function Test() {
     return (
         <Box>
             <Typography variant="h1">Test</Typography>
-            <Autocomplete
-                options={[]}
-                renderInput={(params) => <TextField {...params} label="Test" />}
-            />
         </Box>
-
-    
-
-    
     );
 }

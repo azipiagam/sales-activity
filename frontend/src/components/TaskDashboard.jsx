@@ -16,7 +16,6 @@ export default function TaskDashboard({ selectedDate }) {
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
   const [provinsiAnchorEl, setProvinsiAnchorEl] = useState(null);
 
-  // Sample data - in real app, this would come from props or context
   const taskData = {
     plan: 5,
     missed: 5,
@@ -54,7 +53,6 @@ export default function TaskDashboard({ selectedDate }) {
     handleProvinsiClose();
   };
 
-  // Prepare chart data
   const chartData = [
     { id: 1, value: taskData.plan, label: 'Plan', color: '#6BA3D0' }, // Soft blue
     { id: 2, value: taskData.missed, label: 'Missed', color: '#F87171' }, // Soft red
@@ -388,7 +386,7 @@ export default function TaskDashboard({ selectedDate }) {
                 borderRadius: '50%',
                 backgroundColor: item.color,
                 flexShrink: 0,
-                boxShadow: item.id === 2 ? '0px 2px 4px rgba(248, 113, 113, 0.3)' : 'none', // Emphasize Missed
+                boxShadow: item.id === 2 ? '0px 2px 4px rgba(248, 113, 113, 0.3)' : 'none', 
               }}
             />
             <Typography
@@ -396,7 +394,7 @@ export default function TaskDashboard({ selectedDate }) {
               sx={{
                 fontSize: { xs: '0.8125rem', sm: '0.875rem' },
                 color: '#374151',
-                fontWeight: item.id === 2 ? 600 : 500, // Emphasize Missed
+                fontWeight: item.id === 2 ? 600 : 500, 
               }}
             >
               {item.label}: <strong>{item.value}</strong>

@@ -121,7 +121,6 @@ const ActivityDoneDialog = ({
       return;
     }
 
-    // Jika distance > 200m, result harus ada
     if (distanceData.result_required && !result.trim()) {
       alert('Result field wajib diisi karena jarak > 200 meter');
       return;

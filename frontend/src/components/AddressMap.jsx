@@ -10,7 +10,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import { getCoordinatesFromAddress } from '../utils/geocoding';
 import 'leaflet/dist/leaflet.css';
 
-// Fix untuk default marker icon di react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -18,7 +17,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Komponen untuk mengontrol view peta
 function MapViewController({ center, zoom }) {
   const map = useMap();
   
@@ -37,7 +35,7 @@ function MapViewController({ center, zoom }) {
 export default function AddressMap({ address, onLocationChange }) {
   const defaultCenter = { lat: -6.2088, lng: 106.8456 };
   const defaultZoom = 15;
-  const searchZoom = 17; // Zoom lebih dekat saat search
+  const searchZoom = 17;
 
   const [search, setSearch] = useState('');
   const [markerPosition, setMarkerPosition] = useState(defaultCenter);
@@ -47,21 +45,18 @@ export default function AddressMap({ address, onLocationChange }) {
   const [isSearching, setIsSearching] = useState(false);
   const mapRef = useRef(null);
 
-  // Update search dari address prop
   useEffect(() => {
     if (address && address.trim() && address !== search) {
       setSearch(address);
     }
   }, [address]);
 
-  // Auto-search ketika address prop berubah (dari customer selection)
   useEffect(() => {
     if (address && address.trim()) {
       handleSearchAddress(address);
     }
   }, [address]);
 
-  // Handle search lokasi
   const handleSearchAddress = async (searchTerm) => {
     const term = searchTerm || search;
     if (!term.trim()) return;
@@ -74,14 +69,11 @@ export default function AddressMap({ address, onLocationChange }) {
 
       const newPosition = { lat: coords.lat, lng: coords.lng };
 
-      // Update marker position
       setMarkerPosition(newPosition);
       
-      // Update map center dan zoom untuk trigger view change
       setMapCenter(newPosition);
       setMapZoom(searchZoom);
       
-      // Notify parent component
       onLocationChange?.(coords.lat, coords.lng);
       
       setError(null);
@@ -101,7 +93,6 @@ export default function AddressMap({ address, onLocationChange }) {
     handleSearchAddress();
   };
 
-  // Handle Enter key
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -109,7 +100,6 @@ export default function AddressMap({ address, onLocationChange }) {
     }
   };
 
-  // Handle marker drag
   const handleMarkerDragEnd = (e) => {
     const position = e.target.getLatLng();
     const newPosition = { lat: position.lat, lng: position.lng };
@@ -117,7 +107,6 @@ export default function AddressMap({ address, onLocationChange }) {
     setMarkerPosition(newPosition);
     onLocationChange?.(position.lat, position.lng);
     
-    // Clear error saat user drag marker
     setError(null);
   };
 

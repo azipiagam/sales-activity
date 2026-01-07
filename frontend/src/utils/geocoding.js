@@ -1,10 +1,5 @@
-/**
- * Utility functions for geocoding addresses using backend API proxy
- * Backend akan memanggil Nominatim API untuk menghindari CORS issues
- */
-
 const GEOCODE_API_BASE_URL = '/api/geocode';
-const REQUEST_DELAY = 500; // Rate limit untuk backend API
+const REQUEST_DELAY = 500; 
 let lastRequestTime = 0;
 
 /**
@@ -23,8 +18,8 @@ const waitForRateLimit = async () => {
 
 /**
  * Mengambil koordinat latitude dan longitude dari alamat
- * @param {string} address - Alamat yang akan di-geocode
- * @returns {Promise<{lat: number, lng: number}>} - Koordinat atau throw error jika gagal
+ * @param {string} address 
+ * @returns {Promise<{lat: number, lng: number}>} 
  */
 export const getCoordinatesFromAddress = async (address) => {
   if (!address || typeof address !== 'string' || !address.trim()) {
@@ -33,16 +28,13 @@ export const getCoordinatesFromAddress = async (address) => {
 
   const trimmedAddress = address.trim();
 
-  // Minimal 3 karakter untuk search
   if (trimmedAddress.length < 3) {
     throw new Error('Alamat terlalu pendek, minimal 3 karakter');
   }
 
   try {
-    // Respect rate limiting
     await waitForRateLimit();
 
-    // Build query parameters untuk backend API
     const params = new URLSearchParams({
       q: trimmedAddress,
     });
@@ -76,7 +68,6 @@ export const getCoordinatesFromAddress = async (address) => {
 
     const data = await response.json();
 
-    // Check if location found - backend returns error for not found
     if (!data || !data.lat || !data.lng) {
       throw new Error('Response tidak valid dari server');
     }
@@ -84,7 +75,6 @@ export const getCoordinatesFromAddress = async (address) => {
     const lat = parseFloat(data.lat);
     const lng = parseFloat(data.lng);
 
-    // Validasi koordinat dalam range yang valid
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       throw new Error('Koordinat tidak valid');
     }
@@ -105,7 +95,6 @@ export const getCoordinatesFromAddress = async (address) => {
   } catch (error) {
     console.error('[Geocoding] Error:', error);
 
-    // Re-throw error dengan pesan yang user-friendly
     if (error.message.includes('fetch') || error.message.includes('Network')) {
       throw new Error('Gagal terhubung ke server geocoding');
     }

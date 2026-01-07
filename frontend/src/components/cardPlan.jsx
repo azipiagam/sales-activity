@@ -113,7 +113,6 @@ export default function CardPlan({ selectedDate, isDateCarouselLoading = false }
   }, [fetchPlansByDate, getPlansByDate, dateToUse, dateStr]);
 
   useEffect(() => {
-    // Get current logged in user
     const currentUser = getSales();
     const currentUserId = currentUser?.internal_id;
 
@@ -124,7 +123,6 @@ export default function CardPlan({ selectedDate, isDateCarouselLoading = false }
 
     const data = getPlansByDate(dateToUse);
     if (data) {
-      // Filter tasks berdasarkan user yang login dan status yang valid
       const allTasks = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();

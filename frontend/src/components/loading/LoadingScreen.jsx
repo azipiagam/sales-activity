@@ -30,8 +30,8 @@ const LoadingScreen = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(255, 255, 255, 0.3)', // overlay putih transparan
-          backdropFilter: 'blur(2px)', // efek blur ringan
+          backgroundColor: 'rgba(255, 255, 255, 0.3)', 
+          backdropFilter: 'blur(2px)', 
           WebkitBackdropFilter: 'blur(2px)',
           zIndex: 0,
         },

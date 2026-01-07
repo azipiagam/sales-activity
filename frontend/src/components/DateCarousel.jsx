@@ -28,7 +28,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
     return monday;
   };
 
-  // Initialize current week Monday based on selectedDate
   const [currentWeekMonday, setCurrentWeekMonday] = useState(() => {
     return getMondayOfWeek(propSelectedDate || new Date());
   });
@@ -43,10 +42,8 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
         const prevDate = new Date(prevSelectedDate);
         prevDate.setHours(0, 0, 0, 0);
         
-        // Only update if prop is actually different
         if (propDate.getTime() !== prevDate.getTime()) {
           const newSelectedDate = new Date(propSelectedDate);
-          // Update week Monday when prop changes
           setCurrentWeekMonday(getMondayOfWeek(newSelectedDate));
           return newSelectedDate;
         }
@@ -58,8 +55,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   const getDates = () => {
     const dates = [];
     
-    // Generate 5 dates starting from current week Monday (Monday to Friday only)
-    // Use milliseconds to ensure no dates are skipped when crossing month boundaries
     const mondayTime = currentWeekMonday.getTime();
     const oneDayInMs = 24 * 60 * 60 * 1000;
     
@@ -91,7 +86,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   const isSelected = (date) => {
     if (!selectedDate) return false;
     
-    // Compare dates by normalizing to midnight
     const date1 = new Date(date);
     date1.setHours(0, 0, 0, 0);
     const date2 = new Date(selectedDate);
@@ -101,64 +95,51 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   };
 
   const handleDateClick = (date) => {
-    // Create a new date object to avoid reference issues
     const clickedDate = new Date(date);
     clickedDate.setHours(0, 0, 0, 0);
     
-    // Check if the clicked date is different from currently selected date
     const currentSelectedDate = new Date(selectedDate);
     currentSelectedDate.setHours(0, 0, 0, 0);
     
-    // Only show loading if date is actually different
     if (clickedDate.getTime() !== currentSelectedDate.getTime()) {
-      // Set loading FIRST before changing date to ensure priority
       setIsLoading(true);
       if (onLoadingChange) {
-        // Call this synchronously before onDateChange to prevent race condition
         onLoadingChange(true);
       }
       
       const dateStr = format(clickedDate, 'yyyy-MM-dd');
       const cacheKey = `date:${dateStr}`;
       
-      // Mark the time when user clicked
       userClickTimeRef.current = Date.now();
       
       setSelectedDate(clickedDate);
       setCurrentWeekMonday(getMondayOfWeek(clickedDate));
       
       if (onDateChange) {
-        // Pass a new date object to avoid reference issues
         onDateChange(new Date(clickedDate));
       }
       
-      // Start checking loading state after date change
-      // Wait until data is loaded - keep LoadingMoveDate visible until data is ready
       let checkCount = 0;
-      const maxChecks = 50; // Maximum 10 seconds (50 * 200ms)
+      const maxChecks = 50; 
       
       const checkLoading = () => {
         checkCount++;
         const dataLoading = checkDataLoading(cacheKey);
         
         if (!dataLoading || checkCount >= maxChecks) {
-          // Data is loaded or max time reached, stop loading
           setIsLoading(false);
           if (onLoadingChange) {
             onLoadingChange(false);
           }
         } else {
-          // Still loading, check again after 200ms
           setTimeout(checkLoading, 200);
         }
       };
       
-      // Start checking after minimum 300ms to allow UI transition and data fetch to start
       setTimeout(() => {
         checkLoading();
       }, 300);
     } else {
-      // Date is the same, just update normally
       userClickTimeRef.current = Date.now();
       setSelectedDate(clickedDate);
       setCurrentWeekMonday(getMondayOfWeek(clickedDate));
@@ -170,23 +151,19 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   };
 
   const handlePreviousWeek = () => {
-    // Set loading first
     setIsLoading(true);
     if (onLoadingChange) {
       onLoadingChange(true);
     }
     
-    // Navigate to previous 5 working days (Monday to Friday)
-    // Subtract exactly 5 days (one working week) from current Monday
+
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const previousMonday = new Date(mondayTime - fiveDaysInMs);
     
-    // Use setTimeout to ensure loading state is rendered first
     setTimeout(() => {
       setCurrentWeekMonday(previousMonday);
       
-      // Hide loading after transition (no need to wait for data as selectedDate doesn't change)
       setTimeout(() => {
         setIsLoading(false);
         if (onLoadingChange) {
@@ -197,23 +174,18 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
   };
 
   const handleNextWeek = () => {
-    // Set loading first
     setIsLoading(true);
     if (onLoadingChange) {
       onLoadingChange(true);
     }
     
-    // Navigate to next 5 working days (Monday to Friday)
-    // Add exactly 5 days (one working week) to current Monday
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const nextMonday = new Date(mondayTime + fiveDaysInMs);
     
-    // Use setTimeout to ensure loading state is rendered first
     setTimeout(() => {
       setCurrentWeekMonday(nextMonday);
       
-      // Hide loading after transition (no need to wait for data as selectedDate doesn't change)
       setTimeout(() => {
         setIsLoading(false);
         if (onLoadingChange) {
@@ -223,7 +195,6 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
     }, 50);
   };
 
-  // Show loading screen when loading
   if (isLoading) {
     return <LoadingManager type="moveDate" />;
   }
@@ -244,7 +215,7 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           px: { xs: 0.5, sm: 1, md: 1.5 },
           py: 1,
-          overflow: 'visible', // Ensure nothing is clipped
+          overflow: 'visible', 
         }}
       >
         {/* Left Arrow */}
@@ -279,14 +250,13 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
             alignItems: 'center',
             backgroundColor: '#FFFFFF',
             py: 0.5,
-            minWidth: 0, // Allow flex shrinking if needed
+            minWidth: 0, 
           }}
         >
         {dates.map((date, index) => {
           const { day, dayName } = formatDate(date);
           const today = isToday(date);
           const selected = isSelected(date);
-          // Use date string as key to ensure proper re-rendering
           const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
           return (
