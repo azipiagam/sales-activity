@@ -1,4 +1,7 @@
+// React
 import React, { useState, useEffect, useCallback, memo } from 'react';
+
+// Material-UI Components
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -7,36 +10,117 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import TextareaAutosize from '@mui/material/TextareaAutosize';
 import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+
+// Material-UI Icons
+import CloseIcon from '@mui/icons-material/Close';
+
+// Custom imports
 import { apiRequest } from '../config/api';
 import AddressMap from './AddressMap';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+
+// Utilities
 import { parse } from 'date-fns';
 
-export default function AddPlan({ open, onClose }) {
+// Constants
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+};
+
+const DEBOUNCE_DELAY = 500;
+const MIN_SEARCH_LENGTH = 2;
+const DEFAULT_COORDINATES = {
+  LAT: -6.2088,
+  LNG: 106.8456,
+  TOLERANCE: 0.0001,
+};
+
+// Helper Components
+const ActivityTypeButton = ({ type, label, selected, onClick }) => (
+  <Button
+    variant={selected ? 'contained' : 'outlined'}
+    onClick={() => onClick(type)}
+    fullWidth
+    sx={{
+      py: { xs: 1.25, sm: 1.5 },
+      fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+      fontWeight: 600,
+      backgroundColor: selected ? '#6BA3D0' : 'transparent',
+      color: selected ? 'white' : '#6BA3D0',
+      borderColor: '#6BA3D0',
+      borderRadius: { xs: '8px', sm: '10px' },
+      textTransform: 'none',
+      '&:hover': {
+        backgroundColor: selected ? '#5a8fb8' : 'rgba(107, 163, 208, 0.08)',
+        borderColor: '#6BA3D0',
+        color: selected ? 'white' : '#6BA3D0',
+      },
+    }}
+  >
+    {label}
+  </Button>
+);
+
+// Custom Hooks
+const useFormState = () => {
   const [formData, setFormData] = useState({
     date: '',
     customerId: '',
     customer: null,
-    alamat: '',
     tujuan: '',
     keterangan: '',
   });
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+
+  const updateField = useCallback((field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      date: '',
+      customerId: '',
+      customer: null,
+      tujuan: '',
+      keterangan: '',
+    });
+  }, []);
+
+  return { formData, updateField, resetForm };
+};
+
+const useCustomerSearch = () => {
   const [customerOptions, setCustomerOptions] = useState([]);
   const [searchingCustomers, setSearchingCustomers] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const { invalidateCache, fetchPlansByDate } = useActivityPlans();
+  const [customerAddress, setCustomerAddress] = useState('');
+
+  const buildFullAddress = useCallback((customer) => {
+    try {
+      if (!customer || typeof customer !== 'object') return '';
+
+      if (customer.originalAddress && customer.originalAddress.trim()) {
+        return customer.originalAddress.trim();
+      }
+
+      const parts = [
+        customer.address1,
+        customer.city,
+        customer.province
+      ].filter(Boolean).map(part => part ? String(part).trim() : '').filter(Boolean);
+
+      return parts.length > 0 ? parts.join(', ') : '';
+    } catch (error) {
+      console.error('Error building full address:', error);
+      return '';
+    }
+  }, []);
 
   const searchCustomers = useCallback(async (keyword) => {
-    if (!keyword || keyword.trim().length < 2) {
+    if (!keyword || keyword.trim().length < MIN_SEARCH_LENGTH) {
       setCustomerOptions([]);
       return;
     }
@@ -44,44 +128,28 @@ export default function AddPlan({ open, onClose }) {
     try {
       setSearchingCustomers(true);
       const response = await apiRequest(`customers/search?q=${encodeURIComponent(keyword)}`);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error Response:', response.status, errorText);
         throw new Error(`Failed to search customers: ${response.status}`);
       }
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error('Error parsing JSON response:', parseError);
-        const text = await response.text();
-        console.error('Response text:', text);
-        throw new Error('Invalid JSON response from server');
-      }
-      
-      let mappedCustomers = [];
-      
-      if (data && Array.isArray(data)) {
-        if (data.length > 0) {
-          mappedCustomers = data.map(customer => {
-            if (!customer) return null;
-            return {
-              customer_id: customer.id || customer.customer_id || '', // Backend menggunakan 'id'
-              nama: customer.customer_name || '',
-              address1: customer.address || '',
-              city: customer.city || '',
-              province: customer.state || customer.province || '', // Backend menggunakan 'state'
-              company_name: customer.company_name || '',
-              phone: customer.phone || '',
-              email: customer.email || '',
-              // Simpan data asli untuk referensi
-              originalAddress: customer.address || '',
-            };
-          }).filter(Boolean); // Filter out null values
-        }
-      }
+      const data = await response.json();
+      const mappedCustomers = (data || [])
+        .map(customer => customer ? {
+          customer_id: customer.id || customer.customer_id || '',
+          nama: customer.customer_name || '',
+          address1: customer.address || '',
+          city: customer.city || '',
+          province: customer.state || customer.province || '',
+          company_name: customer.company_name || '',
+          phone: customer.phone || '',
+          email: customer.email || '',
+          originalAddress: customer.address || '',
+        } : null)
+        .filter(Boolean);
+
       setCustomerOptions(mappedCustomers);
     } catch (error) {
       console.error('Error searching customers:', error);
@@ -92,113 +160,140 @@ export default function AddPlan({ open, onClose }) {
   }, []);
 
   useEffect(() => {
-    // Debounce search untuk mengurangi API calls
     const timeoutId = setTimeout(() => {
-      if (searchInput && searchInput.trim().length >= 2) {
+      if (searchInput && searchInput.trim().length >= MIN_SEARCH_LENGTH) {
         searchCustomers(searchInput);
       } else {
         setCustomerOptions([]);
       }
-    }, 500); // Increased debounce time untuk mengurangi API calls
+    }, DEBOUNCE_DELAY);
 
     return () => clearTimeout(timeoutId);
   }, [searchInput, searchCustomers]);
 
-  const buildFullAddress = (customer) => {
-    try {
-      if (!customer || typeof customer !== 'object') return '';
-      
-      if (customer.originalAddress && customer.originalAddress.trim()) {
-        return customer.originalAddress.trim();
-      }
-      
-      const parts = [
-        customer.address1,
-        customer.city,
-        customer.province
-      ].filter(Boolean).map(part => part ? String(part).trim() : '').filter(Boolean);
-      
-      return parts.length > 0 ? parts.join(', ') : '';
-    } catch (error) {
-      console.error('Error building full address:', error);
-      return '';
-    }
+  return {
+    customerOptions,
+    searchingCustomers,
+    searchInput,
+    setSearchInput,
+    inputValue,
+    setInputValue,
+    customerAddress,
+    setCustomerAddress,
+    buildFullAddress,
   };
+};
 
-  const handleInputChange = (field) => (event) => {
-    setFormData({
-      ...formData,
-      [field]: event.target.value,
-    });
+const useLocationHandler = () => {
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+
+  const handleLocationChange = useCallback((lat, lng) => {
+    setLatitude(lat);
+    setLongitude(lng);
+  }, []);
+
+  const resetLocation = useCallback(() => {
+    setLatitude(null);
+    setLongitude(null);
+  }, []);
+
+  const isDefaultLocation = useCallback((lat, lng) => {
+    return Math.abs(lat - DEFAULT_COORDINATES.LAT) < DEFAULT_COORDINATES.TOLERANCE &&
+           Math.abs(lng - DEFAULT_COORDINATES.LNG) < DEFAULT_COORDINATES.TOLERANCE;
+  }, []);
+
+  return {
+    latitude,
+    longitude,
+    handleLocationChange,
+    resetLocation,
+    isDefaultLocation,
   };
+};
 
-  const handleCustomerChange = (event, newValue) => {
+export default function AddPlan({ open, onClose }) {
+  // UI State
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Custom Hooks
+  const { formData, updateField, resetForm } = useFormState();
+  const {
+    customerOptions,
+    searchingCustomers,
+    searchInput,
+    setSearchInput,
+    inputValue,
+    setInputValue,
+    customerAddress,
+    setCustomerAddress,
+    buildFullAddress,
+  } = useCustomerSearch();
+  const {
+    latitude,
+    longitude,
+    handleLocationChange,
+    resetLocation,
+    isDefaultLocation,
+  } = useLocationHandler();
+
+  const { invalidateCache, fetchPlansByDate } = useActivityPlans();
+
+
+  const handleInputChange = useCallback((field) => (event) => {
+    updateField(field, event.target.value);
+  }, [updateField]);
+
+  const handleCustomerChange = useCallback((event, newValue) => {
     try {
       if (!newValue) {
-        setFormData({
-          ...formData,
-          customer: null,
-          customerId: '',
-          alamat: '',
-        });
+        updateField('customer', null);
+        updateField('customerId', '');
+        setCustomerAddress('');
         setInputValue('');
         setSearchInput('');
         return;
       }
 
       const fullAddress = buildFullAddress(newValue);
-      
       const customerId = newValue.customer_id || newValue.nama || '';
       const customerName = newValue.nama || '';
-      
-      setFormData({
-        ...formData,
-        customer: newValue,
-        customerId: customerId,
-        alamat: fullAddress,
-      });
-      
-      // Set input value ke nama customer yang dipilih
+
+      updateField('customer', newValue);
+      updateField('customerId', customerId);
+      setCustomerAddress(fullAddress);
       setInputValue(customerName);
-      setSearchInput(''); 
+      setSearchInput('');
     } catch (error) {
       console.error('Error handling customer change:', error);
       setError('Terjadi kesalahan saat memilih customer. Silakan coba lagi.');
-      // Reset state jika error
-      setFormData({
-        ...formData,
-        customer: null,
-        customerId: '',
-        alamat: '',
-      });
+      updateField('customer', null);
+      updateField('customerId', '');
+      setCustomerAddress('');
       setInputValue('');
       setSearchInput('');
     }
-  };
+  }, [updateField, buildFullAddress]);
 
-  const handleCustomerInputChange = (event, newInputValue, reason) => {
+  const handleCustomerInputChange = useCallback((event, newInputValue, reason) => {
     setInputValue(newInputValue);
-    
+
     if (reason === 'input') {
       setSearchInput(newInputValue);
     } else if (reason === 'clear') {
       setSearchInput('');
-      setFormData({
-        ...formData,
-        customer: null,
-        customerId: '',
-        alamat: '',
-      });
+      updateField('customer', null);
+      updateField('customerId', '');
+      setCustomerAddress('');
     }
-  };
+  }, [updateField]);
 
 
-  const handleTujuanClick = (tujuan) => {
-    setFormData({
-      ...formData,
-      tujuan: tujuan,
-    });
-  };
+  const handleTujuanClick = useCallback((tujuan) => {
+    updateField('tujuan', tujuan);
+  }, [updateField]);
 
 
   const handleCreatePlan = async () => {
@@ -227,21 +322,14 @@ export default function AddPlan({ open, onClose }) {
       return;
     }
 
-    // Validasi koordinat - pastikan tidak null dan bukan default center Jakarta
-    const defaultCenterLat = -6.2088;
-    const defaultCenterLng = 106.8456;
-    
+    // Validasi koordinat
     if (!latitude || !longitude) {
       setError('Koordinat lokasi belum ditentukan. Silakan tunggu geocoding selesai atau geser marker pada peta untuk menentukan lokasi secara manual.');
       return;
     }
-    
-    // Cek apakah koordinat masih di default center (Jakarta)
-    const isDefaultCenter = Math.abs(latitude - defaultCenterLat) < 0.0001 && 
-                           Math.abs(longitude - defaultCenterLng) < 0.0001;
-    
-    if (isDefaultCenter) {
-      setError('Koordinat masih di lokasi default. Silakan geser marker pada peta ke lokasi yang sesuai dengan alamat customer, atau tunggu geocoding selesai.');
+
+    if (isDefaultLocation(latitude, longitude)) {
+      setError('Koordinat masih di lokasi default. Silakan geser marker pada peta ke lokasi yang sesuai, atau cari lokasi menggunakan fitur pencarian.');
       return;
     }
 
@@ -250,14 +338,10 @@ export default function AddPlan({ open, onClose }) {
     setSuccess(false);
 
     try {
-      // Map tujuan ke format yang benar (Visit atau Follow Up)
-      const tujuanMap = {
-        'visit': 'Visit',
-        'follow up': 'Follow Up',
-        'Visit': 'Visit',
-        'Follow Up': 'Follow Up',
-      };
-      const tujuanFormatted = tujuanMap[formData.tujuan] || formData.tujuan;
+      // Map tujuan ke format yang benar
+      const tujuanFormatted = formData.tujuan === 'visit' ? ACTIVITY_TYPES.VISIT :
+                             formData.tujuan === 'follow up' ? ACTIVITY_TYPES.FOLLOW_UP :
+                             formData.tujuan;
 
       // Prepare request body sesuai API spec
       const requestBody = {
@@ -301,19 +385,11 @@ export default function AddPlan({ open, onClose }) {
       const result = await response.json();
       
       // Reset form
-      setFormData({
-        date: '',
-        customerId: '',
-        customer: null,
-        alamat: '',
-        tujuan: '',
-        keterangan: '',
-      });
-      setLatitude(null);
-      setLongitude(null);
+      resetForm();
+      setCustomerAddress('');
+      resetLocation();
       setSearchInput('');
       setInputValue('');
-      setCustomerOptions([]);
       setSuccess(false);
       setError('');
 
@@ -343,30 +419,17 @@ export default function AddPlan({ open, onClose }) {
     }
   };
 
-  const handleClose = () => {
-    setFormData({
-      date: '',
-      customerId: '',
-      customer: null,
-      alamat: '',
-      tujuan: '',
-      keterangan: '',
-    });
-    setLatitude(null);
-    setLongitude(null);
+  const handleClose = useCallback(() => {
+    resetForm();
+    setCustomerAddress('');
+    resetLocation();
     setError('');
     setSuccess(false);
     setLoading(false);
-    setCustomerOptions([]);
     setSearchInput('');
     setInputValue('');
     onClose();
-  };
-
-  const handleLocationChange = (lat, lng) => {
-    setLatitude(lat);
-    setLongitude(lng);
-  };
+  }, [resetForm, resetLocation, onClose]);
 
   return (
     <Drawer
@@ -603,43 +666,9 @@ export default function AddPlan({ open, onClose }) {
           />
         </Box>
 
-        {/* Alamat */}
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              color: '#666',
-              mb: 1,
-              fontWeight: 600,
-            }}
-          >
-            Alamat
-          </Typography>
-          <TextField
-            fullWidth
-            placeholder="Alamat akan otomatis terisi saat memilih customer"
-            value={formData.alamat}
-            onChange={handleInputChange('alamat')}
-            multiline
-            minRows={2}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: { xs: '8px', sm: '10px' },
-                '&:hover fieldset': {
-                  borderColor: '#6BA3D0',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#6BA3D0',
-                },
-              },
-            }}
-          />
-        </Box>
-
-        {/* OpenStreetMap - Tampilkan jika alamat sudah terisi */}
-        <AddressMap 
-          address={formData.alamat} 
+        {/* Cari Lokasi - OpenStreetMap */}
+        <AddressMap
+          address={customerAddress}
           onLocationChange={handleLocationChange}
         />
 
@@ -662,62 +691,18 @@ export default function AddPlan({ open, onClose }) {
               gap: { xs: 1.5, sm: 2 },
             }}
           >
-            <Button
-              variant={formData.tujuan === 'visit' ? 'contained' : 'outlined'}
-              onClick={() => handleTujuanClick('visit')}
-              fullWidth
-              sx={{
-                py: { xs: 1.25, sm: 1.5 },
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                fontWeight: 600,
-                backgroundColor:
-                  formData.tujuan === 'visit' ? '#6BA3D0' : 'transparent',
-                color:
-                  formData.tujuan === 'visit' ? 'white' : '#6BA3D0',
-                borderColor: '#6BA3D0',
-                borderRadius: { xs: '8px', sm: '10px' },
-                textTransform: 'none',
-                '&:hover': {
-                  backgroundColor:
-                    formData.tujuan === 'visit'
-                      ? '#5a8fb8'
-                      : 'rgba(107, 163, 208, 0.08)',
-                  borderColor: '#6BA3D0',
-                  color:
-                    formData.tujuan === 'visit' ? 'white' : '#6BA3D0',
-                },
-              }}
-            >
-              Visit
-            </Button>
-            <Button
-              variant={formData.tujuan === 'follow up' ? 'contained' : 'outlined'}
-              onClick={() => handleTujuanClick('follow up')}
-              fullWidth
-              sx={{
-                py: { xs: 1.25, sm: 1.5 },
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                fontWeight: 600,
-                backgroundColor:
-                  formData.tujuan === 'follow up' ? '#6BA3D0' : 'transparent',
-                color:
-                  formData.tujuan === 'follow up' ? 'white' : '#6BA3D0',
-                borderColor: '#6BA3D0',
-                borderRadius: { xs: '8px', sm: '10px' },
-                textTransform: 'none',
-                '&:hover': {
-                  backgroundColor:
-                    formData.tujuan === 'follow up'
-                      ? '#5a8fb8'
-                      : 'rgba(107, 163, 208, 0.08)',
-                  borderColor: '#6BA3D0',
-                  color:
-                    formData.tujuan === 'follow up' ? 'white' : '#6BA3D0',
-                },
-              }}
-            >
-              Follow Up
-            </Button>
+            <ActivityTypeButton
+              type="visit"
+              label="Visit"
+              selected={formData.tujuan === 'visit'}
+              onClick={handleTujuanClick}
+            />
+            <ActivityTypeButton
+              type="follow up"
+              label="Follow Up"
+              selected={formData.tujuan === 'follow up'}
+              onClick={handleTujuanClick}
+            />
           </Box>
         </Box>
 

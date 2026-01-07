@@ -4,9 +4,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ActivityPlanController;
+use App\Http\Controllers\GeocodeController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/geocode', [GeocodeController::class, 'geocode']);
+Route::get('/reverse-geocode', [GeocodeController::class, 'reverseGeocode']);
 
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
