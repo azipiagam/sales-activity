@@ -1,54 +1,29 @@
 import React from 'react';
-import Box from '@mui/material/Box';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import WavingHandIcon from '@mui/icons-material/WavingHand';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { id } from 'date-fns/locale';
-import Home from './Home';
-s
-export default function Tes({
+import paper from '@mui/material/Paper';
+import IconButton from '@mui/material/IconButton';
+import chevronlefticon from '@mui/icons-material/ChevronLeft';
+import chevronrighticon from '@mui/icons-material/ChevronRight';
+import LoadingManager from './loading/LoadingManager';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { format } from 'date-fns';
 
-}) {
-    return (
-        <Box>
-             sx={{
-                position: 'fixed',
-                backgroundcolor: 'primary.main',
-                top: 100,
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-                height: '100px',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-             }}
-             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={id}>
-                <DatePicker />
-                <Popover
-                    open={Boolean(calendarAnchorEl)}
-                    anchorEl={calendarAnchorEl}
-                    onClose={onCalendarClose}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-                >
-                    <Box sx={{ p: 5 }}>
-                        <DatePicker
-                            value={calender}
-                            onChange={oncalenderchange}
-                        />
-                    </Box>
-                </Popover>
-             </LocalizationProvider> 
-        </Box>
-    );
-    return (
-        <Box>
-            {/* This component appears to be unused/test code */}
-        </Box>
-    );
-}
+export default Tes({ selectedDate: propselectedDate, onDateChange, onLoadingChange }) {
+    const primaryColor = '#6BA3D0'; 
+    consot [selectedDate, setSelectedDate] = useState(propselectedDate || new Date());
+    const [isloading, setloading] = useState(false);
+    const userClickTimeRef = useRef(0);
+    const { isLoading: checkDataLoading } = useActivityPlans();
+
+    const getMondayOfWeek = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diff);
+        return monday;
+    };
+
+const currentWeekMonday = getMondayOfWeek(propselectedDate || new Date());

@@ -1,18 +1,27 @@
-import React from 'react';
-import { useState } from 'react';
-import Box from '@mui/material/Box';
+import react, { useState, useEffect, useRef } from 'react';
+import { alpha } from '@mui/material/styles';
+import box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import addplan from './addPlan';
+import paper from '@mui/material/Paper';
+import icon Button from '@mui/material/Button';
+import chevronlefticon from '@mui/icons-material/ChevronLeft';
+import chevronrighticon from '@mui/icons-material/ChevronRight';
+import loadingManager from './loading/LoadingManager';
+import useActivityPlans from '../contexts/ActivityPlanContext';
+import { format } from 'date-fns';
 
-export default function Test() {
-    return (
-        <Box>
-            <Typography variant="h1">Test</Typography>
-        </Box>
-    );
-}
+export default function Test({ selectedDate: propselectedDate, onDateChange, onLoadingChange }) {
+    const primaryColor = '#6BA3D0';
+    const [selectedDate, setSelectedDate] = useState(propselectedDate || new Date());
+    const [isloading, setloading] = useState(false);
+    const userClickTimeRef = useRef(0);
+    const { isLoading: checkDataLoading } = useActivityPlans();
+
+    const getMondayOfWeek = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const day = d.getDay();
+        
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        const

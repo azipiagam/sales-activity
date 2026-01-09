@@ -2,7 +2,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import Lottie from 'lottie-react';
-import blueLoading from '../../media/loading.json';
+import blueLoading from '../../media/Loading (1).json';
 import backgroundSvg from '../../media/background.svg';
 
 const LoadingScreen = () => {

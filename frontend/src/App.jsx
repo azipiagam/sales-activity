@@ -5,18 +5,18 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import NavBottom from './components/NavBottom';
-import Header from './components/Header';
-import MyTasks from './components/MyTasks';
-import ActiveTask from './components/ActiveTask';
-import Home from './Home';
+import NavBottom from './components/Template/NavBottom';
+import Header from './components/Template/Header';
+import MyTasks from './components/plan/MyTasks';
+import ActiveTask from './components/plan/ActiveTask';
+import Home from './components/dashboard';
 import LoadingManager from './components/loading/LoadingManager';
 import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import backgroundSvg from './media/4.svg';
-import CustomerDetailPage from './pages/CustomerDetailPage';
+import CustomerDetailPage from './components/dashboard/CustomerDetailPage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
