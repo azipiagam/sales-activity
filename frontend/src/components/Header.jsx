@@ -14,6 +14,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
 import DateCarousel from './DateCarousel';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -22,13 +23,14 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { id } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { logout, getSales } from '../utils/auth';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import backgroundHeader from '../media/bgh1.svg';
 
-export default function Header({ 
-  calendarAnchorEl, 
-  onCalendarClick, 
-  onCalendarClose, 
-  pickerDate, 
+export default function Header({
+  calendarAnchorEl,
+  onCalendarClick,
+  onCalendarClose,
+  pickerDate,
   onPickerDateChange,
   selectedDate,
   onDateChange,
@@ -38,7 +40,9 @@ export default function Header({
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const isLogoutMenuOpen = Boolean(logoutMenuAnchorEl);
-  
+
+  const { invalidateCache, fetchAllPlans, fetchPlansByDate } = useActivityPlans();
+
   const sales = getSales();
   const salesName = (sales && sales.name) ? sales.name : 'Sales';
   
@@ -69,6 +73,23 @@ export default function Header({
     handleLogoutMenuClose();
     logout();
     navigate('/login');
+  };
+
+  const handleReset = async () => {
+    try {
+      // Invalidate all caches to clear old data
+      invalidateCache();
+
+      // Refresh Home data (all plans) without loading screen
+      await fetchAllPlans(true, true);
+
+      // Refresh Plan data for the selected date without loading screen
+      await fetchPlansByDate(selectedDate, true, true);
+
+      console.log('Data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
   };
 
   return (
@@ -314,6 +335,35 @@ export default function Header({
               }}
             >
               <CalendarTodayIcon
+                sx={{
+                  color: 'white',
+                  fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                }}
+              />
+            </IconButton>
+
+            {/* Reset Icon Button */}
+            <IconButton
+              onClick={handleReset}
+              sx={{
+                width: { xs: 40, sm: 44, md: 48 },
+                height: { xs: 40, sm: 44, md: 48 },
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                border: '2px solid rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  transform: 'scale(1.05)',
+                },
+                '&:active': {
+                  transform: 'scale(0.95)',
+                },
+              }}
+            >
+              <RefreshIcon
                 sx={{
                   color: 'white',
                   fontSize: { xs: '20px', sm: '22px', md: '24px' },

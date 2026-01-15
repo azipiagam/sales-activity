@@ -17,7 +17,7 @@ export function ActivityPlanProvider({ children }) {
   const [errorStates, setErrorStates] = useState(new Map());
   const [selectedFilter, setSelectedFilter] = useState('plan'); // 'plan', 'done', or 'more'
 
-  const fetchPlansByDate = useCallback(async (date, force = false) => {
+  const fetchPlansByDate = useCallback(async (date, force = false, skipLoading = false) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const cacheKey = `date:${dateStr}`;
     
@@ -57,17 +57,19 @@ export function ActivityPlanProvider({ children }) {
       }
     }
 
-    // Set loading state
-    setLoadingStates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cacheKey, true);
-      return newMap;
-    });
-    setErrorStates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cacheKey, null);
-      return newMap;
-    });
+    // Set loading state (skip if requested)
+    if (!skipLoading) {
+      setLoadingStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(cacheKey, true);
+        return newMap;
+      });
+      setErrorStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(cacheKey, null);
+        return newMap;
+      });
+    }
 
     try {
       const endpoint = `activity-plans?date=${dateStr}`;
@@ -122,7 +124,7 @@ export function ActivityPlanProvider({ children }) {
     }
   }, []);
 
-  const fetchAllPlans = useCallback(async (force = false) => {
+  const fetchAllPlans = useCallback(async (force = false, skipLoading = false) => {
     const cacheKey = 'all';
     
     // Check cache first
@@ -153,17 +155,19 @@ export function ActivityPlanProvider({ children }) {
       }
     }
 
-    // Set loading state
-    setLoadingStates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cacheKey, true);
-      return newMap;
-    });
-    setErrorStates(prev => {
-      const newMap = new Map(prev);
-      newMap.set(cacheKey, null);
-      return newMap;
-    });
+    // Set loading state (skip if requested)
+    if (!skipLoading) {
+      setLoadingStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(cacheKey, true);
+        return newMap;
+      });
+      setErrorStates(prev => {
+        const newMap = new Map(prev);
+        newMap.set(cacheKey, null);
+        return newMap;
+      });
+    }
 
     try {
       const endpoint = 'activity-plans/all';

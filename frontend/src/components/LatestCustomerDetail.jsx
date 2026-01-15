@@ -30,7 +30,7 @@ export default function LatestCustomerDetail() {
             { id: 2, value: 30, label: 'Plan', color: '#6BA3D0' },
             { id: 3, value: 25, label: 'Missed', color: '#F87171' },
           ],
-        },
+        },  
         {
           id: 2,
           customer_name: 'Sarah Johnson',

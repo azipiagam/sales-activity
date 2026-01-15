@@ -3,14 +3,13 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Modal from '@mui/material/Modal';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import Modal from '@mui/material/Modal';
-import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CloseIcon from '@mui/icons-material/Close';
 import Tooltip from '@mui/material/Tooltip';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -26,18 +25,16 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
-import { apiRequest } from '../config/api';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import { getSales } from '../utils/auth';
-import LoadingManager from './loading/LoadingManager';
+import { apiRequest } from '../../config/api';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { useNavigate } from 'react-router-dom';
+import { getSales } from '../../utils/auth';
+import LoadingManager from '../loading/LoadingManager';
 import Lottie from 'lottie-react';
-import emptyBoxAnimation from '../media/Empty Box (3).json';
-import ModalResult from './ModalResult';
+import emptyBoxAnimation from '../../media/Empty Box (3).json';
 
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
-  const [openModal, setOpenModal] = useState(false);
-  const [result, setResult] = useState('');
-  const [capturedImage, setCapturedImage] = useState(null);
+  const navigate = useNavigate();
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
   const [activeTasks, setActiveTasks] = useState([]);
   const [currentTaskId, setCurrentTaskId] = useState(null);
@@ -47,14 +44,56 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
 
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
-  
-  const dateToUse = selectedDate || new Date();
-  const dateStr = format(dateToUse, 'yyyy-MM-dd');
-  const loading = isLoading(`date:${dateStr}`);
-  const error = getError(`date:${dateStr}`);
+  // Get context with safe fallback
+  const contextValue = useActivityPlans();
 
-  const fetchActiveTask = useCallback(async () => {
+  // Early return if context is not ready
+  if (!contextValue) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 2, mb: 2, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+          padding: { xs: 3, sm: 4, md: 5 },
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+          textAlign: 'center',
+        }}>
+          <Typography>Loading...</Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  const {
+    fetchPlansByDate = () => {},
+    getPlansByDate = () => null,
+    isLoading = () => false,
+    getError = () => null,
+    invalidateCache = () => {},
+    updatePlanInCache = () => {},
+    dataByDate = new Map(),
+    selectedFilter = 'plan'
+  } = contextValue;
+
+  const dateToUse = selectedDate && !isNaN(new Date(selectedDate).getTime()) ? new Date(selectedDate) : new Date();
+  let dateStr = '1970-01-01'; // fallback date
+  try {
+    dateStr = format(dateToUse, 'yyyy-MM-dd');
+  } catch (err) {
+    console.warn('Error formatting date:', err);
+  }
+
+  // Safe function calls
+  const loadingKey = `date:${dateStr}`;
+  const loading = typeof isLoading === 'function' ? isLoading(loadingKey) : false;
+  const error = typeof getError === 'function' ? getError(loadingKey) : null;
+
+  // Use refs to prevent infinite loops
+  const lastFetchDateRef = useRef(null);
+  const lastFetchFilterRef = useRef(null);
+  const isFetchingRef = useRef(false);
+
+  const processTasksData = useCallback((data, forceUpdate = false) => {
     try {
       // Get current logged in user
       const currentUser = getSales();
@@ -65,12 +104,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         return;
       }
 
-      let data = getPlansByDate(dateToUse);
-      
-      if (!data) {
-        data = await fetchPlansByDate(dateToUse);
-      }
-      
       console.log('[ActiveTask] fetchActiveTask - Raw data:', {
         date: dateStr,
         dataLength: Array.isArray(data) ? data.length : 0,
@@ -82,18 +115,18 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           sales_internal_id: t.sales_internal_id
         })) : null
       });
-      
+
       // Filter tasks berdasarkan user yang login dan status yang valid
-      const activeTasksData = Array.isArray(data) 
+      const activeTasksData = Array.isArray(data)
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
             const isUserTask = task.sales_internal_id === currentUserId;
-            const shouldInclude = normalizedStatus === 'in progress' || 
-                   normalizedStatus === 'rescheduled' || 
-                   normalizedStatus === 'done' || 
-                   normalizedStatus === 'missed' || 
+            const shouldInclude = normalizedStatus === 'in progress' ||
+                   normalizedStatus === 'rescheduled' ||
+                   normalizedStatus === 'done' ||
+                   normalizedStatus === 'missed' ||
                    normalizedStatus === 'deleted';
-            
+
             if (normalizedStatus === 'in progress' && isUserTask) {
               console.log('[ActiveTask] In progress task found:', {
                 id: task.id,
@@ -103,11 +136,11 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 shouldInclude
               });
             }
-            
+
             return isUserTask && shouldInclude;
           })
         : [];
-      
+
       console.log('[ActiveTask] Filtered activeTasksData:', {
         count: activeTasksData.length,
         tasks: activeTasksData.map(t => ({
@@ -117,13 +150,13 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           plan_date: t.plan_date
         }))
       });
-      
+
       if (activeTasksData.length > 0) {
         const today = new Date();
         const todayStr = format(today, 'yyyy-MM-dd');
-        
+
         console.log('[ActiveTask] Date comparison - todayStr:', todayStr);
-        
+
         const processedTasks = activeTasksData.map(taskData => {
           let visitDate = new Date();
           if (taskData.plan_date) {
@@ -132,12 +165,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               visitDate = new Date(taskData.plan_date);
             }
           }
-          
+
           const taskDateStr = format(visitDate, 'yyyy-MM-dd');
-          
+
           let status = (taskData.status || 'in progress').toLowerCase().trim();
           const originalStatus = status;
-          
+
           if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
             status = 'missed';
             console.log('[ActiveTask] Status changed to missed:', {
@@ -149,7 +182,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               todayStr
             });
           }
-          
+
           // Format tujuan
           let formattedTujuan = 'Visit';
           if (taskData.tujuan) {
@@ -158,7 +191,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               formattedTujuan = 'Follow Up';
             }
           }
-          
+
           return {
             id: taskData.id,
             namaCustomer: taskData.customer_name || 'N/A',
@@ -169,25 +202,25 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             status: status,
           };
         });
-        
+
         // Filter tasks based on selectedFilter
         let filteredTasks = processedTasks;
         if (selectedFilter === 'done') {
           filteredTasks = processedTasks.filter(t => t.status === 'done');
         } else if (selectedFilter === 'more') {
-          filteredTasks = processedTasks.filter(t => 
+          filteredTasks = processedTasks.filter(t =>
             t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
           );
         } else if (selectedFilter === 'plan') {
           // Show all (done + in progress + rescheduled + missed)
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'done' || 
-            t.status === 'in progress' || 
-            t.status === 'rescheduled' || 
+          filteredTasks = processedTasks.filter(t =>
+            t.status === 'done' ||
+            t.status === 'in progress' ||
+            t.status === 'rescheduled' ||
             t.status === 'missed'
           );
         }
-        
+
         filteredTasks.sort((a, b) => {
           const statusPriority = {
             'deleted': 1,
@@ -198,14 +231,14 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           };
           const aPriority = statusPriority[a.status] || 99;
           const bPriority = statusPriority[b.status] || 99;
-          
+
           if (aPriority !== bPriority) {
             return aPriority - bPriority;
           }
-          
+
           return b.visitDate - a.visitDate;
         });
-        
+
         console.log('[ActiveTask] Final processedTasks (fetchActiveTask):', {
           count: filteredTasks.length,
           selectedFilter,
@@ -217,148 +250,86 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           })),
           todayStr: format(new Date(), 'yyyy-MM-dd')
         });
-        
-        setActiveTasks(filteredTasks);
+
+        // Only update state if the data actually changed
+        setActiveTasks(prevTasks => {
+          const isEqual = prevTasks.length === filteredTasks.length &&
+            prevTasks.every((task, index) => {
+              const prevTask = prevTasks[index];
+              const newTask = filteredTasks[index];
+              return prevTask && newTask &&
+                prevTask.id === newTask.id &&
+                prevTask.status === newTask.status &&
+                prevTask.namaCustomer === newTask.namaCustomer &&
+                prevTask.visitDate.getTime() === newTask.visitDate.getTime();
+            });
+
+          return isEqual && !forceUpdate ? prevTasks : filteredTasks;
+        });
       } else {
-        setActiveTasks([]);
+        setActiveTasks(prevTasks => forceUpdate || prevTasks.length > 0 ? [] : prevTasks);
       }
     } catch (err) {
-      console.error('Error fetching active task:', err);
+      console.error('Error processing active tasks:', err);
       setActiveTasks([]);
     }
-  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter]);
+  }, [dateStr, selectedFilter]);
 
-  useEffect(() => {
-    fetchActiveTask();
-  }, [fetchActiveTask]);
 
-  // Also update when data changes in context
+  // Main effect for fetching and processing data
   useEffect(() => {
-    const data = getPlansByDate(dateToUse);
-    if (data) {
-      const activeTasksData = Array.isArray(data) 
-        ? data.filter(task => {
-            const normalizedStatus = (task.status || '').toLowerCase().trim();
-            return normalizedStatus === 'in progress' || 
-                   normalizedStatus === 'rescheduled' || 
-                   normalizedStatus === 'done' || 
-                   normalizedStatus === 'missed' || 
-                   normalizedStatus === 'deleted';
-          })
-        : [];
-      
-      if (activeTasksData.length > 0) {
-        // Use string date comparison to avoid timezone issues between desktop and mobile
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
-        
-        const processedTasks = activeTasksData.map(taskData => {
-          let visitDate = new Date();
-          if (taskData.plan_date) {
-            visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
-            if (isNaN(visitDate.getTime())) {
-              visitDate = new Date(taskData.plan_date);
-            }
-          }
-          
-          // Use string comparison for date to avoid timezone issues
-          const taskDateStr = format(visitDate, 'yyyy-MM-dd');
-          
-          let status = (taskData.status || 'in progress').toLowerCase().trim();
-          const originalStatus = status;
-          
-          // Only mark as missed if status is actually "in progress" or "rescheduled" and date has passed
-          // Don't change status if it's already "done" or "deleted"
-          // Use string comparison to avoid timezone issues between desktop and mobile
-          if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
-            status = 'missed';
-          }
-          
-          let formattedTujuan = 'Visit';
-          if (taskData.tujuan) {
-            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-            if (formattedTujuan.toLowerCase() === 'follow up') {
-              formattedTujuan = 'Follow Up';
-            }
-          }
-          
-          return {
-            id: taskData.id,
-            namaCustomer: taskData.customer_name || 'N/A',
-            idPlan: taskData.plan_no || 'N/A',
-            tujuan: formattedTujuan,
-            tambahan: taskData.keterangan_tambahan || '',
-            visitDate: visitDate,
-            status: status,
-          };
-        });
-        
-        // Filter tasks based on selectedFilter
-        let filteredTasks = processedTasks;
-        if (selectedFilter === 'done') {
-          filteredTasks = processedTasks.filter(t => t.status === 'done');
-        } else if (selectedFilter === 'more') {
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-          );
-        } else if (selectedFilter === 'plan') {
-          // Show all (done + in progress + rescheduled + missed)
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'done' || 
-            t.status === 'in progress' || 
-            t.status === 'rescheduled' || 
-            t.status === 'missed'
-          );
+    const fetchAndProcessData = async () => {
+      try {
+        // Get current logged in user
+        const currentUser = getSales();
+        const currentUserId = currentUser?.internal_id;
+
+        if (!currentUserId) {
+          setActiveTasks([]);
+          return;
         }
-        
-        filteredTasks.sort((a, b) => {
-          const statusPriority = {
-            'deleted': 1,
-            'done': 2,
-            'missed': 3,
-            'rescheduled': 4,
-            'in progress': 5
-          };
-          const aPriority = statusPriority[a.status] || 99;
-          const bPriority = statusPriority[b.status] || 99;
-          
-          if (aPriority !== bPriority) {
-            return aPriority - bPriority;
-          }
-          
-          return b.visitDate - a.visitDate;
-        });
-        
-        setActiveTasks(filteredTasks);
-      } else {
+
+        let data = getPlansByDate(dateToUse);
+
+        if (!data) {
+          data = await fetchPlansByDate(dateToUse);
+        }
+
+        // Process the data
+        processTasksData(data, false);
+
+      } catch (err) {
+        console.error('Error in main fetch effect:', err);
         setActiveTasks([]);
       }
-    }
-  }, [getPlansByDate, dateToUse, dataByDate, selectedFilter]); // Tambah dataByDate dan selectedFilter untuk trigger update
-
-  useEffect(() => {
-    const handlePlanCreated = () => {
-      fetchActiveTask();
     };
 
+    fetchAndProcessData();
+  }, [dateStr, selectedFilter, getPlansByDate, fetchPlansByDate, processTasksData]); // Include stable functions
+
+  const handlePlanCreated = useCallback(() => {
+    // Force refresh when plan is created - trigger main effect by invalidating cache
+    invalidateCache(dateToUse);
+    // Re-fetch data
+    const fetchAndProcessData = async () => {
+      try {
+        let data = await fetchPlansByDate(dateToUse, true); // Force fetch
+        processTasksData(data, true);
+      } catch (err) {
+        console.error('Error refetching after plan created:', err);
+      }
+    };
+    fetchAndProcessData();
+  }, [invalidateCache, dateToUse, fetchPlansByDate, processTasksData]);
+
+  useEffect(() => {
     window.addEventListener('activityPlanCreated', handlePlanCreated);
 
     return () => {
       window.removeEventListener('activityPlanCreated', handlePlanCreated);
     };
-  }, [fetchActiveTask]);
+  }, [handlePlanCreated]);
 
-  const handleOpenModal = (taskId) => {
-    setCurrentTaskId(taskId);
-    setOpenModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false);
-    setResult('');
-    setCapturedImage(null);
-    setCurrentTaskId(null);
-  };
 
   const handleOpenMenu = (event, taskId) => {
     setMenuAnchor(event.currentTarget);
@@ -378,110 +349,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleMenuReschedule = (taskId) => {
     handleCloseMenu();
     handleOpenRescheduleModal(taskId);
-  };
-
-  const handleSaveResult = async () => {
-    if (!result.trim() || !currentTaskId) return;
-    
-    const activeTask = activeTasks.find(task => task.id === currentTaskId);
-    if (!activeTask) return;
-    
-    try {
-      setSaving(true);
-      
-      // Get GPS location (required field according to API)
-      let latitude = null;
-      let longitude = null;
-      let accuracy = null;
-      
-      if (!navigator.geolocation) {
-        throw new Error('GPS tidak tersedia di perangkat ini. Silakan gunakan perangkat yang mendukung GPS.');
-      }
-      
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          });
-        });
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-        accuracy = position.coords.accuracy;
-      } catch (geoError) {
-        let errorMessage = 'Gagal mendapatkan lokasi GPS. ';
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          errorMessage += 'Izin akses lokasi ditolak. Silakan berikan izin akses lokasi di pengaturan browser.';
-        } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-          errorMessage += 'Lokasi tidak tersedia.';
-        } else if (geoError.code === geoError.TIMEOUT) {
-          errorMessage += 'Waktu tunggu habis. Silakan coba lagi.';
-        } else {
-          errorMessage += 'Silakan coba lagi.';
-        }
-        throw new Error(errorMessage);
-      }
-      
-      // Validate GPS coordinates
-      if (latitude === null || longitude === null) {
-        throw new Error('Koordinat GPS tidak valid. Silakan coba lagi.');
-      }
-      
-      // OPTIMISTIC UPDATE: Langsung update UI sebelum API call
-      const resultText = result.trim();
-      updatePlanInCache(currentTaskId, {
-        status: 'done',
-        result: resultText,
-        result_location_lat: latitude,
-        result_location_lng: longitude,
-        result_location_accuracy: accuracy,
-        result_saved_at: new Date().toISOString(),
-      });
-      
-      // Update local state juga untuk immediate feedback
-      setActiveTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === currentTaskId 
-            ? { ...task, status: 'done' }
-            : task
-        )
-      );
-      
-      // Close modal immediately untuk UX yang lebih baik
-      handleCloseModal();
-      setResult('');
-      
-      // API call di background
-      const response = await apiRequest(`activity-plans/${currentTaskId}/done`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          result: resultText,
-          latitude,
-          longitude,
-          accuracy,
-        }),
-      });
-      
-      if (!response.ok) {
-        // Jika API gagal, rollback optimistic update
-        const errorData = await response.json().catch(() => ({}));
-        invalidateCache(dateToUse);
-        await fetchPlansByDate(dateToUse, true);
-        throw new Error(errorData.message || 'Failed to save result');
-      }
-      
-      // Refresh data untuk memastikan sync dengan backend (tapi tidak blocking UI)
-      invalidateCache(dateToUse);
-      fetchPlansByDate(dateToUse, true).catch(err => {
-        console.error('Error refreshing after done:', err);
-      });
-    } catch (err) {
-      console.error('Error saving result:', err);
-      alert(`Error: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleOpenRescheduleModal = (taskId) => {
@@ -510,46 +377,52 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       alert('Mohon pilih tanggal baru untuk reschedule');
       return;
     }
-    
+
     const activeTask = activeTasks.find(task => task.id === currentTaskId);
     if (!activeTask) return;
-    
-    // Validate date >= today
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedDate = new Date(newVisitDate);
     selectedDate.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < today) {
       alert('Tanggal baru harus >= hari ini');
       return;
     }
-    
+
     try {
       setSaving(true);
-      
+
       const newDateStr = format(newVisitDate, 'yyyy-MM-dd');
-      
+
       const response = await apiRequest(`activity-plans/${currentTaskId}/reschedule`, {
         method: 'PUT',
         body: JSON.stringify({
           new_date: newDateStr,
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to reschedule');
       }
-      
+
+      // Update state immediately for better UX, then refresh from server
       setActiveTasks(prevTasks => prevTasks.filter(task => task.id !== currentTaskId));
-      
+
       handleCloseRescheduleModal();
-      
-      // Invalidate cache and refresh data after reschedule
-      invalidateCache(dateToUse);
-      await fetchPlansByDate(dateToUse, true);
-      fetchActiveTask();
+
+      // Refresh data from server to ensure consistency
+      try {
+        invalidateCache(dateToUse);
+        const freshData = await fetchPlansByDate(dateToUse, true);
+        if (freshData) {
+          processTasksData(freshData, true);
+        }
+      } catch (refreshError) {
+        console.warn('Failed to refresh data after reschedule:', refreshError);
+      }
     } catch (err) {
       console.error('Error rescheduling:', err);
       alert(`Error: ${err.message}`);
@@ -558,30 +431,42 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   };
 
+  const handleNavigateToDonePage = (taskId) => {
+    console.log('Navigating to done page with taskId:', taskId);
+    // Force full page navigation to ensure immediate transition
+    window.location.href = `${window.location.origin}/done/${taskId}`;
+  };
+
   const handleCancelTask = async (taskId) => {
     if (!window.confirm('Apakah Anda yakin ingin membatalkan task ini?')) {
       return;
     }
-    
+
     try {
       setSaving(true);
-      
+
       const response = await apiRequest(`activity-plans/${taskId}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to cancel task');
       }
-      
-      // Remove the cancelled task from current list
+
+      // Update state immediately for better UX, then refresh from server
       setActiveTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-      
-      // Invalidate cache and refresh data after delete
-      invalidateCache(dateToUse);
-      await fetchPlansByDate(dateToUse, true);
-      fetchActiveTask();
+
+      // Refresh data from server to ensure consistency
+      try {
+        invalidateCache(dateToUse);
+        const freshData = await fetchPlansByDate(dateToUse, true);
+        if (freshData) {
+          processTasksData(freshData, true);
+        }
+      } catch (refreshError) {
+        console.warn('Failed to refresh data after cancel:', refreshError);
+      }
     } catch (err) {
       console.error('Error canceling task:', err);
       alert(`Error: ${err.message}`);
@@ -590,24 +475,21 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   };
 
-  // Format date for display (without time)
   const formatDateTime = (date) => {
     if (!date) return 'N/A';
     const dateStr = format(date, 'dd-MM-yyyy');
     return dateStr;
   };
 
-  // Show loading state (but not if DateCarousel is loading - it has priority)
   if (loading && !isDateCarouselLoading) {
-    return <LoadingManager type="skeleton" />;
+    return <LoadingManager type="default" />;
   }
 
-  // Show error state
   if (error) {
     return (
-      <Container 
-        maxWidth="md" 
-        sx={{ 
+      <Container
+        maxWidth="md"
+        sx={{
           mt: 2,
           mb: 2,
           px: { xs: 2, sm: 3 },
@@ -633,9 +515,9 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   // Show no active task state
   if (activeTasks.length === 0) {
     return (
-      <Container 
-        maxWidth="md" 
-        sx={{ 
+      <Container
+        maxWidth="md"
+        sx={{
           mt: 2,
           mb: 2,
           px: { xs: 2, sm: 3 },
@@ -672,16 +554,16 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               loop={true}
             />
           </Box>
-          <Typography 
+          <Typography
             color="text.secondary"
             sx={{
               fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
             }}
           >
-            {selectedFilter === 'done' 
-              ? 'Tidak ada task yang sudah selesai' 
-              : selectedFilter === 'more' 
-              ? 'Tidak ada task yang perlu dikerjakan' 
+            {selectedFilter === 'done'
+              ? 'Tidak ada task yang sudah selesai'
+              : selectedFilter === 'more'
+              ? 'Tidak ada task yang perlu dikerjakan'
               : 'Tidak ada active task saat ini'}
           </Typography>
         </Box>
@@ -690,9 +572,9 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   }
 
   return (
-    <Container 
-      maxWidth="md" 
-      sx={{ 
+    <Container
+      maxWidth="md"
+      sx={{
         mt: 2,
         mb: 2,
         px: { xs: 2, sm: 3 },
@@ -700,7 +582,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     >
       {activeTasks.map((activeTask, index) => (
         <Box
-          key={activeTask.id}
+          key={`task-${activeTask.id}-${activeTask.status}`}
           sx={{
             backgroundColor: '#FFFFFF',
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
@@ -715,7 +597,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             },
           }}
         >
-          {/* Menu Button - Only show if status is not "done" or "deleted" */}
+          {/* Menu Button */}
           {activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
             <IconButton
               onClick={(e) => handleOpenMenu(e, activeTask.id)}
@@ -963,7 +845,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               {/* Done button - only show if status is not "missed" */}
               {activeTask.status !== 'missed' && (
                 <Button
-                  onClick={() => handleOpenModal(activeTask.id)}
+                  onClick={() => handleNavigateToDonePage(activeTask.id)}
                   disabled={saving}
                   startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{
@@ -1019,7 +901,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         {menuTaskId && (() => {
           const task = activeTasks.find(t => t.id === menuTaskId);
           if (!task) return null;
-          
+
           return (
             <>
               {task.status !== 'missed' && (
@@ -1062,18 +944,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           );
         })()}
       </Menu>
-
-      {/* Result Modal */}
-      <ModalResult
-        openModal={openModal}
-        handleCloseModal={handleCloseModal}
-        result={result}
-        setResult={setResult}
-        handleSaveResult={handleSaveResult}
-        saving={saving}
-        capturedImage={capturedImage}
-        setCapturedImage={setCapturedImage}
-      />
 
       {/* Reschedule Modal */}
       <Modal
@@ -1268,4 +1138,3 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     </Container>
   );
 }
-
