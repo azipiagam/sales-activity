@@ -11,7 +11,6 @@ import Button from '@mui/material/Button';
 import TextareaAutosize from '@mui/material/TextareaAutosize';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
@@ -20,6 +19,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import { apiRequest } from '../config/api';
 import AddressMap from './AddressMap';
 import AddAddress from './AddAddress';
+import AlertDialog from './AlertDialog';
+import LoadingPlan from './loading/LoadingPlan';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 // Utilities
@@ -216,8 +217,9 @@ const useLocationHandler = () => {
 export default function AddPlan({ open, onClose }) {
   // UI State
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [showLoadingPlan, setShowLoadingPlan] = useState(false);
+  const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
+  const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
   const [addAddressOpen, setAddAddressOpen] = useState(false);
 
   // Custom Hooks
@@ -270,7 +272,7 @@ export default function AddPlan({ open, onClose }) {
       setSearchInput('');
     } catch (error) {
       console.error('Error handling customer change:', error);
-      setError('Terjadi kesalahan saat memilih customer. Silakan coba lagi.');
+      setErrorDialog({ open: true, message: 'Terjadi kesalahan saat memilih customer. Silakan coba lagi.', fieldType: 'customer' });
       updateField('customer', null);
       updateField('customerId', '');
       setCustomerAddress('');
@@ -301,15 +303,15 @@ export default function AddPlan({ open, onClose }) {
   const handleCreatePlan = async () => {
     // Validasi form
     if (!formData.date) {
-      setError('Tanggal harus diisi');
+      setErrorDialog({ open: true, message: 'Tanggal harus diisi', fieldType: 'date' });
       return;
     }
     if (!formData.customerId || !formData.customer) {
-      setError('Customer harus dipilih');
+      setErrorDialog({ open: true, message: 'Customer harus dipilih', fieldType: 'customer' });
       return;
     }
     if (!formData.tujuan) {
-      setError('Tujuan harus dipilih');
+      setErrorDialog({ open: true, message: 'Tujuan harus dipilih', fieldType: 'tujuan' });
       return;
     }
 
@@ -318,26 +320,24 @@ export default function AddPlan({ open, onClose }) {
     today.setHours(0, 0, 0, 0);
     const planDate = new Date(formData.date);
     planDate.setHours(0, 0, 0, 0);
-    
+
     if (planDate < today) {
-      setError('Tanggal harus sama dengan atau setelah hari ini');
+      setErrorDialog({ open: true, message: 'Tanggal harus sama dengan atau setelah hari ini', fieldType: 'date' });
       return;
     }
 
     // Validasi koordinat
     if (!latitude || !longitude) {
-      setError('Koordinat lokasi belum ditentukan. Silakan tunggu geocoding selesai atau geser marker pada peta untuk menentukan lokasi secara manual.');
+      setErrorDialog({ open: true, message: 'Lokasi belum ditentukan. Geser marker pada peta untuk menentukan lokasi.', fieldType: 'location' });
       return;
     }
 
     if (isDefaultLocation(latitude, longitude)) {
-      setError('Koordinat masih di lokasi default. Silakan geser marker pada peta ke lokasi yang sesuai, atau cari lokasi menggunakan fitur pencarian.');
+      setErrorDialog({ open: true, message: 'Lokasi masih default. Geser marker ke lokasi yang sesuai.', fieldType: 'location' });
       return;
     }
-
-    setError('');
     setLoading(true);
-    setSuccess(false);
+    setShowLoadingPlan(true);
 
     try {
       // Map tujuan ke format yang benar
@@ -378,7 +378,7 @@ export default function AddPlan({ open, onClose }) {
           }
         }
         
-        setError(errorMessage);
+        setErrorDialog({ open: true, message: errorMessage, fieldType: 'general' });
         setLoading(false);
         return;
       }
@@ -392,8 +392,7 @@ export default function AddPlan({ open, onClose }) {
       resetLocation();
       setSearchInput('');
       setInputValue('');
-      setSuccess(false);
-      setError('');
+      setSuccessDialog({ open: true, message: 'Activity plan berhasil dibuat!' });
 
       // Close drawer immediately
       onClose();
@@ -415,9 +414,10 @@ export default function AddPlan({ open, onClose }) {
       }));
     } catch (error) {
       console.error('Error creating plan:', error);
-      setError('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.');
+      setErrorDialog({ open: true, message: 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi.', fieldType: 'general' });
     } finally {
       setLoading(false);
+      setShowLoadingPlan(false);
     }
   };
 
@@ -425,9 +425,10 @@ export default function AddPlan({ open, onClose }) {
     resetForm();
     setCustomerAddress('');
     resetLocation();
-    setError('');
-    setSuccess(false);
+    setErrorDialog({ open: false, message: '', fieldType: '' });
+    setSuccessDialog({ open: false, message: '' });
     setLoading(false);
+    setShowLoadingPlan(false);
     setSearchInput('');
     setInputValue('');
     onClose();
@@ -494,21 +495,22 @@ export default function AddPlan({ open, onClose }) {
           </IconButton>
         </Box>
 
-        {/* Error Message */}
-        {error && (
-          <Box sx={{ mb: 2 }}>
-            <Alert severity="error" onClose={() => setError('')}>
-              {error}
-            </Alert>
-          </Box>
-        )}
+        {/* Error Dialog */}
+        <AlertDialog
+          open={errorDialog.open}
+          onClose={() => setErrorDialog({ open: false, message: '', fieldType: '' })}
+          message={errorDialog.message}
+          severity="error"
+          fieldType={errorDialog.fieldType}
+        />
 
-        {/* Success Message */}
-        {success && (
-          <Box sx={{ mb: 2 }}>
-            <Alert severity="success">Plan berhasil dibuat!</Alert>
-          </Box>
-        )}
+        {/* Success Dialog */}
+        <AlertDialog
+          open={successDialog.open}
+          onClose={() => setSuccessDialog({ open: false, message: '' })}
+          message={successDialog.message}
+          severity="success"
+        />
 
         {/* Date Input */}
         <Box sx={{ mb: 3 }}>
@@ -867,6 +869,9 @@ export default function AddPlan({ open, onClose }) {
         onLocationChange={handleLocationChange}
         onAddressConfirm={handleAddressConfirm}
       />
+
+      {/* Loading Plan Overlay */}
+      {showLoadingPlan && <LoadingPlan />}
     </Drawer>
   );
 }

@@ -57,6 +57,9 @@ export default function CheckIn({ open, onClose }) {
   const [capturedImage, setCapturedImage] = useState(null);
   const [cameraError, setCameraError] = useState(null);
 
+  // Address loading state
+  const [addressLoading, setAddressLoading] = useState(false);
+
   // Refs untuk kamera
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
@@ -70,6 +73,7 @@ export default function CheckIn({ open, onClose }) {
 
     setLoading(true);
     setError('');
+    setAddressLoading(true);
 
     try {
       const position = await new Promise((resolve, reject) => {
@@ -98,12 +102,15 @@ export default function CheckIn({ open, onClose }) {
       }
     } finally {
       setLoading(false);
+      setAddressLoading(false);
     }
   }, []);
 
   // Reverse geocoding to get address from coordinates
   const getAddressFromCoordinates = useCallback(async (lat, lng) => {
     try {
+      console.log('Reverse geocoding started for:', lat, lng);
+
       // Using Nominatim (OpenStreetMap) for reverse geocoding
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
@@ -114,19 +121,28 @@ export default function CheckIn({ open, onClose }) {
         }
       );
 
+      console.log('Nominatim response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to get address');
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Nominatim response data:', data);
+
       if (data && data.display_name) {
         setAddress(data.display_name);
+        console.log('Address set to:', data.display_name);
       } else {
+        console.warn('No display_name in response, using coordinates as fallback');
         setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
       }
     } catch (error) {
       console.error('Error reverse geocoding:', error);
+      console.log('Falling back to coordinates only');
       setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+    } finally {
+      setAddressLoading(false);
     }
   }, []);
 
@@ -245,10 +261,13 @@ export default function CheckIn({ open, onClose }) {
     setCheckInResult(null);
 
     try {
+      // Ensure we have an address, fallback to coordinates if reverse geocoding failed
+      const finalAddress = address && address.trim() ? address : `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+
       const checkInData = {
         latitude: location.latitude,
         longitude: location.longitude,
-        address: address,
+        address: finalAddress,
         result: result,
         timestamp: new Date().toISOString(),
         capturedImage: capturedImage,
@@ -296,6 +315,7 @@ export default function CheckIn({ open, onClose }) {
     setCameraActive(false);
     setCapturedImage(null);
     setCameraError(null);
+    setAddressLoading(false);
     onClose();
   }, [onClose]);
 
@@ -310,6 +330,7 @@ export default function CheckIn({ open, onClose }) {
     setCameraActive(false);
     setCapturedImage(null);
     setCameraError(null);
+    setAddressLoading(false);
   }, []);
 
   return (
@@ -443,11 +464,18 @@ export default function CheckIn({ open, onClose }) {
                   Koordinat: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                 </Typography>
               </Box>
-              {address && (
+              {addressLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                  <CircularProgress size={14} sx={{ color: '#6BA3D0', mr: 1 }} />
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    Mengambil alamat...
+                  </Typography>
+                </Box>
+              ) : address ? (
                 <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
                   Alamat: {address}
                 </Typography>
-              )}
+              ) : null}
 
               {/* Map Toggle Button */}
               <Button

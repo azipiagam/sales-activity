@@ -54,7 +54,6 @@ export default function MyTasks({ selectedDate }) {
 
     const fetchStats = async () => {
       try {
-        // Get current logged in user
         const currentUser = getSales();
         const currentUserId = currentUser?.internal_id;
 

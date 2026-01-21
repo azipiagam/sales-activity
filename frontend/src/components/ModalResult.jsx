@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -22,101 +22,138 @@ export default function ModalResult({
   capturedImage,
   setCapturedImage
 }) {
-  // State untuk kamera
+  // State untuk kamera - gunakan state lokal untuk menghindari race conditions
   const [cameraActive, setCameraActive] = useState(false);
   const [localCapturedImage, setLocalCapturedImage] = useState(null);
   const [cameraError, setCameraError] = useState(null);
+  const [isWebcamReady, setIsWebcamReady] = useState(false);
 
-  // Gunakan capturedImage dari props jika tersedia, atau local state
   const currentCapturedImage = capturedImage !== undefined ? capturedImage : localCapturedImage;
   const setCurrentCapturedImage = setCapturedImage !== undefined ? setCapturedImage : setLocalCapturedImage;
 
-  // Refs untuk kamera dan canvas
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // Cleanup kamera saat component unmount
-  useEffect(() => {
-    return () => {
-      if (cameraActive) {
-        setCameraActive(false);
-      }
-    };
+  // Cleanup webcam stream dengan aman
+  const cleanupWebcam = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    setIsWebcamReady(false);
   }, []);
 
-  // Fungsi untuk membuka kamera
-  const openCamera = async () => {
+  // Cleanup saat modal ditutup atau component unmount
+  useEffect(() => {
+    if (!openModal) {
+      setCameraActive(false);
+      setCameraError(null);
+      cleanupWebcam();
+    }
+  }, [openModal, cleanupWebcam]);
+
+  // Cleanup saat component unmount
+  useEffect(() => {
+    return () => {
+      cleanupWebcam();
+    };
+  }, [cleanupWebcam]);
+
+  const openCamera = useCallback(async () => {
     try {
       setCameraError(null);
+      setIsWebcamReady(false);
       setCameraActive(true);
     } catch (error) {
       console.error('Error opening camera:', error);
       setCameraError('Tidak dapat mengakses kamera');
+      setCameraActive(false);
     }
-  };
+  }, []);
 
-  // Fungsi untuk menutup kamera
-  const closeCamera = () => {
+  const closeCamera = useCallback(() => {
+    cleanupWebcam();
     setCameraActive(false);
-    setCurrentCapturedImage(null);
     setCameraError(null);
-  };
+  }, [cleanupWebcam]);
 
-  // Fungsi untuk kompres gambar
-  const compressImage = (base64Image, maxWidth = 800, quality = 0.7) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        // Hitung dimensi baru dengan mempertahankan aspect ratio
-        let { width, height } = img;
+  // Kompres gambar dengan error handling yang lebih baik
+  const compressImage = useCallback((base64Image, maxWidth = 800, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            let { width, height } = img;
 
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
 
-        // Buat canvas untuk kompresi
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
 
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context not available'));
+              return;
+            }
 
-        // Kompres menjadi base64 dengan quality yang ditentukan
-        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedBase64);
-      };
-      img.src = base64Image;
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedBase64);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = base64Image;
+      } catch (error) {
+        reject(error);
+      }
     });
-  };
+  }, []);
 
-  // Fungsi untuk capture foto
-  const capturePhoto = async () => {
-    if (webcamRef.current) {
+  const capturePhoto = useCallback(async () => {
+    if (!webcamRef.current || !isWebcamReady) {
+      console.warn('Webcam not ready for capture');
+      return;
+    }
+
+    try {
       const imageSrc = webcamRef.current.getScreenshot();
-      if (imageSrc) {
-        try {
-          // Kompres gambar sebelum simpan
-          const compressedImage = await compressImage(imageSrc, 640, 0.20); // 640px max, 50% quality
-          setCurrentCapturedImage(compressedImage);
-          setCameraActive(false);
-        } catch (error) {
-          console.error('Error compressing image:', error);
-          // Fallback ke gambar asli jika kompresi gagal
+      if (!imageSrc) {
+        throw new Error('Failed to capture screenshot');
+      }
+
+      const compressedImage = await compressImage(imageSrc, 640, 0.20); // 640px max, 50% quality
+      setCurrentCapturedImage(compressedImage);
+      closeCamera();
+    } catch (error) {
+      console.error('Error capturing/compressing image:', error);
+      // Fallback: gunakan gambar asli tanpa kompresi
+      try {
+        const imageSrc = webcamRef.current.getScreenshot();
+        if (imageSrc) {
           setCurrentCapturedImage(imageSrc);
-          setCameraActive(false);
+          closeCamera();
         }
+      } catch (fallbackError) {
+        console.error('Fallback capture also failed:', fallbackError);
+        setCameraError('Gagal mengambil foto');
       }
     }
-  };
+  }, [isWebcamReady, compressImage, closeCamera, setCurrentCapturedImage]);
 
-  // Fungsi untuk menghapus foto yang sudah di-capture
   const removeCapturedImage = () => {
     setCurrentCapturedImage(null);
   };
 
-  // Fungsi untuk convert base64 ke Blob
   const dataURLtoBlob = (dataURL) => {
     const arr = dataURL.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
@@ -129,7 +166,6 @@ export default function ModalResult({
     return new Blob([u8arr], { type: mime });
   };
 
-  // Fungsi untuk mendapatkan file dari captured image
   const getCapturedFile = () => {
     if (currentCapturedImage) {
       const blob = dataURLtoBlob(currentCapturedImage);
@@ -157,7 +193,7 @@ export default function ModalResult({
           borderRadius: { xs: '16px', sm: '18px', md: '20px' },
           boxShadow: 24,
           p: { xs: 3, sm: 4 },
-          maxHeight: '90vh',
+          maxHeight: '75vh',
           overflow: 'auto',
         }}
       >
@@ -180,7 +216,7 @@ export default function ModalResult({
               color: '#333',
             }}
           >
-
+            Result
           </Typography>
           <IconButton
             onClick={handleCloseModal}
@@ -288,11 +324,12 @@ export default function ModalResult({
           {cameraActive && (
             <Box sx={{ mb: 2 }}>
               <Webcam
+                key={`webcam-${openModal}`} // Key untuk force re-mount saat modal dibuka
                 audio={false}
                 ref={webcamRef}
                 screenshotFormat="image/jpeg"
                 videoConstraints={{
-                  facingMode: { ideal: 'environment' }, // Prioritas kamera belakang
+                  facingMode: { ideal: 'environment' },
                   width: { ideal: 1280 },
                   height: { ideal: 720 }
                 }}
@@ -303,16 +340,25 @@ export default function ModalResult({
                   borderRadius: '8px',
                   border: '2px solid #6BA3D0',
                 }}
+                onUserMedia={(stream) => {
+                  console.log('Webcam ready');
+                  streamRef.current = stream;
+                  setIsWebcamReady(true);
+                  setCameraError(null);
+                }}
                 onUserMediaError={(error) => {
                   console.error('Webcam error:', error);
                   setCameraError('Tidak dapat mengakses kamera');
                   setCameraActive(false);
+                  setIsWebcamReady(false);
+                  cleanupWebcam();
                 }}
               />
               <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                 <Button
                   variant="contained"
                   onClick={capturePhoto}
+                  disabled={!isWebcamReady}
                   startIcon={<PhotoCameraIcon />}
                   sx={{
                     backgroundColor: '#4CAF50',
@@ -322,9 +368,13 @@ export default function ModalResult({
                     '&:hover': {
                       backgroundColor: '#45a049',
                     },
+                    '&:disabled': {
+                      backgroundColor: '#cccccc',
+                      color: '#666666',
+                    },
                   }}
                 >
-                  Ambil Foto
+                  {isWebcamReady ? 'Ambil Foto' : 'Menyiapkan Kamera...'}
                 </Button>
                 <Button
                   variant="outlined"

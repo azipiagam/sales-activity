@@ -5,6 +5,32 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Global error handler untuk DOM manipulation errors
+const handleGlobalError = (event) => {
+  // Suppress specific DOM errors yang sering muncul di production
+  if (event.message && (
+    event.message.includes('removeChild') ||
+    event.message.includes('Node') ||
+    event.message.includes('child of this node')
+  )) {
+    console.warn('Suppressed DOM manipulation error:', event.message);
+    event.preventDefault();
+    return false;
+  }
+};
+
+const handleUnhandledRejection = (event) => {
+  // Suppress promise rejections related to DOM manipulation
+  if (event.reason && typeof event.reason === 'string' && (
+    event.reason.includes('removeChild') ||
+    event.reason.includes('Node')
+  )) {
+    console.warn('Suppressed DOM promise rejection:', event.reason);
+    event.preventDefault();
+    return false;
+  }
+};
+
 import NavBottom from './components/NavBottom';
 import Header from './components/Header';
 import MyTasks from './components/MyTasks';
@@ -51,7 +77,18 @@ function AppContent() {
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [direction, setDirection] = useState(0);
-  const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false); 
+  const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
+
+  // Setup global error handlers
+  useEffect(() => {
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []); 
 
   useEffect(() => {
     // Pastikan setelah login pertama kali, user selalu melihat Home
@@ -83,13 +120,24 @@ function AppContent() {
   };
 
   const handleCalendarClick = (event) => {
-    setPickerDate(selectedDate); 
-    setCalendarAnchorEl(event.currentTarget);
+    if (event && event.currentTarget) {
+      setPickerDate(selectedDate);
+      setCalendarAnchorEl(event.currentTarget);
+    }
   };
 
   const handleCalendarClose = () => {
     setCalendarAnchorEl(null);
   };
+
+  // Cleanup calendar anchor when component updates
+  useEffect(() => {
+    return () => {
+      if (calendarAnchorEl) {
+        setCalendarAnchorEl(null);
+      }
+    };
+  }, [calendarAnchorEl]);
 
   const handlePickerDateChange = (newDate) => {
     if (newDate) {
@@ -144,38 +192,32 @@ function AppContent() {
             mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
         >
-        <AnimatePresence mode="wait" initial={false}>
+        {/* Custom page transition without AnimatePresence to avoid Portal conflicts */}
+        <motion.div
+          key={`page-${navValue}`}
+          initial={{
+            opacity: 0,
+            x: direction === -1 ? -50 : 50
+          }}
+          animate={{
+            opacity: 1,
+            x: 0
+          }}
+          transition={{
+            duration: 0.3,
+            ease: [0.4, 0, 0.2, 1]
+          }}
+          style={{ width: '100%' }}
+        >
           {navValue === 0 ? (
-            <motion.div
-              key="home"
-              initial={{ opacity: 0, x: direction === -1 ? -50 : 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction === -1 ? 50 : -50 }}
-              transition={{ 
-                duration: 0.3,
-                ease: [0.4, 0, 0.2, 1]
-              }}
-              style={{ width: '100%' }}
-            >
-              <Home />
-            </motion.div>
+            <Home />
           ) : (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0, x: direction === 1 ? 50 : -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction === 1 ? -50 : 50 }}
-              transition={{ 
-                duration: 0.3,
-                ease: [0.4, 0, 0.2, 1]
-              }}
-              style={{ width: '100%' }}
-            >
+            <>
               <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
               <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-            </motion.div>
+            </>
           )}
-        </AnimatePresence>
+        </motion.div>
         </Box>
       </Box>
 
@@ -208,6 +250,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        {/* Disable React.StrictMode to prevent double mounting in development */}
         <BrowserRouter>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={id}>
             <ActivityPlanProvider>

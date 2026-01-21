@@ -13,7 +13,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { motion } from 'framer-motion';
 import { getApiUrl } from '../config/api';
 import backgroundHeaderSvg from '../media/backgroundLogin.svg';
-import backgroundBody from '../media/background.svg';
+// import backgroundBody from '../media/background.svg';
 
 export default function Login() {
   const navigate = useNavigate();

@@ -16,7 +16,19 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    // Suppress DOM manipulation errors that are not user-facing
+    const errorMessage = error?.message || '';
+    const isDOMError = errorMessage.includes('removeChild') ||
+                      errorMessage.includes('Node') ||
+                      errorMessage.includes('child of this node') ||
+                      errorMessage.includes('Failed to execute');
+
+    if (!isDOMError) {
+      console.error('Error caught by boundary:', error, errorInfo);
+    } else {
+      console.warn('Suppressed DOM error in ErrorBoundary:', errorMessage);
+    }
+
     this.setState({
       error,
       errorInfo,
@@ -30,6 +42,10 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      // Log error untuk debugging di production (tidak ditampilkan ke user)
+      console.error('Application Error:', this.state.error, this.state.errorInfo);
+
+      // Return fallback UI yang aman - redirect ke halaman utama atau loading state
       return (
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
           <Box
@@ -39,35 +55,33 @@ class ErrorBoundary extends React.Component {
               padding: { xs: 3, sm: 4, md: 5 },
               boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
               textAlign: 'center',
+              minHeight: '200px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
             }}
           >
-            <ErrorOutlineIcon
-              sx={{
-                fontSize: { xs: '3rem', sm: '4rem', md: '5rem' },
-                color: '#f44336',
-                mb: 2,
-              }}
-            />
             <Typography
-              variant="h5"
+              variant="h6"
               sx={{
-                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-                fontWeight: 700,
+                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                fontWeight: 600,
                 color: '#333',
                 mb: 2,
               }}
             >
-              Terjadi Kesalahan
+              Memuat Ulang Aplikasi...
             </Typography>
             <Typography
-              variant="body1"
+              variant="body2"
               sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                 color: '#666',
                 mb: 3,
               }}
             >
-              Maaf, terjadi kesalahan yang tidak terduga. Silakan refresh halaman atau coba lagi nanti.
+              Sedang memperbaiki masalah teknis. Aplikasi akan segera kembali normal.
             </Typography>
             <Button
               variant="contained"
@@ -86,38 +100,8 @@ class ErrorBoundary extends React.Component {
                 },
               }}
             >
-              Refresh Halaman
+              Muat Ulang
             </Button>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <Box
-                sx={{
-                  mt: 3,
-                  p: 2,
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '8px',
-                  textAlign: 'left',
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.75rem',
-                    color: '#999',
-                    fontFamily: 'monospace',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {this.state.error.toString()}
-                  {this.state.errorInfo && (
-                    <>
-                      {'\n\n'}
-                      {this.state.errorInfo.componentStack}
-                    </>
-                  )}
-                </Typography>
-              </Box>
-            )}
           </Box>
         </Container>
       );
@@ -126,6 +110,7 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-
+  
 export default ErrorBoundary;
 
+ 

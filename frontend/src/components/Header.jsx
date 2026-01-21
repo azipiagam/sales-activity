@@ -61,8 +61,20 @@ export default function Header({
     return () => clearInterval(timer);
   }, []);
 
+  // Cleanup anchor elements when component updates to prevent stale references
+  useEffect(() => {
+    return () => {
+      // Cleanup function to ensure anchor elements are reset
+      if (logoutMenuAnchorEl) {
+        setLogoutMenuAnchorEl(null);
+      }
+    };
+  }, [logoutMenuAnchorEl]);
+
   const handleLogoutMenuClick = (event) => {
-    setLogoutMenuAnchorEl(event.currentTarget);
+    if (event && event.currentTarget) {
+      setLogoutMenuAnchorEl(event.currentTarget);
+    }
   };
 
   const handleLogoutMenuClose = () => {
@@ -422,81 +434,85 @@ export default function Header({
       </Box>
 
       {/* LOGOUT MENU DROPDOWN */}
-      <Menu
-        anchorEl={logoutMenuAnchorEl}
-        open={isLogoutMenuOpen}
-        onClose={handleLogoutMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        PaperProps={{
-          sx: {
-            mt: 1,
-            minWidth: 180,
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
-            borderRadius: '12px',
-            border: '1px solid rgba(0, 0, 0, 0.05)',
-            overflow: 'hidden',
-          },
-        }}
-        MenuListProps={{
-          sx: {
-            py: 0.5,
-          },
-        }}
-      >
-        <MenuItem
-          onClick={handleLogout}
-          sx={{
-            py: 1.5,
-            px: 2,
-            gap: 1.5,
-            '&:hover': {
-              backgroundColor: 'rgba(107, 163, 208, 0.08)',
+      {logoutMenuAnchorEl && (
+        <Menu
+          anchorEl={logoutMenuAnchorEl}
+          open={isLogoutMenuOpen}
+          onClose={handleLogoutMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'left',
+          }}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              minWidth: 180,
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
+              borderRadius: '12px',
+              border: '1px solid rgba(0, 0, 0, 0.05)',
+              overflow: 'hidden',
+            },
+          }}
+          MenuListProps={{
+            sx: {
+              py: 0.5,
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 40 }}>
-            <LogoutIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
-          </ListItemIcon>
-          <ListItemText
-            primary="Logout"
-            primaryTypographyProps={{
-              fontSize: '0.95rem',
-              fontWeight: 500,
-              color: 'text.primary',
+          <MenuItem
+            onClick={handleLogout}
+            sx={{
+              py: 1.5,
+              px: 2,
+              gap: 1.5,
+              '&:hover': {
+                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+              },
             }}
-          />
-        </MenuItem>
-      </Menu>
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <LogoutIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Logout"
+              primaryTypographyProps={{
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                color: 'text.primary',
+              }}
+            />
+          </MenuItem>
+        </Menu>
+      )}
 
       {/* DATE PICKER */}
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={id}>
-        <Popover
-          open={Boolean(calendarAnchorEl)}
-          anchorEl={calendarAnchorEl}
-          onClose={onCalendarClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Box sx={{ p: 2 }}>
-            <DatePicker
-              value={pickerDate}
-              onChange={onPickerDateChange}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: { width: 250 },
-                },
-              }}
-            />
-          </Box>
-        </Popover>
+        {calendarAnchorEl && (
+          <Popover
+            open={Boolean(calendarAnchorEl)}
+            anchorEl={calendarAnchorEl}
+            onClose={onCalendarClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+          >
+            <Box sx={{ p: 2 }}>
+              <DatePicker
+                value={pickerDate}
+                onChange={onPickerDateChange}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: { width: 250 },
+                  },
+                }}
+              />
+            </Box>
+          </Popover>
+        )}
       </LocalizationProvider>
     </>
   );

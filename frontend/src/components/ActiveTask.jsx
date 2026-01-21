@@ -21,7 +21,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
+import ListItemText from '@mui/material/ListItemText';  
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -228,113 +228,112 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter]);
 
-  useEffect(() => {
-    fetchActiveTask();
-  }, [fetchActiveTask]);
-
-  // Also update when data changes in context
+  // Gabungkan kedua useEffect menjadi satu untuk menghindari race conditions
   useEffect(() => {
     const data = getPlansByDate(dateToUse);
-    if (data) {
-      const activeTasksData = Array.isArray(data) 
-        ? data.filter(task => {
-            const normalizedStatus = (task.status || '').toLowerCase().trim();
-            return normalizedStatus === 'in progress' || 
-                   normalizedStatus === 'rescheduled' || 
-                   normalizedStatus === 'done' || 
-                   normalizedStatus === 'missed' || 
-                   normalizedStatus === 'deleted';
-          })
-        : [];
-      
-      if (activeTasksData.length > 0) {
-        // Use string date comparison to avoid timezone issues between desktop and mobile
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
-        
-        const processedTasks = activeTasksData.map(taskData => {
-          let visitDate = new Date();
-          if (taskData.plan_date) {
-            visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
-            if (isNaN(visitDate.getTime())) {
-              visitDate = new Date(taskData.plan_date);
-            }
-          }
-          
-          // Use string comparison for date to avoid timezone issues
-          const taskDateStr = format(visitDate, 'yyyy-MM-dd');
-          
-          let status = (taskData.status || 'in progress').toLowerCase().trim();
-          const originalStatus = status;
-          
-          // Only mark as missed if status is actually "in progress" or "rescheduled" and date has passed
-          // Don't change status if it's already "done" or "deleted"
-          // Use string comparison to avoid timezone issues between desktop and mobile
-          if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
-            status = 'missed';
-          }
-          
-          let formattedTujuan = 'Visit';
-          if (taskData.tujuan) {
-            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-            if (formattedTujuan.toLowerCase() === 'follow up') {
-              formattedTujuan = 'Follow Up';
-            }
-          }
-          
-          return {
-            id: taskData.id,
-            namaCustomer: taskData.customer_name || 'N/A',
-            idPlan: taskData.plan_no || 'N/A',
-            tujuan: formattedTujuan,
-            tambahan: taskData.keterangan_tambahan || '',
-            visitDate: visitDate,
-            status: status,
-          };
-        });
-        
-        // Filter tasks based on selectedFilter
-        let filteredTasks = processedTasks;
-        if (selectedFilter === 'done') {
-          filteredTasks = processedTasks.filter(t => t.status === 'done');
-        } else if (selectedFilter === 'more') {
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-          );
-        } else if (selectedFilter === 'plan') {
-          // Show all (done + in progress + rescheduled + missed)
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'done' || 
-            t.status === 'in progress' || 
-            t.status === 'rescheduled' || 
-            t.status === 'missed'
-          );
-        }
-        
-        filteredTasks.sort((a, b) => {
-          const statusPriority = {
-            'deleted': 1,
-            'done': 2,
-            'missed': 3,
-            'rescheduled': 4,
-            'in progress': 5
-          };
-          const aPriority = statusPriority[a.status] || 99;
-          const bPriority = statusPriority[b.status] || 99;
-          
-          if (aPriority !== bPriority) {
-            return aPriority - bPriority;
-          }
-          
-          return b.visitDate - a.visitDate;
-        });
-        
-        setActiveTasks(filteredTasks);
-      } else {
-        setActiveTasks([]);
-      }
+
+    if (!data) {
+      // Jika tidak ada data di cache, fetch dari server
+      fetchActiveTask();
+      return;
     }
-  }, [getPlansByDate, dateToUse, dataByDate, selectedFilter]); // Tambah dataByDate dan selectedFilter untuk trigger update
+
+    // Process data dengan cara yang sama seperti fetchActiveTask
+    const activeTasksData = Array.isArray(data)
+      ? data.filter(task => {
+          const normalizedStatus = (task.status || '').toLowerCase().trim();
+          const isUserTask = task.sales_internal_id === getSales()?.internal_id;
+          return isUserTask && (
+            normalizedStatus === 'in progress' ||
+            normalizedStatus === 'rescheduled' ||
+            normalizedStatus === 'done' ||
+            normalizedStatus === 'missed' ||
+            normalizedStatus === 'deleted'
+          );
+        })
+      : [];
+
+    if (activeTasksData.length > 0) {
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+
+      const processedTasks = activeTasksData.map(taskData => {
+        let visitDate = new Date();
+        if (taskData.plan_date) {
+          visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
+          if (isNaN(visitDate.getTime())) {
+            visitDate = new Date(taskData.plan_date);
+          }
+        }
+
+        const taskDateStr = format(visitDate, 'yyyy-MM-dd');
+
+        let status = (taskData.status || 'in progress').toLowerCase().trim();
+
+        // Only mark as missed if status is actually "in progress" or "rescheduled" and date has passed
+        if ((status === 'in progress' || status === 'rescheduled') && taskDateStr < todayStr) {
+          status = 'missed';
+        }
+
+        let formattedTujuan = 'Visit';
+        if (taskData.tujuan) {
+          formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
+          if (formattedTujuan.toLowerCase() === 'follow up') {
+            formattedTujuan = 'Follow Up';
+          }
+        }
+
+        return {
+          id: taskData.id,
+          namaCustomer: taskData.customer_name || 'N/A',
+          idPlan: taskData.plan_no || 'N/A',
+          tujuan: formattedTujuan,
+          tambahan: taskData.keterangan_tambahan || '',
+          visitDate: visitDate,
+          status: status,
+        };
+      });
+
+      // Filter tasks based on selectedFilter
+      let filteredTasks = processedTasks;
+      if (selectedFilter === 'done') {
+        filteredTasks = processedTasks.filter(t => t.status === 'done');
+      } else if (selectedFilter === 'more') {
+        filteredTasks = processedTasks.filter(t =>
+          t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
+        );
+      } else if (selectedFilter === 'plan') {
+        filteredTasks = processedTasks.filter(t =>
+          t.status === 'done' ||
+          t.status === 'in progress' ||
+          t.status === 'rescheduled' ||
+          t.status === 'missed'
+        );
+      }
+
+      filteredTasks.sort((a, b) => {
+        const statusPriority = {
+          'deleted': 1,
+          'done': 2,
+          'missed': 3,
+          'rescheduled': 4,
+          'in progress': 5
+        };
+        const aPriority = statusPriority[a.status] || 99;
+        const bPriority = statusPriority[b.status] || 99;
+
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+
+        return b.visitDate - a.visitDate;
+      });
+
+      setActiveTasks(filteredTasks);
+    } else {
+      setActiveTasks([]);
+    }
+  }, [dateToUse, selectedFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
 
   useEffect(() => {
     const handlePlanCreated = () => {
@@ -700,7 +699,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     >
       {activeTasks.map((activeTask, index) => (
         <Box
-          key={activeTask.id}
+          key={`task-${activeTask.id}-${activeTask.status}-${activeTask.visitDate.getTime()}`}
           sx={{
             backgroundColor: '#FFFFFF',
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
