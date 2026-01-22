@@ -228,9 +228,30 @@ class GeocodeController extends Controller
     }
 
     /**
-     * Coba geocoding dengan satu query
+     * Coba geocoding dengan satu query (Nominatim + Google Maps fallback)
      */
     private function tryGeocode($query)
+    {
+        // First try OpenStreetMap Nominatim
+        $nominatimResult = $this->tryGeocodeWithNominatim($query);
+        if ($nominatimResult) {
+            return $nominatimResult;
+        }
+
+        // Fallback to Google Maps Geocoding API
+        Log::info('[Geocode] Nominatim failed, trying Google Maps fallback for:', ['query' => $query]);
+        $googleResult = $this->tryGeocodeWithGoogleMaps($query);
+        if ($googleResult) {
+            return $googleResult;
+        }
+
+        return null;
+    }
+
+    /**
+     * Coba geocoding dengan OpenStreetMap Nominatim
+     */
+    private function tryGeocodeWithNominatim($query)
     {
         try {
             $encodedQuery = urlencode($query);
@@ -284,11 +305,88 @@ class GeocodeController extends Controller
             return [
                 'lat' => $lat,
                 'lng' => $lng,
-                'display_name' => $result['display_name'] ?? $query
+                'display_name' => $result['display_name'] ?? $query,
+                'source' => 'nominatim'
             ];
 
         } catch (\Exception $e) {
-            Log::error('[Geocode] Request error:', [
+            Log::error('[Geocode] Nominatim request error:', [
+                'query' => $query,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Coba geocoding dengan Google Maps Geocoding API
+     */
+    private function tryGeocodeWithGoogleMaps($query)
+    {
+        try {
+            $apiKey = env('GOOGLE_MAPS_API_KEY', 'AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg');
+
+            if (!$apiKey) {
+                Log::warning('[Geocode] Google Maps API key not configured');
+                return null;
+            }
+
+            $encodedQuery = urlencode($query);
+
+            $url = "https://maps.googleapis.com/maps/api/geocode/json?" . http_build_query([
+                'address' => $encodedQuery,
+                'key' => $apiKey,
+                'language' => 'id',
+                'region' => 'id'
+            ]);
+
+            $response = Http::timeout(10)->get($url);
+
+            if (!$response->successful()) {
+                Log::warning('[Geocode] Google Maps API error:', [
+                    'status' => $response->status(),
+                    'query' => $query
+                ]);
+                return null;
+            }
+
+            $data = $response->json();
+
+            if ($data['status'] !== 'OK' || empty($data['results'])) {
+                Log::warning('[Geocode] Google Maps API returned no results:', [
+                    'status' => $data['status'],
+                    'query' => $query
+                ]);
+                return null;
+            }
+
+            $result = $data['results'][0];
+            $location = $result['geometry']['location'];
+
+            $lat = floatval($location['lat']);
+            $lng = floatval($location['lng']);
+
+            // Validasi koordinat
+            if (is_nan($lat) || is_nan($lng) ||
+                $lat < -90 || $lat > 90 ||
+                $lng < -180 || $lng > 180) {
+                Log::warning('[Geocode] Google Maps invalid coordinates:', [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'query' => $query
+                ]);
+                return null;
+            }
+
+            return [
+                'lat' => $lat,
+                'lng' => $lng,
+                'display_name' => $result['formatted_address'] ?? $query,
+                'source' => 'google_maps'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('[Geocode] Google Maps request error:', [
                 'query' => $query,
                 'error' => $e->getMessage()
             ]);

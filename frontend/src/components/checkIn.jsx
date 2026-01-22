@@ -22,24 +22,15 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-// Leaflet components
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix for default markers in react-leaflet
-import L from 'leaflet';
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Google Maps components
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
 // Webcam component
 import Webcam from 'react-webcam';
 
 // Custom imports
 import { apiRequest } from '../config/api';
+import LocationHelper from './LocationHelper';
 
 export default function CheckIn({ open, onClose }) {
   // UI State
@@ -59,51 +50,26 @@ export default function CheckIn({ open, onClose }) {
 
   // Address loading state
   const [addressLoading, setAddressLoading] = useState(false);
+  const [showLocationHelper, setShowLocationHelper] = useState(false);
 
   // Refs untuk kamera
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Get current location using Geolocation API
-  const getCurrentLocation = useCallback(async () => {
-    if (!navigator.geolocation) {
-      setError('Geolocation tidak didukung oleh browser ini');
-      return;
-    }
+  // Open location helper
+  const handleOpenLocationHelper = useCallback(() => {
+    setShowLocationHelper(true);
+  }, []);
 
-    setLoading(true);
-    setError('');
-    setAddressLoading(true);
-
-    try {
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000, // 5 minutes
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-      setLocation({ latitude, longitude });
-
-      // Reverse geocoding to get address
-      await getAddressFromCoordinates(latitude, longitude);
-    } catch (error) {
-      console.error('Error getting location:', error);
-      if (error.code === 1) {
-        setError('Akses lokasi ditolak. Silakan izinkan akses lokasi dan coba lagi.');
-      } else if (error.code === 2) {
-        setError('Tidak dapat mendapatkan lokasi. Pastikan GPS aktif dan coba lagi.');
-      } else if (error.code === 3) {
-        setError('Timeout mendapatkan lokasi. Silakan coba lagi.');
-      } else {
-        setError('Gagal mendapatkan lokasi. Silakan coba lagi.');
-      }
-    } finally {
-      setLoading(false);
-      setAddressLoading(false);
-    }
+  // Handle location selected from LocationHelper
+  const handleLocationSelected = useCallback(async (locationData) => {
+    setLocation({
+      latitude: locationData.latitude,
+      longitude: locationData.longitude
+    });
+    // Use city name, but keep full address info for API
+    setAddress(locationData.city || locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
+    setShowLocationHelper(false);
   }, []);
 
   // Reverse geocoding to get address from coordinates
@@ -422,7 +388,7 @@ export default function CheckIn({ open, onClose }) {
           <Button
             variant="outlined"
             fullWidth
-            onClick={getCurrentLocation}
+            onClick={handleOpenLocationHelper}
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : <LocationOnIcon />}
             sx={{
@@ -524,26 +490,30 @@ export default function CheckIn({ open, onClose }) {
                   borderColor: 'divider',
                 }}
               >
-                <MapContainer
-                  center={[location.latitude, location.longitude]}
-                  zoom={15}
-                  style={{ height: '100%', width: '100%' }}
-                  zoomControl={true}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  <Marker position={[location.latitude, location.longitude]}>
-                    <Popup>
-                      <div>
-                        <strong>Lokasi Check-in</strong><br />
-                        Koordinat: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}<br />
-                        {address && `Alamat: ${address}`}
-                      </div>
-                    </Popup>
-                  </Marker>
-                </MapContainer>
+                <LoadScript googleMapsApiKey="AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg">
+                  <GoogleMap
+                    mapContainerStyle={{ height: '100%', width: '100%' }}
+                    center={{
+                      lat: location.latitude,
+                      lng: location.longitude
+                    }}
+                    zoom={15}
+                    options={{
+                      zoomControl: true,
+                      streetViewControl: false,
+                      mapTypeControl: false,
+                      fullscreenControl: false,
+                    }}
+                  >
+                    <Marker
+                      position={{
+                        lat: location.latitude,
+                        lng: location.longitude
+                      }}
+                      title="Lokasi Check-in"
+                    />
+                  </GoogleMap>
+                </LoadScript>
               </Box>
             </Box>
           )}
@@ -894,6 +864,15 @@ export default function CheckIn({ open, onClose }) {
           )}
         </Box>
       </Box>
+
+      {/* Location Helper Dialog */}
+      <LocationHelper
+        open={showLocationHelper}
+        onClose={() => setShowLocationHelper(false)}
+        onLocationSelect={handleLocationSelected}
+        title="Pilih Lokasi Check In"
+        desiredAccuracy={50}
+      />
     </Drawer>
   );
 }

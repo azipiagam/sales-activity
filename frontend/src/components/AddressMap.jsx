@@ -1,36 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Box from '@mui/material/Box';
 import SearchIcon from '@mui/icons-material/Search';
-import { getCoordinatesFromAddress } from '../utils/geocoding';
-import 'leaflet/dist/leaflet.css';
+import { getCoordinatesFromAddressEnhanced, analyzeAddressForGeocoding } from '../utils/geocoding';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-function MapViewController({ center, zoom }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (center) {
-      map.setView(center, zoom, {
-        animate: true,
-        duration: 0.5
-      });
-    }
-  }, [center, zoom, map]);
-  
-  return null;
-}
 
 export default function AddressMap({ address, onLocationChange }) {
   const defaultCenter = { lat: -6.2088, lng: 106.8456 };
@@ -43,7 +20,23 @@ export default function AddressMap({ address, onLocationChange }) {
   const [mapZoom, setMapZoom] = useState(defaultZoom);
   const [error, setError] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [geocodingTips, setGeocodingTips] = useState(null);
+  const [lastSuccessfulAddress, setLastSuccessfulAddress] = useState(null);
   const mapRef = useRef(null);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const onMarkerDragEnd = useCallback((event) => {
+    const newLat = event.latLng.lat();
+    const newLng = event.latLng.lng();
+    const newPosition = { lat: newLat, lng: newLng };
+
+    setMarkerPosition(newPosition);
+    setMapCenter(newPosition);
+    onLocationChange?.(newLat, newLng);
+  }, [onLocationChange]);
 
   useEffect(() => {
     if (address && address.trim() && address !== search) {
@@ -63,26 +56,57 @@ export default function AddressMap({ address, onLocationChange }) {
 
     setIsSearching(true);
     setError(null);
+    setGeocodingTips(null);
+    setLastSuccessfulAddress(null);
 
     try {
-      const coords = await getCoordinatesFromAddress(term);
+      const result = await getCoordinatesFromAddressEnhanced(term);
+      const coords = { lat: result.lat, lng: result.lng };
 
       const newPosition = { lat: coords.lat, lng: coords.lng };
 
       setMarkerPosition(newPosition);
-      
       setMapCenter(newPosition);
       setMapZoom(searchZoom);
-      
+
       onLocationChange?.(coords.lat, coords.lng);
-      
+
+      // Show success message with confidence info
+      if (result.confidence === 'approximate') {
+        setGeocodingTips({
+          type: 'info',
+          message: `Lokasi ditemukan dengan perkiraan. Menggunakan alamat: "${result.address}"`,
+          suggestions: ['Geser marker jika lokasi tidak tepat']
+        });
+      } else if (result.confidence === 'good') {
+        setGeocodingTips({
+          type: 'success',
+          message: `Lokasi ditemukan dengan akurasi baik. Menggunakan: "${result.address}"`
+        });
+      }
+
+      setLastSuccessfulAddress(result.address);
       setError(null);
+
     } catch (err) {
       console.error('Geocoding error:', err);
+
+      // Analyze the address for tips
+      const analysis = analyzeAddressForGeocoding(term);
+
+      if (analysis.hasIssues) {
+        setGeocodingTips({
+          type: 'warning',
+          message: 'Alamat sulit dicari. Berikut beberapa masalah dan saran:',
+          issues: analysis.issues,
+          suggestions: analysis.suggestions
+        });
+      }
+
       setError(
-        err.message === 'Lokasi tidak ditemukan' 
-          ? 'Lokasi tidak ditemukan. Silakan geser marker secara manual ke lokasi yang sesuai.'
-          : 'Gagal mencari lokasi. Silakan coba lagi atau geser marker secara manual.'
+        err.message.includes('sulit dicari')
+          ? err.message
+          : 'Lokasi tidak ditemukan. Silakan geser marker secara manual ke lokasi yang sesuai.'
       );
     } finally {
       setIsSearching(false);
@@ -100,15 +124,6 @@ export default function AddressMap({ address, onLocationChange }) {
     }
   };
 
-  const handleMarkerDragEnd = (e) => {
-    const position = e.target.getLatLng();
-    const newPosition = { lat: position.lat, lng: position.lng };
-    
-    setMarkerPosition(newPosition);
-    onLocationChange?.(position.lat, position.lng);
-    
-    setError(null);
-  };
 
   return (
     <Box sx={{ mb: 3 }}>
@@ -175,10 +190,10 @@ export default function AddressMap({ address, onLocationChange }) {
 
       {/* Error display */}
       {error && (
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            mb: 1, 
+        <Typography
+          variant="body2"
+          sx={{
+            mb: 1,
             color: '#d32f2f',
             fontSize: '0.875rem',
             padding: '8px 12px',
@@ -188,6 +203,92 @@ export default function AddressMap({ address, onLocationChange }) {
         >
           {error}
         </Typography>
+      )}
+
+      {/* Geocoding Tips */}
+      {geocodingTips && (
+        <Box sx={{ mb: 1.5 }}>
+          {geocodingTips.type === 'warning' && geocodingTips.issues && (
+            <Box sx={{
+              padding: '12px',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: '4px',
+              mb: 1
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#856404', mb: 1 }}>
+                ⚠️ {geocodingTips.message}
+              </Typography>
+
+              {geocodingTips.issues.length > 0 && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#856404' }}>
+                    Masalah:
+                  </Typography>
+                  <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                    {geocodingTips.issues.map((issue, index) => (
+                      <li key={index} style={{ fontSize: '0.75rem', color: '#856404' }}>
+                        {issue}
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+              )}
+
+              {geocodingTips.suggestions.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#856404' }}>
+                    Saran:
+                  </Typography>
+                  <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                    {geocodingTips.suggestions.map((suggestion, index) => (
+                      <li key={index} style={{ fontSize: '0.75rem', color: '#856404' }}>
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {geocodingTips.type === 'info' && (
+            <Typography
+              variant="body2"
+              sx={{
+                mb: 1,
+                color: '#0d6efd',
+                fontSize: '0.875rem',
+                padding: '8px 12px',
+                backgroundColor: '#e7f3ff',
+                borderRadius: '4px',
+              }}
+            >
+              ℹ️ {geocodingTips.message}
+              {geocodingTips.suggestions && geocodingTips.suggestions.map((suggestion, index) => (
+                <div key={index} style={{ fontSize: '0.75rem', marginTop: '4px' }}>
+                  • {suggestion}
+                </div>
+              ))}
+            </Typography>
+          )}
+
+          {geocodingTips.type === 'success' && (
+            <Typography
+              variant="body2"
+              sx={{
+                mb: 1,
+                color: '#198754',
+                fontSize: '0.875rem',
+                padding: '8px 12px',
+                backgroundColor: '#e8f5e8',
+                borderRadius: '4px',
+              }}
+            >
+              ✅ {geocodingTips.message}
+            </Typography>
+          )}
+        </Box>
       )}
 
       {/* Info text */}
@@ -212,28 +313,26 @@ export default function AddressMap({ address, onLocationChange }) {
           mb: 1,
         }}
       >
-        <MapContainer 
-          center={defaultCenter} 
-          zoom={defaultZoom} 
-          style={{ height: 350, width: '100%' }}
-          ref={mapRef}
-        >
-          <TileLayer 
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-
-          {/* Controller untuk mengupdate view peta */}
-          <MapViewController center={mapCenter} zoom={mapZoom} />
-
-          <Marker
-            position={markerPosition}
-            draggable
-            eventHandlers={{
-              dragend: handleMarkerDragEnd,
+        <LoadScript googleMapsApiKey="AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg">
+          <GoogleMap
+            mapContainerStyle={{ height: 350, width: '100%' }}
+            center={mapCenter}
+            zoom={mapZoom}
+            onLoad={onMapLoad}
+            options={{
+              zoomControl: true,
+              streetViewControl: false,
+              mapTypeControl: true,
+              fullscreenControl: true,
             }}
-          />
-        </MapContainer>
+          >
+            <Marker
+              position={markerPosition}
+              draggable={true}
+              onDragEnd={onMarkerDragEnd}
+            />
+          </GoogleMap>
+        </LoadScript>
       </Box>
 
       {/* Coordinates display */}

@@ -1,5 +1,5 @@
 // React
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 // Material-UI Components
 import Drawer from '@mui/material/Drawer';
@@ -9,6 +9,11 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
+import Paper from '@mui/material/Paper';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import InputAdornment from '@mui/material/InputAdornment';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
@@ -24,6 +29,12 @@ const DEFAULT_COORDINATES = {
   TOLERANCE: 0.0001,
 };
 
+// Debounce delay in milliseconds
+const SEARCH_DEBOUNCE_DELAY = 300;
+
+// Cache untuk hasil pencarian
+const searchCache = new Map();
+
 export default function AddAddress({
   open,
   onClose,
@@ -33,7 +44,10 @@ export default function AddAddress({
 }) {
   // State untuk search dan lokasi
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(customerAddress);
@@ -45,10 +59,105 @@ export default function AddAddress({
     }
   }, [customerAddress]);
 
+  // Debouncing untuk search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, SEARCH_DEBOUNCE_DELAY);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Auto-search ketika debounced query berubah
+  useEffect(() => {
+    if (debouncedQuery && debouncedQuery.trim().length >= 2) {
+      handleAutoSearch(debouncedQuery.trim());
+    } else {
+      setSearchResults([]);
+      setShowResults(false);
+    }
+  }, [debouncedQuery]);
+
   const handleLocationChange = useCallback((lat, lng) => {
     setLatitude(lat);
     setLongitude(lng);
   }, []);
+
+  // Fungsi geocoding menggunakan Google Maps API
+  const geocodeAddress = useCallback(async (address) => {
+    const cacheKey = address.toLowerCase().trim();
+
+    // Cek cache terlebih dahulu
+    if (searchCache.has(cacheKey)) {
+      return searchCache.get(cacheKey);
+    }
+
+    try {
+      // Gunakan Google Maps Geocoding API
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&region=id`
+      );
+
+      if (!response.ok) {
+        throw new Error('Geocoding request failed');
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.results.length > 0) {
+        const result = {
+          address: data.results[0].formatted_address,
+          latitude: data.results[0].geometry.location.lat,
+          longitude: data.results[0].geometry.location.lng,
+          placeId: data.results[0].place_id
+        };
+
+        // Simpan ke cache
+        searchCache.set(cacheKey, result);
+
+        return result;
+      } else {
+        throw new Error('No results found');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      throw error;
+    }
+  }, []);
+
+  // Auto search dengan debouncing
+  const handleAutoSearch = useCallback(async (query) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    try {
+      setSearching(true);
+
+      // Jika ada di cache, gunakan langsung
+      const cacheKey = query.toLowerCase().trim();
+      if (searchCache.has(cacheKey)) {
+        const cachedResult = searchCache.get(cacheKey);
+        setSearchResults([cachedResult]);
+        setShowResults(true);
+        return;
+      }
+
+      // Lakukan geocoding
+      const result = await geocodeAddress(query);
+      setSearchResults([result]);
+      setShowResults(true);
+
+    } catch (error) {
+      console.error('Auto search error:', error);
+      setSearchResults([]);
+      setShowResults(false);
+    } finally {
+      setSearching(false);
+    }
+  }, [geocodeAddress]);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -57,15 +166,21 @@ export default function AddAddress({
 
     try {
       setSearching(true);
-      // Implementasi search geocoding akan ditambahkan di sini
-      // Untuk sekarang, kita set address dari search query
-      setSelectedAddress(searchQuery.trim());
+      const result = await geocodeAddress(searchQuery.trim());
+      setSelectedAddress(result.address);
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+      setSearchResults([]);
+      setShowResults(false);
+      setSearchQuery('');
     } catch (error) {
-      console.error('Error searching address:', error);
+      console.error('Manual search error:', error);
+      // Fallback: set address tanpa geocoding
+      setSelectedAddress(searchQuery.trim());
     } finally {
       setSearching(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, geocodeAddress]);
 
   const handleConfirm = useCallback(() => {
     // Validasi koordinat
@@ -89,10 +204,22 @@ export default function AddAddress({
     onClose();
   }, [latitude, longitude, selectedAddress, onLocationChange, onAddressConfirm, onClose]);
 
+  const handleSelectResult = useCallback((result) => {
+    setSelectedAddress(result.address);
+    setLatitude(result.latitude);
+    setLongitude(result.longitude);
+    setSearchQuery(result.address);
+    setSearchResults([]);
+    setShowResults(false);
+  }, []);
+
   const handleClose = useCallback(() => {
     // Reset state saat close
     setSearchQuery('');
+    setDebouncedQuery('');
     setSearching(false);
+    setSearchResults([]);
+    setShowResults(false);
     onClose();
   }, [onClose]);
 
@@ -185,7 +312,7 @@ export default function AddAddress({
         )}
 
         {/* Search Box */}
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3, position: 'relative' }}>
           <Typography
             variant="body2"
             sx={{
@@ -204,9 +331,25 @@ export default function AddAddress({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !searching) {
                   handleSearch();
                 }
+              }}
+              onFocus={() => {
+                if (searchResults.length > 0) {
+                  setShowResults(true);
+                }
+              }}
+              onBlur={() => {
+                // Delay untuk allow click on results
+                setTimeout(() => setShowResults(false), 200);
+              }}
+              InputProps={{
+                endAdornment: searching ? (
+                  <InputAdornment position="end">
+                    <CircularProgress size={20} sx={{ color: '#6BA3D0' }} />
+                  </InputAdornment>
+                ) : null,
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -220,6 +363,53 @@ export default function AddAddress({
                 },
               }}
             />
+
+            {/* Dropdown Results */}
+            {showResults && searchResults.length > 0 && (
+              <Paper
+                sx={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: '80px', // Leave space for search button
+                  zIndex: 1000,
+                  maxHeight: '200px',
+                  overflow: 'auto',
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  mt: 0.5,
+                }}
+              >
+                <List sx={{ py: 0 }}>
+                  {searchResults.map((result, index) => (
+                    <ListItem
+                      key={index}
+                      button
+                      onClick={() => handleSelectResult(result)}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                        },
+                        borderBottom: index < searchResults.length - 1 ? '1px solid #f0f0f0' : 'none',
+                      }}
+                    >
+                      <ListItemText
+                        primary={result.address}
+                        primaryTypographyProps={{
+                          variant: 'body2',
+                          sx: {
+                            fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                            color: '#333',
+                            lineHeight: 1.4,
+                          }
+                        }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Paper>
+            )}
+
             <Button
               variant="contained"
               onClick={handleSearch}
@@ -238,11 +428,7 @@ export default function AddAddress({
                 },
               }}
             >
-              {searching ? (
-                <CircularProgress size={20} sx={{ color: 'white' }} />
-              ) : (
-                <SearchIcon />
-              )}
+              {!searching && <SearchIcon />}
             </Button>
           </Box>
         </Box>

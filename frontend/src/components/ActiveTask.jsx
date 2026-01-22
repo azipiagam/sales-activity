@@ -33,6 +33,7 @@ import LoadingManager from './loading/LoadingManager';
 import Lottie from 'lottie-react';
 import emptyBoxAnimation from '../media/Empty Box (3).json';
 import ModalResult from './ModalResult';
+import LocationHelper from './LocationHelper';
 
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
   const [openModal, setOpenModal] = useState(false);
@@ -46,6 +47,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
+  const [showLocationHelper, setShowLocationHelper] = useState(false);
 
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
   
@@ -388,39 +390,9 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     try {
       setSaving(true);
       
-      // Get GPS location (required field according to API)
-      let latitude = null;
-      let longitude = null;
-      let accuracy = null;
-      
-      if (!navigator.geolocation) {
-        throw new Error('GPS tidak tersedia di perangkat ini. Silakan gunakan perangkat yang mendukung GPS.');
-      }
-      
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-          });
-        });
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-        accuracy = position.coords.accuracy;
-      } catch (geoError) {
-        let errorMessage = 'Gagal mendapatkan lokasi GPS. ';
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          errorMessage += 'Izin akses lokasi ditolak. Silakan berikan izin akses lokasi di pengaturan browser.';
-        } else if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-          errorMessage += 'Lokasi tidak tersedia.';
-        } else if (geoError.code === geoError.TIMEOUT) {
-          errorMessage += 'Waktu tunggu habis. Silakan coba lagi.';
-        } else {
-          errorMessage += 'Silakan coba lagi.';
-        }
-        throw new Error(errorMessage);
-      }
+      // Show location helper for better accuracy
+      setShowLocationHelper(true);
+      return; // Exit early to show location helper
       
       // Validate GPS coordinates
       if (latitude === null || longitude === null) {
@@ -561,22 +533,22 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     if (!window.confirm('Apakah Anda yakin ingin membatalkan task ini?')) {
       return;
     }
-    
+
     try {
       setSaving(true);
-      
+
       const response = await apiRequest(`activity-plans/${taskId}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to cancel task');
       }
-      
+
       // Remove the cancelled task from current list
       setActiveTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
-      
+
       // Invalidate cache and refresh data after delete
       invalidateCache(dateToUse);
       await fetchPlansByDate(dateToUse, true);
@@ -588,6 +560,74 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       setSaving(false);
     }
   };
+
+  // Handle location selected from LocationHelper
+  const handleLocationSelected = useCallback(async (locationData) => {
+    setShowLocationHelper(false);
+
+    const activeTask = activeTasks.find(task => task.id === currentTaskId);
+    if (!activeTask) return;
+
+    try {
+      setSaving(true);
+
+      const resultText = result.trim();
+      const { latitude, longitude, accuracy } = locationData;
+
+      // OPTIMISTIC UPDATE: Langsung update UI sebelum API call
+      updatePlanInCache(currentTaskId, {
+        status: 'done',
+        result: resultText,
+        result_location_lat: latitude,
+        result_location_lng: longitude,
+        result_location_accuracy: accuracy,
+        result_saved_at: new Date().toISOString(),
+      });
+
+      // Update local state juga untuk immediate feedback
+      setActiveTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === currentTaskId
+            ? { ...task, status: 'done' }
+            : task
+        )
+      );
+
+      // Close modal immediately untuk UX yang lebih baik
+      handleCloseModal();
+      setResult('');
+
+      // API call di background
+      const response = await apiRequest(`activity-plans/${currentTaskId}/done`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          result: resultText,
+          latitude,
+          longitude,
+          accuracy,
+        }),
+      });
+
+      if (!response.ok) {
+        // Jika API gagal, rollback optimistic update
+        const errorData = await response.json().catch(() => ({}));
+        invalidateCache(dateToUse);
+        await fetchPlansByDate(dateToUse, true);
+        throw new Error(errorData.message || 'Failed to save result');
+      }
+
+      // Refresh data untuk memastikan sync dengan backend (tapi tidak blocking UI)
+      invalidateCache(dateToUse);
+      fetchPlansByDate(dateToUse, true).catch(err => {
+        console.error('Error refreshing after done:', err);
+      });
+    } catch (err) {
+      console.error('Error saving result:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [currentTaskId, result, activeTasks, updatePlanInCache, invalidateCache, dateToUse, fetchPlansByDate, handleCloseModal]);
 
   // Format date for display (without time)
   const formatDateTime = (date) => {
@@ -742,6 +782,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               fontWeight: 700,
               color: '#333',
               mb: 2,
+              wordBreak: 'break-word',
+              whiteSpace: 'normal',
+              overflowWrap: 'break-word',
+              lineHeight: 1.4,
+              maxWidth: { xs: '90%', sm: '85%', md: '80%' },
+              pr: { xs: 2, sm: 3, md: 4 },
             }}
           >
             {activeTask.namaCustomer}
@@ -1264,6 +1310,15 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           </Box>
         </Box>
       </Modal>
+
+      {/* Location Helper Dialog */}
+      <LocationHelper
+        open={showLocationHelper}
+        onClose={() => setShowLocationHelper(false)}
+        onLocationSelect={handleLocationSelected}
+        title="Pilih Lokasi untuk Menyelesaikan Task"
+        desiredAccuracy={50}
+      />
     </Container>
   );
 }
