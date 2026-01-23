@@ -227,7 +227,7 @@ export default function AddAddress({
     return Math.abs(lat - DEFAULT_COORDINATES.LAT) < DEFAULT_COORDINATES.TOLERANCE &&
            Math.abs(lng - DEFAULT_COORDINATES.LNG) < DEFAULT_COORDINATES.TOLERANCE;
   }, []);
-
+  
   return (
     <Drawer
       anchor="bottom"

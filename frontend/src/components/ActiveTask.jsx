@@ -33,7 +33,6 @@ import LoadingManager from './loading/LoadingManager';
 import Lottie from 'lottie-react';
 import emptyBoxAnimation from '../media/Empty Box (3).json';
 import ModalResult from './ModalResult';
-import LocationHelper from './LocationHelper';
 
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
   const [openModal, setOpenModal] = useState(false);
@@ -47,7 +46,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
-  const [showLocationHelper, setShowLocationHelper] = useState(false);
 
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
   
@@ -383,19 +381,25 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
   const handleSaveResult = async () => {
     if (!result.trim() || !currentTaskId) return;
-    
+
     const activeTask = activeTasks.find(task => task.id === currentTaskId);
     if (!activeTask) return;
-    
+
     try {
       setSaving(true);
-      
-      // Show location helper for better accuracy
-      setShowLocationHelper(true);
-      return; // Exit early to show location helper
-      
+
+      // Get location automatically without showing location helper
+      const { getAccurateLocation } = await import('../utils/geocoding');
+      const locationData = await getAccurateLocation({
+        desiredAccuracy: 100,
+        maxRetries: 2,
+        onProgress: (message) => {
+          console.log('Getting location:', message);
+        }
+      });
+
       // Validate GPS coordinates
-      if (latitude === null || longitude === null) {
+      if (!locationData || !locationData.latitude || !locationData.longitude) {
         throw new Error('Koordinat GPS tidak valid. Silakan coba lagi.');
       }
       
@@ -404,33 +408,33 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       updatePlanInCache(currentTaskId, {
         status: 'done',
         result: resultText,
-        result_location_lat: latitude,
-        result_location_lng: longitude,
-        result_location_accuracy: accuracy,
+        result_location_lat: locationData.latitude,
+        result_location_lng: locationData.longitude,
+        result_location_accuracy: locationData.accuracy,
         result_saved_at: new Date().toISOString(),
       });
-      
+
       // Update local state juga untuk immediate feedback
-      setActiveTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === currentTaskId 
+      setActiveTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === currentTaskId
             ? { ...task, status: 'done' }
             : task
         )
       );
-      
+
       // Close modal immediately untuk UX yang lebih baik
       handleCloseModal();
       setResult('');
-      
+
       // API call di background
       const response = await apiRequest(`activity-plans/${currentTaskId}/done`, {
         method: 'PUT',
         body: JSON.stringify({
           result: resultText,
-          latitude,
-          longitude,
-          accuracy,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          accuracy: locationData.accuracy,
         }),
       });
       
@@ -561,73 +565,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   };
 
-  // Handle location selected from LocationHelper
-  const handleLocationSelected = useCallback(async (locationData) => {
-    setShowLocationHelper(false);
-
-    const activeTask = activeTasks.find(task => task.id === currentTaskId);
-    if (!activeTask) return;
-
-    try {
-      setSaving(true);
-
-      const resultText = result.trim();
-      const { latitude, longitude, accuracy } = locationData;
-
-      // OPTIMISTIC UPDATE: Langsung update UI sebelum API call
-      updatePlanInCache(currentTaskId, {
-        status: 'done',
-        result: resultText,
-        result_location_lat: latitude,
-        result_location_lng: longitude,
-        result_location_accuracy: accuracy,
-        result_saved_at: new Date().toISOString(),
-      });
-
-      // Update local state juga untuk immediate feedback
-      setActiveTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === currentTaskId
-            ? { ...task, status: 'done' }
-            : task
-        )
-      );
-
-      // Close modal immediately untuk UX yang lebih baik
-      handleCloseModal();
-      setResult('');
-
-      // API call di background
-      const response = await apiRequest(`activity-plans/${currentTaskId}/done`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          result: resultText,
-          latitude,
-          longitude,
-          accuracy,
-        }),
-      });
-
-      if (!response.ok) {
-        // Jika API gagal, rollback optimistic update
-        const errorData = await response.json().catch(() => ({}));
-        invalidateCache(dateToUse);
-        await fetchPlansByDate(dateToUse, true);
-        throw new Error(errorData.message || 'Failed to save result');
-      }
-
-      // Refresh data untuk memastikan sync dengan backend (tapi tidak blocking UI)
-      invalidateCache(dateToUse);
-      fetchPlansByDate(dateToUse, true).catch(err => {
-        console.error('Error refreshing after done:', err);
-      });
-    } catch (err) {
-      console.error('Error saving result:', err);
-      alert(`Error: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [currentTaskId, result, activeTasks, updatePlanInCache, invalidateCache, dateToUse, fetchPlansByDate, handleCloseModal]);
 
   // Format date for display (without time)
   const formatDateTime = (date) => {
@@ -1311,14 +1248,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         </Box>
       </Modal>
 
-      {/* Location Helper Dialog */}
-      <LocationHelper
-        open={showLocationHelper}
-        onClose={() => setShowLocationHelper(false)}
-        onLocationSelect={handleLocationSelected}
-        title="Pilih Lokasi untuk Menyelesaikan Task"
-        desiredAccuracy={50}
-      />
     </Container>
   );
 }

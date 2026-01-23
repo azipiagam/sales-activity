@@ -34,17 +34,36 @@ export default function NavBottom({ value, onChange }) {
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1000,
-        display: { xs: 'block', md: 'none' }, 
-      }}
-    >
+    <>
+      {/* Dark Overlay when FAB is expanded */}
+      <Fade in={isExpanded} timeout={150}>
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 999,
+            backdropFilter: 'blur(1px)',
+            display: { xs: 'block', md: 'none' },
+          }}
+          onClick={() => setIsExpanded(false)}
+        />
+      </Fade>
+
+      <Box
+        sx={{
+          width: '100%',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          display: { xs: 'block', md: 'none' },
+        }}
+      >
       <Box
         sx={{
           position: 'relative',
@@ -113,7 +132,7 @@ export default function NavBottom({ value, onChange }) {
         </BottomNavigation>
         
         {/* Expandable FAB with Popup */}
-        <Fade in={isExpanded} timeout={300}>
+        <Fade in={isExpanded} timeout={150}>
           <Box
             sx={{
               position: 'absolute',
@@ -121,81 +140,148 @@ export default function NavBottom({ value, onChange }) {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 1001,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
             }}
           >
+            {/* Check In Menu Item */}
             <Box
+              onClick={handleCheckIn}
+              tabIndex={0}
+              role="button"
+              aria-label="Check In"
               sx={{
-                backgroundColor: 'background.paper',
-                borderRadius: '16px',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                border: '1px solid',
-                borderColor: 'divider',
+                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                borderRadius: '50%',
+                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                border: '2px solid',
+                borderColor: 'rgba(76, 175, 202, 0.3)',
+                width: { xs: 60, sm: 64 },
+                height: { xs: 60, sm: 64 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
                 overflow: 'hidden',
-                minWidth: { xs: 180, sm: 200 },
-                animation: isExpanded ? 'slideDownFade 0.3s ease-out' : 'none',
-                '@keyframes slideDownFade': {
+                animation: isExpanded ? 'slideInUp 0.3s ease-out 0.05s both' : 'none',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: 0,
+                  height: 0,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(76, 175, 202, 0.3)',
+                  transform: 'translate(-50%, -50%)',
+                  transition: 'width 0.6s, height 0.6s',
+                },
+                '&:hover': {
+                  background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
+                  transform: 'scale(1.08) translateY(-2px)',
+                  boxShadow: '0 8px 25px rgba(76, 175, 202, 0.3), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  '&::before': {
+                    width: '120%',
+                    height: '120%',
+                  },
+                },
+                '&:active': {
+                  transform: 'scale(0.96) translateY(0px)',
+                  transition: 'all 0.1s ease-out',
+                },
+                '&:focus': {
+                  outline: 'none',
+                  boxShadow: '0 0 0 3px rgba(76, 175, 202, 0.4)',
+                },
+                '@keyframes slideInUp': {
                   from: {
                     opacity: 0,
-                    transform: 'translateY(10px)',
+                    transform: 'translateY(20px) scale(0.8)',
                   },
                   to: {
                     opacity: 1,
-                    transform: 'translateY(0)',
+                    transform: 'translateY(0) scale(1)',
                   },
                 },
               }}
             >
-              {/* Add Plan Menu Item */}
-              <Box
-                onClick={handleAddPlan}
+              <CheckCircleIcon
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '16px',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: 'rgba(107, 163, 208, 0.08)',
-                  },
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
+                  fontSize: { xs: '1.75rem', sm: '2rem' },
+                  color: '#4e8ec2',
+                  transition: 'color 0.3s ease',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
-              >
-                <AddLocationIcon
-                  sx={{
-                    fontSize: '1.25rem',
-                    color: 'rgba(0, 0, 0, 0.54)',
-                    marginRight: '12px',
-                  }}
-                />
-                <Box sx={{ fontSize: '0.875rem', color: 'text.primary' }}>
-                  Add Plan
-                </Box>
-              </Box>
+              />
+            </Box>
 
-              {/* Check In Menu Item */}
-              <Box
-                onClick={handleCheckIn}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '16px',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: 'rgba(107, 163, 208, 0.08)',
+            {/* Add Plan Menu Item */}
+            <Box
+              onClick={handleAddPlan}
+              tabIndex={0}
+              role="button"
+              aria-label="Add Plan"
+              sx={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                borderRadius: '50%',
+                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                border: '2px solid',
+                borderColor: 'rgba(76, 175, 202, 0.3)',
+                width: { xs: 60, sm: 64 },
+                height: { xs: 60, sm: 64 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: isExpanded ? 'slideInUp 0.3s ease-out 0.1s both' : 'none',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: 0,
+                  height: 0,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(76, 175, 202, 0.3)',
+                  transform: 'translate(-50%, -50%)',
+                  transition: 'width 0.6s, height 0.6s',
+                },
+                '&:hover': {
+                  background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
+                  transform: 'scale(1.08) translateY(-2px)',
+                  boxShadow: '0 8px 25px rgba(76, 175, 202, 0.3), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  '&::before': {
+                    width: '120%',
+                    height: '120%',
                   },
+                },
+                '&:active': {
+                  transform: 'scale(0.96) translateY(0px)',
+                  transition: 'all 0.1s ease-out',
+                },
+                '&:focus': {
+                  outline: 'none',
+                  boxShadow: '0 0 0 3px rgba(76, 175, 202, 0.4)',
+                },
+              }}
+            >
+              <AddLocationIcon
+                sx={{
+                  fontSize: { xs: '1.75rem', sm: '2rem' },
+                  color: '#4e8ec2',
+                  transition: 'color 0.3s ease',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
-              >
-                <CheckCircleIcon
-                  sx={{
-                    fontSize: '1.25rem',
-                    color: 'rgba(0, 0, 0, 0.54)',
-                    marginRight: '12px',
-                  }}
-                />
-                <Box sx={{ fontSize: '0.875rem', color: 'text.primary' }}>
-                  Check In
-                </Box>
-              </Box>
+              />
             </Box>
           </Box>
         </Fade>
@@ -239,6 +325,7 @@ export default function NavBottom({ value, onChange }) {
       {/* Check In Bottom Sheet */}
       <CheckIn open={openCheckIn} onClose={() => setOpenCheckIn(false)} />
     </Box>
+    </>
   );
 }
 

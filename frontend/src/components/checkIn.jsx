@@ -30,7 +30,6 @@ import Webcam from 'react-webcam';
 
 // Custom imports
 import { apiRequest } from '../config/api';
-import LocationHelper from './LocationHelper';
 
 export default function CheckIn({ open, onClose }) {
   // UI State
@@ -50,27 +49,61 @@ export default function CheckIn({ open, onClose }) {
 
   // Address loading state
   const [addressLoading, setAddressLoading] = useState(false);
-  const [showLocationHelper, setShowLocationHelper] = useState(false);
 
   // Refs untuk kamera
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Open location helper
-  const handleOpenLocationHelper = useCallback(() => {
-    setShowLocationHelper(true);
+  // Get current location directly
+  const handleGetCurrentLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation tidak didukung oleh browser ini');
+      return;
+    }
+
+    setAddressLoading(true);
+    setError('');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        // Set location immediately
+        setLocation({
+          latitude,
+          longitude
+        });
+
+        // Get address using reverse geocoding
+        await getAddressFromCoordinates(latitude, longitude);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        let errorMessage = 'Gagal mendapatkan lokasi';
+
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Akses lokasi ditolak. Silakan izinkan akses lokasi di browser.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Informasi lokasi tidak tersedia.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Waktu mendapatkan lokasi habis.';
+            break;
+        }
+
+        setError(errorMessage);
+        setAddressLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
   }, []);
 
-  // Handle location selected from LocationHelper
-  const handleLocationSelected = useCallback(async (locationData) => {
-    setLocation({
-      latitude: locationData.latitude,
-      longitude: locationData.longitude
-    });
-    // Use city name, but keep full address info for API
-    setAddress(locationData.city || locationData.address || `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
-    setShowLocationHelper(false);
-  }, []);
 
   // Reverse geocoding to get address from coordinates
   const getAddressFromCoordinates = useCallback(async (lat, lng) => {
@@ -388,9 +421,9 @@ export default function CheckIn({ open, onClose }) {
           <Button
             variant="outlined"
             fullWidth
-            onClick={handleOpenLocationHelper}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <LocationOnIcon />}
+            onClick={handleGetCurrentLocation}
+            disabled={loading || addressLoading}
+            startIcon={addressLoading ? <CircularProgress size={20} /> : <LocationOnIcon />}
             sx={{
               py: { xs: 1.5, sm: 1.75 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
@@ -410,7 +443,7 @@ export default function CheckIn({ open, onClose }) {
               },
             }}
           >
-            {loading ? 'Mengambil Lokasi...' : 'Ambil Lokasi Saat Ini'}
+            {addressLoading ? 'Mengambil Lokasi...' : 'Ambil Lokasi Saat Ini'}
           </Button>
 
           {/* Location Display */}
@@ -865,14 +898,6 @@ export default function CheckIn({ open, onClose }) {
         </Box>
       </Box>
 
-      {/* Location Helper Dialog */}
-      <LocationHelper
-        open={showLocationHelper}
-        onClose={() => setShowLocationHelper(false)}
-        onLocationSelect={handleLocationSelected}
-        title="Pilih Lokasi Check In"
-        desiredAccuracy={50}
-      />
     </Drawer>
   );
 }
