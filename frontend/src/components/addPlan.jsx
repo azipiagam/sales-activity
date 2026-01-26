@@ -1,5 +1,5 @@
 // React
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 
 // Material-UI Components
 import Drawer from '@mui/material/Drawer';
@@ -14,6 +14,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 // Custom imports
 import { apiRequest } from '../config/api';
@@ -22,6 +25,7 @@ import AddAddress from './AddAddress';
 import AlertDialog from './AlertDialog';
 import LoadingPlan from './loading/LoadingPlan';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import Webcam from 'react-webcam';
 
 // Utilities
 import { parse } from 'date-fns';
@@ -221,6 +225,13 @@ export default function AddPlan({ open, onClose }) {
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
   const [addAddressOpen, setAddAddressOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+
+  // Webcam Ref
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
 
   // Custom Hooks
   const { formData, updateField, resetForm } = useFormState();
@@ -245,6 +256,86 @@ export default function AddPlan({ open, onClose }) {
 
   const { invalidateCache, fetchPlansByDate } = useActivityPlans();
 
+  // Cleanup webcam on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraActive) {
+        setCameraActive(false);
+      }
+    };
+  }, []);
+
+  // Fungsi untuk membuka kamera
+  const openCamera = async () => {
+    try {
+      setCameraError(null);
+      setCameraActive(true);
+    } catch (error) {
+      console.error('Error opening camera:', error);
+      setCameraError('Tidak dapat mengakses kamera');
+    }
+  };
+
+  // Fungsi untuk menutup kamera
+  const closeCamera = () => {
+    setCameraActive(false);
+    setCapturedImage(null);
+    setCameraError(null);
+  };
+
+  // Fungsi untuk kompres gambar
+  const compressImage = (base64Image, maxWidth = 800, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        // Hitung dimensi baru dengan mempertahankan aspect ratio
+        let { width, height } = img;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        // Buat canvas untuk kompresi
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Kompres menjadi base64 dengan quality yang ditentukan
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.src = base64Image;
+    });
+  };
+
+  // Fungsi untuk capture foto
+  const capturePhoto = async () => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (imageSrc) {
+        try {
+          // Kompres gambar sebelum simpan
+          const compressedImage = await compressImage(imageSrc, 640, 0.20); // 640px max, 20% quality
+          setCapturedImage(compressedImage);
+          setCameraActive(false);
+        } catch (error) {
+          console.error('Error compressing image:', error);
+          // Fallback ke gambar asli jika kompresi gagal
+          setCapturedImage(imageSrc);
+          setCameraActive(false);
+        }
+      }
+    }
+  };
+
+  // Fungsi untuk menghapus foto yang sudah di-capture
+  const removeCapturedImage = () => {
+    setCapturedImage(null);
+  };
 
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
@@ -345,7 +436,7 @@ export default function AddPlan({ open, onClose }) {
                              formData.tujuan === 'follow up' ? ACTIVITY_TYPES.FOLLOW_UP :
                              formData.tujuan;
 
-      // Prepare request body sesuai API spec
+      // Prepare request body sesuai API spec (sama seperti check-in)
       const requestBody = {
         customer_id: formData.customerId,
         customer_name: formData.customer.nama || '',
@@ -355,6 +446,11 @@ export default function AddPlan({ open, onClose }) {
         customer_location_lat: latitude || null,
         customer_location_lng: longitude || null,
       };
+      
+      // Append captured image (base64) jika ada
+      if (capturedImage) {
+        requestBody.capturedImage = capturedImage;
+      }
 
       // Call API endpoint
       const response = await apiRequest('activity-plans', {
@@ -392,6 +488,7 @@ export default function AddPlan({ open, onClose }) {
       resetLocation();
       setSearchInput('');
       setInputValue('');
+      setCapturedImage(null);
       setSuccessDialog({ open: true, message: 'Activity plan berhasil dibuat!' });
 
       // Close drawer immediately
@@ -431,6 +528,9 @@ export default function AddPlan({ open, onClose }) {
     setShowLoadingPlan(false);
     setSearchInput('');
     setInputValue('');
+    setCapturedImage(null);
+    setCameraActive(false);
+    setCameraError(null);
     onClose();
   }, [resetForm, resetLocation, onClose]);
 
@@ -795,6 +895,170 @@ export default function AddPlan({ open, onClose }) {
             onBlur={(e) => {
               e.target.style.borderColor = 'rgba(0, 0, 0, 0.23)';
             }}
+          />
+        </Box>
+
+        {/* Photo Capture Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              color: '#666',
+              mb: 1.5,
+              fontWeight: 600,
+            }}
+          >
+            Foto (Opsional)
+          </Typography>
+
+          {/* Tombol Buka Kamera */}
+          {!cameraActive && !capturedImage && (
+            <Button
+              variant="outlined"
+              onClick={openCamera}
+              startIcon={<CameraAltIcon />}
+              sx={{
+                mb: 2,
+                borderColor: '#6BA3D0',
+                color: '#6BA3D0',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: '#5a8fb8',
+                  backgroundColor: 'rgba(107, 163, 208, 0.04)',
+                },
+              }}
+            >
+              Buka Kamera
+            </Button>
+          )}
+
+          {/* Error Message */}
+          {cameraError && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'error.main',
+                mb: 2,
+                fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem' },
+              }}
+            >
+              {cameraError}
+            </Typography>
+          )}
+
+          {/* Webcam Preview */}
+          {cameraActive && (
+            <Box sx={{ mb: 2 }}>
+              <Webcam
+                audio={false}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={{
+                  facingMode: { ideal: 'environment' }, // Prioritas kamera belakang
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 }
+                }}
+                style={{
+                  width: '100%',
+                  maxWidth: '400px',
+                  height: 'auto',
+                  borderRadius: '8px',
+                  border: '2px solid #6BA3D0',
+                }}
+                onUserMediaError={(error) => {
+                  console.error('Webcam error:', error);
+                  setCameraError('Tidak dapat mengakses kamera');
+                  setCameraActive(false);
+                }}
+              />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={capturePhoto}
+                  startIcon={<PhotoCameraIcon />}
+                  sx={{
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    borderRadius: { xs: '6px', sm: '8px' },
+                    textTransform: 'none',
+                    '&:hover': {
+                      backgroundColor: '#45a049',
+                    },
+                  }}
+                >
+                  Ambil Foto
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={closeCamera}
+                  sx={{
+                    borderColor: '#f44336',
+                    color: '#f44336',
+                    borderRadius: { xs: '6px', sm: '8px' },
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: '#d32f2f',
+                      backgroundColor: 'rgba(244, 67, 54, 0.04)',
+                    },
+                  }}
+                >
+                  Batal
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {/* Preview Captured Image */}
+          {capturedImage && (
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem', md: '0.875rem' },
+                  color: '#666',
+                  mb: 1,
+                }}
+              >
+                Preview Foto:
+              </Typography>
+              <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                <img
+                  src={capturedImage}
+                  alt="Captured"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '200px',
+                    borderRadius: '8px',
+                    border: '2px solid #6BA3D0',
+                  }}
+                />
+                <IconButton
+                  onClick={removeCapturedImage}
+                  sx={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    color: '#f44336',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    },
+                    width: 32,
+                    height: 32,
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+          )}
+
+          {/* Canvas untuk capture (hidden) */}
+          <canvas
+            ref={canvasRef}
+            style={{ display: 'none' }}
           />
         </Box>
 

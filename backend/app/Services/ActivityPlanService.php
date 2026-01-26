@@ -54,6 +54,7 @@ class ActivityPlanService
                 'keterangan_tambahan' => $data['keterangan_tambahan'] ?? '',
                 'customer_location_lat' => $data['customer_location_lat'] ?? null,
                 'customer_location_lng' => $data['customer_location_lng'] ?? null,
+                'user_photo' => $data['user_photo'] ?? null,
                 'status' => 'in progress',
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -215,6 +216,7 @@ class ActivityPlanService
                 'keterangan_tambahan' => $plan['keterangan_tambahan'],
                 'customer_location_lat' => $plan['customer_location_lat'] ?? null,
                 'customer_location_lng' => $plan['customer_location_lng'] ?? null,
+                'user_photo' => $plan['user_photo'] ?? null,
                 'status' => 'done',
                 'result' => $result,
                 'result_location_lat' => $latitude,
@@ -315,6 +317,7 @@ class ActivityPlanService
                 'plan_date' => $newDate,
                 'tujuan' => $plan['tujuan'],
                 'keterangan_tambahan' => $plan['keterangan_tambahan'],
+                'user_photo' => $plan['user_photo'] ?? null,
                 'status' => 'rescheduled',
                 'result' => $plan['result'] ?? null,
                 'result_location_lat' => $plan['result_location_lat'] ?? null,
@@ -611,6 +614,7 @@ class ActivityPlanService
                 'keterangan_tambahan' => 'CheckIn Di Tempat',
                 'customer_location_lat' => null, // No customer location
                 'customer_location_lng' => null, // No customer location
+                'user_photo' => $data['user_photo'] ?? null,
                 'status' => 'done', // Status langsung Done
                 'result' => $data['result'] ?? null,
                 'result_location_lat' => $data['latitude'],

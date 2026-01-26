@@ -20,7 +20,7 @@ Route::get('/test', function () {
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
 
-    // Customer search autocomplete - PINDAHIN KE PALING ATAS
+    // Customer search autocomplete
     Route::get('/customers/search', [CustomerController::class, 'search']);
 
     // Check-in
@@ -30,7 +30,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
-    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
+    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);  // Handle foto di sini
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);

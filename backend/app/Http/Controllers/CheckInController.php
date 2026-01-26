@@ -35,6 +35,41 @@ class CheckInController extends Controller
         ]);
 
         try {
+            // Handle photo upload dari base64
+            $userPhoto = null;
+            if ($request->has('capturedImage') && !empty($request->capturedImage)) {
+                try {
+                    $base64Image = $request->capturedImage;
+                    
+                    // Remove data:image/jpeg;base64, prefix jika ada
+                    if (strpos($base64Image, 'data:image') === 0) {
+                        $base64Image = preg_replace('#^data:image/\w+;base64,#i', '', $base64Image);
+                    }
+                    
+                    $imageData = base64_decode($base64Image);
+                    
+                    if ($imageData) {
+                        $filename = 'user-' . $request->sales_internal_id . '-' . time() . '.jpg';
+                        $path = 'user-photos/' . $filename;
+                        
+                        // Save image to storage
+                        \Illuminate\Support\Facades\Storage::disk('public')->put($path, $imageData);
+                        
+                        $userPhoto = '/storage/' . $path;
+                        
+                        \Log::info('CheckIn photo saved', [
+                            'path' => $path,
+                            'size' => strlen($imageData),
+                        ]);
+                    }
+                } catch (\Exception $photoError) {
+                    \Log::warning('CheckIn photo save failed', [
+                        'message' => $photoError->getMessage(),
+                    ]);
+                    // Continue without photo if save fails
+                }
+            }
+
             $result = $this->activityPlanService->createCheckIn([
                 'sales_internal_id' => $request->sales_internal_id,
                 'sales_name' => $request->sales_name,
@@ -43,7 +78,7 @@ class CheckInController extends Controller
                 'address' => $request->address,
                 'result' => $request->result,
                 'timestamp' => $request->timestamp,
-                'capturedImage' => $request->capturedImage,
+                'user_photo' => $userPhoto,
             ]);
 
             \Log::info('CheckIn successful', ['result' => $result]);
