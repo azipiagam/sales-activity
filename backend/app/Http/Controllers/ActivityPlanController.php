@@ -64,55 +64,22 @@ class ActivityPlanController extends Controller
             'plan_date' => 'required|date|after_or_equal:today',
             'tujuan' => 'required|in:Visit,Follow Up',
             'keterangan_tambahan' => 'nullable|string',
-            'capturedImage' => 'nullable|string', // base64 image
+            'customer_location_lat' => 'nullable|numeric',
+            'customer_location_lng' => 'nullable|numeric',
         ]);
 
-        $data = $request->all();
+        $data = $request->only([
+            'customer_id',
+            'customer_name',
+            'plan_date',
+            'tujuan',
+            'keterangan_tambahan',
+            'customer_location_lat',
+            'customer_location_lng',
+        ]);
         $data['sales_internal_id'] = $request->sales_internal_id;
         $data['sales_name'] = $request->sales_name;
-
-        // Handle photo upload dari base64
-        if ($request->has('capturedImage') && !empty($request->capturedImage)) {
-            try {
-                $base64Image = $request->capturedImage;
-                
-                // Remove data:image/jpeg;base64, prefix jika ada
-                if (strpos($base64Image, 'data:image') === 0) {
-                    $base64Image = preg_replace('#^data:image/\w+;base64,#i', '', $base64Image);
-                }
-                
-                $imageData = base64_decode($base64Image);
-                
-                if (!$imageData) {
-                    throw new \Exception('Invalid base64 image data');
-                }
-                
-                $filename = 'user-' . $request->sales_internal_id . '-' . time() . '.jpg';
-                $path = 'user-photos/' . $filename;
-                
-                // Save image to storage
-                \Illuminate\Support\Facades\Storage::disk('public')->put($path, $imageData);
-                
-                \Log::info('Photo saved from base64', [
-                    'path' => $path,
-                    'size' => strlen($imageData),
-                ]);
-                
-                // Store the path untuk disimpan ke BigQuery
-                $data['user_photo'] = '/storage/' . $path;
-            } catch (\Exception $e) {
-                \Log::error('Photo upload error', [
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                
-                return response()->json([
-                    'message' => 'Gagal upload foto: ' . $e->getMessage()
-                ], 500);
-            }
-        } else {
-            \Log::info('No photo in request');
-        }
+        $data['user_photo'] = null;
 
         $result = $this->activityPlanService->create($data);
 
