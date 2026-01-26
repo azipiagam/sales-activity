@@ -283,11 +283,11 @@ export default function CheckIn({ open, onClose }) {
         throw new Error(errorData.message || 'Gagal melakukan check-in');
       }
 
-      const result = await response.json();
+      const responseData = await response.json();
       setCheckInResult({
         success: true,
         message: 'Check-in berhasil!',
-        data: result.data,
+        data: responseData.data,
       });
       setSuccess(true);
     } catch (error) {
@@ -300,7 +300,7 @@ export default function CheckIn({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [location, address]);
+  }, [location, address, result, capturedImage]);
 
   const handleClose = useCallback(() => {
     setLocation(null);
@@ -318,19 +318,6 @@ export default function CheckIn({ open, onClose }) {
     onClose();
   }, [onClose]);
 
-  const handleReset = useCallback(() => {
-    setLocation(null);
-    setAddress('');
-    setResult('');
-    setError('');
-    setSuccess(false);
-    setCheckInResult(null);
-    setShowMap(false);
-    setCameraActive(false);
-    setCapturedImage(null);
-    setCameraError(null);
-    setAddressLoading(false);
-  }, []);
 
   return (
     <Drawer
@@ -422,7 +409,7 @@ export default function CheckIn({ open, onClose }) {
             variant="outlined"
             fullWidth
             onClick={handleGetCurrentLocation}
-            disabled={loading || addressLoading}
+            disabled={loading || addressLoading || success}
             startIcon={addressLoading ? <CircularProgress size={20} /> : <LocationOnIcon />}
             sx={{
               py: { xs: 1.5, sm: 1.75 },
@@ -570,6 +557,7 @@ export default function CheckIn({ open, onClose }) {
             placeholder="Masukkan hasil check in..."
             value={result}
             onChange={(e) => setResult(e.target.value)}
+            disabled={success}
             style={{
               width: '100%',
               padding: '14px',
@@ -609,6 +597,7 @@ export default function CheckIn({ open, onClose }) {
             <Button
               variant="outlined"
               onClick={openCamera}
+              disabled={success}
               startIcon={<CameraAltIcon />}
               sx={{
                 mb: 2,
@@ -843,28 +832,7 @@ export default function CheckIn({ open, onClose }) {
             Tutup
           </Button>
 
-          {success ? (
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={handleReset}
-              sx={{
-                py: { xs: 1.25, sm: 1.5 },
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                fontWeight: 600,
-                borderColor: '#6BA3D0',
-                color: '#6BA3D0',
-                borderRadius: { xs: '8px', sm: '10px' },
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: '#5a8fb8',
-                  backgroundColor: 'rgba(107, 163, 208, 0.08)',
-                },
-              }}
-            >
-              Check In Lagi
-            </Button>
-          ) : (
+          {success ? null : (
             <Button
               variant="contained"
               fullWidth

@@ -26,7 +26,7 @@ export default function NavBottom({ value, onChange }) {
   const handleAddPlan = () => {
     setIsExpanded(false);
     setOpenAddPlan(true);
-  };
+  };  
 
   const handleCheckIn = () => {
     setIsExpanded(false);

@@ -12,6 +12,11 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/geocode', [GeocodeController::class, 'geocode']);
 Route::get('/reverse-geocode', [GeocodeController::class, 'reverseGeocode']);
 
+// Public test route
+Route::get('/test', function () {
+    return response()->json(['message' => 'API is working', 'timestamp' => now()]);
+});
+
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
 
@@ -19,7 +24,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('/customers/search', [CustomerController::class, 'search']);
 
     // Check-in
-    Route::post('/check-in', [CheckInController::class, 'store']);
+    Route::post('/check-in', [CheckInController::class, 'checkIn']);
 
     // Activity Plans - urutan PENTING!
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);

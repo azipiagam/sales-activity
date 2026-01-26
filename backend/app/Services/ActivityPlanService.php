@@ -113,12 +113,17 @@ class ActivityPlanService
      */
     public function getAllBySales($salesInternalId)
     {
+        // Handle null sales_internal_id
+        if (!$salesInternalId) {
+            return [];
+        }
+
         $cacheKey = "activity_plans:all:{$salesInternalId}";
-        
+
         return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId) {
             $dataset = env('BIGQUERY_DATASET');
             $project = env('BIGQUERY_PROJECT_ID');
-            
+
             // Get latest version per ID, excluding deleted status
             // This ensures only the most recent state of each plan is shown
             $sql = "
@@ -134,7 +139,7 @@ class ActivityPlanService
                 AND status NOT IN ('deleted')
                 ORDER BY plan_date DESC, created_at DESC
             ";
-            
+
             return $this->bigQuery->query($sql, [
                 'sales_internal_id' => $salesInternalId,
             ]);
@@ -578,5 +583,57 @@ class ActivityPlanService
         // Note: For production, consider using cache tags with Redis
         // which allows pattern-based cache clearing more efficiently
     }
-    
+
+    /**
+     * Create check-in record (without customer, status langsung Done)
+     */
+    public function createCheckIn($data)
+    {
+        \Log::info('Creating check-in record', ['data' => $data]);
+
+        $id = Str::uuid()->toString();
+        $now = Carbon::now()->toDateTimeString();
+
+        // Parse timestamp from frontend (format: "2026-01-23T02:15:22.306Z")
+        $timestamp = Carbon::parse($data['timestamp'])->toDateTimeString();
+
+        $row = [
+            'insertId' => $id,
+            'data' => [
+                'id' => $id,
+                'plan_no' => $this->generatePlanNo(), // Generate plan number for check-in
+                'sales_internal_id' => $data['sales_internal_id'],
+                'sales_name' => $data['sales_name'],
+                'customer_id' => null, // No customer for check-in
+                'customer_name' => 'CheckIn', // Default customer name for check-in
+                'plan_date' => Carbon::parse($timestamp)->toDateString(),
+                'tujuan' => 'Visit',
+                'keterangan_tambahan' => 'CheckIn Di Tempat',
+                'customer_location_lat' => null, // No customer location
+                'customer_location_lng' => null, // No customer location
+                'status' => 'done', // Status langsung Done
+                'result' => $data['result'] ?? null,
+                'result_location_lat' => $data['latitude'],
+                'result_location_lng' => $data['longitude'],
+                'result_location_accuracy' => null, // No accuracy data from frontend
+                'result_location_timestamp' => $timestamp,
+                'result_saved_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+                'deleted_at' => null,
+            ]
+        ];
+
+        $this->bigQuery->insert('activity_plans', [$row]);
+
+        \Log::info('Check-in record inserted to BigQuery', ['id' => $id, 'row' => $row]);
+
+        // Clear related caches
+        $this->clearCache($data['sales_internal_id']);
+
+        return [
+            'id' => $id,
+        ];
+    }
+
 }
