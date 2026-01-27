@@ -248,6 +248,22 @@ export default function CheckIn({ open, onClose }) {
     return null;
   };
 
+  const handleClose = useCallback(() => {
+    setLocation(null);
+    setAddress('');
+    setResult('');
+    setError('');
+    setSuccess(false);
+    setCheckInResult(null);
+    setLoading(false);
+    setShowMap(false);
+    setCameraActive(false);
+    setCapturedImage(null);
+    setCameraError(null);
+    setAddressLoading(false);
+    onClose();
+  }, [onClose]);
+
   // Handle check-in process
   const handleCheckIn = useCallback(async () => {
     if (!location) {
@@ -290,6 +306,7 @@ export default function CheckIn({ open, onClose }) {
         data: responseData.data,
       });
       setSuccess(true);
+      handleClose();
     } catch (error) {
       console.error('Error during check-in:', error);
       setCheckInResult({
@@ -300,23 +317,7 @@ export default function CheckIn({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [location, address, result, capturedImage]);
-
-  const handleClose = useCallback(() => {
-    setLocation(null);
-    setAddress('');
-    setResult('');
-    setError('');
-    setSuccess(false);
-    setCheckInResult(null);
-    setLoading(false);
-    setShowMap(false);
-    setCameraActive(false);
-    setCapturedImage(null);
-    setCameraError(null);
-    setAddressLoading(false);
-    onClose();
-  }, [onClose]);
+  }, [location, address, result, capturedImage, handleClose]);
 
 
   return (
@@ -810,58 +811,59 @@ export default function CheckIn({ open, onClose }) {
             borderTop: '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleClose}
-            disabled={loading}
-            sx={{
-              py: { xs: 1.25, sm: 1.5 },
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
-              borderRadius: { xs: '8px', sm: '10px' },
-              textTransform: 'none',
-              '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
-              },
-            }}
-          >
-            Tutup
-          </Button>
-
           {success ? null : (
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleCheckIn}
-              disabled={loading || !location}
-              sx={{
-                py: { xs: 1.25, sm: 1.5 },
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                fontWeight: 600,
-                backgroundColor: '#6BA3D0',
-                color: 'white',
-                borderRadius: { xs: '8px', sm: '10px' },
-                textTransform: 'none',
-                '&:hover': {
-                  backgroundColor: '#5a8fb8',
-                  color: 'white',
-                },
-                '&:disabled': {
+            <>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={handleClose}
+                disabled={loading}
+                sx={{
+                  py: { xs: 1.25, sm: 1.5 },
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  fontWeight: 600,
+                  borderColor: '#6BA3D0',
+                  color: '#6BA3D0',
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: '#5a8fb8',
+                    backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                  },
+                }}
+              >
+                Tutup
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleCheckIn}
+                disabled={loading || !location}
+                sx={{
+                  py: { xs: 1.25, sm: 1.5 },
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  fontWeight: 600,
                   backgroundColor: '#6BA3D0',
-                  opacity: 0.6,
-                },
-              }}
-            >
-              {loading ? (
-                <CircularProgress size={24} sx={{ color: 'white' }} />
-              ) : (
-                'Check In'
-              )}
-            </Button>
+                  color: 'white',
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  textTransform: 'none',
+                  '&:hover': {
+                    backgroundColor: '#5a8fb8',
+                    color: 'white',
+                  },
+                  '&:disabled': {
+                    backgroundColor: '#6BA3D0',
+                    opacity: 0.6,
+                  },
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} sx={{ color: 'white' }} />
+                ) : (
+                  'Check In'
+                )}
+              </Button>
+            </>
           )}
         </Box>
       </Box>

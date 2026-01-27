@@ -17,7 +17,6 @@ export default function LatestCustomerDetail() {
   useEffect(() => {
     // Simulate loading delay
     const timer = setTimeout(() => {
-      // Dummy customer data with chart data
       const dummyCustomers = [
         {
           id: 1,

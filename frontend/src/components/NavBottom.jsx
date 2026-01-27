@@ -35,23 +35,7 @@ export default function NavBottom({ value, onChange }) {
 
   return (
     <>
-      {/* Dark Overlay when FAB is expanded */}
-      <Fade in={isExpanded} timeout={150}>
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            zIndex: 999,
-            backdropFilter: 'blur(1px)',
-            display: { xs: 'block', md: 'none' },
-          }}
-          onClick={() => setIsExpanded(false)}
-        />
-      </Fade>
+      {/* No overlay - keep background normal */}
 
       <Box
         sx={{
@@ -141,9 +125,10 @@ export default function NavBottom({ value, onChange }) {
               transform: 'translateX(-50%)',
               zIndex: 1001,
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'row',
               alignItems: 'center',
-              gap: '12px',
+              justifyContent: 'center',
+              gap: '16px',
             }}
           >
             {/* Check In Menu Item */}
@@ -153,9 +138,10 @@ export default function NavBottom({ value, onChange }) {
               role="button"
               aria-label="Check In"
               sx={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                // background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                backgroundColor: '#6BA3D0',
                 borderRadius: '50%',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8)',
                 border: '2px solid',
                 borderColor: 'rgba(76, 175, 202, 0.3)',
                 width: { xs: 60, sm: 64 },
@@ -183,15 +169,14 @@ export default function NavBottom({ value, onChange }) {
                 '&:hover': {
                   background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
                   transform: 'scale(1.08) translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(76, 175, 202, 0.3), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  boxShadow: '0 6px 16px rgba(76, 175, 202, 0.2), 0 0 0 2px rgba(76, 175, 202, 0.5)',
                   '&::before': {
                     width: '120%',
                     height: '120%',
                   },
                 },
                 '&:active': {
-                  transform: 'scale(0.96) translateY(0px)',
-                  transition: 'all 0.1s ease-out',
+                  // No scale effect on click
                 },
                 '&:focus': {
                   outline: 'none',
@@ -212,7 +197,7 @@ export default function NavBottom({ value, onChange }) {
               <CheckCircleIcon
                 sx={{
                   fontSize: { xs: '1.75rem', sm: '2rem' },
-                  color: '#4e8ec2',
+                  color: 'white',
                   transition: 'color 0.3s ease',
                   position: 'relative',
                   zIndex: 1,
@@ -227,9 +212,10 @@ export default function NavBottom({ value, onChange }) {
               role="button"
               aria-label="Add Plan"
               sx={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                // background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                backgroundColor: '#6BA3D0',
                 borderRadius: '50%',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8)',
                 border: '2px solid',
                 borderColor: 'rgba(76, 175, 202, 0.3)',
                 width: { xs: 60, sm: 64 },
@@ -257,15 +243,14 @@ export default function NavBottom({ value, onChange }) {
                 '&:hover': {
                   background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
                   transform: 'scale(1.08) translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(76, 175, 202, 0.3), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  boxShadow: '0 6px 16px rgba(76, 175, 202, 0.2), 0 0 0 2px rgba(76, 175, 202, 0.5)',
                   '&::before': {
                     width: '120%',
                     height: '120%',
                   },
                 },
                 '&:active': {
-                  transform: 'scale(0.96) translateY(0px)',
-                  transition: 'all 0.1s ease-out',
+                  // No scale effect on click
                 },
                 '&:focus': {
                   outline: 'none',
@@ -276,7 +261,7 @@ export default function NavBottom({ value, onChange }) {
               <AddLocationIcon
                 sx={{
                   fontSize: { xs: '1.75rem', sm: '2rem' },
-                  color: '#4e8ec2',
+                  color: 'white',
                   transition: 'color 0.3s ease',
                   position: 'relative',
                   zIndex: 1,

@@ -313,8 +313,22 @@ export const getCoordinatesFromAddressEnhanced = async (address) => {
       // Use existing geocoding function
       const result = await getCoordinatesFromAddress(addressVersion);
 
-      // Add confidence information
-      const confidence = i === 0 ? 'exact' : i <= 2 ? 'good' : 'approximate';
+      // Add confidence information based on source and simplification level
+      let confidence = 'approximate';
+
+      if (result.source === 'google_maps') {
+        // Google Maps has better accuracy indicators
+        if (result.is_precise) {
+          confidence = i === 0 ? 'exact' : 'good';
+        } else if (result.location_type === 'GEOMETRIC_CENTER') {
+          confidence = 'approximate';
+        } else {
+          confidence = 'good';
+        }
+      } else {
+        // OpenStreetMap confidence based on simplification level
+        confidence = i === 0 ? 'exact' : i <= 2 ? 'good' : 'approximate';
+      }
 
       return {
         ...result,
@@ -418,7 +432,68 @@ export const getCoordinatesFromAddress = async (address) => {
     };
 
   } catch (error) {
-    console.error('[Geocoding] Error:', error);
+    console.error('[Geocoding] OpenStreetMap failed:', error.message);
+
+    // Fallback to Google Maps Geocoding API if OpenStreetMap fails
+    if (GOOGLE_MAPS_API_KEY) {
+      try {
+        console.log('[Geocoding] Trying Google Maps as fallback...');
+
+        await waitForRateLimit();
+
+        // Add Indonesia bias and components for better accuracy
+        const indonesiaBounds = '|-11.007617,95.009331|7.485811,141.050292';
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(trimmedAddress)}&key=${GOOGLE_MAPS_API_KEY}&region=id&language=id&components=country:ID`
+        );
+
+        if (!response.ok) {
+          throw new Error(`Google Maps API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+          const result = data.results[0];
+          const lat = result.geometry.location.lat;
+          const lng = result.geometry.location.lng;
+
+          // Check location type for accuracy confidence
+          const locationTypes = result.geometry.location_type || '';
+          const isPreciseLocation = ['ROOFTOP', 'RANGE_INTERPOLATED'].includes(locationTypes);
+          const isApproximateLocation = ['GEOMETRIC_CENTER', 'APPROXIMATE'].includes(locationTypes);
+
+          console.log('[Geocoding] Google Maps Success:', {
+            address: trimmedAddress,
+            lat,
+            lng,
+            formatted_address: result.formatted_address,
+            location_type: locationTypes,
+            is_precise: isPreciseLocation
+          });
+
+          return {
+            lat,
+            lng,
+            display_name: result.formatted_address,
+            source: 'google_maps',
+            location_type: locationTypes,
+            is_precise: isPreciseLocation,
+            is_approximate: isApproximateLocation
+          };
+        } else {
+          console.warn('[Geocoding] Google Maps returned status:', data.status);
+          if (data.status === 'ZERO_RESULTS') {
+            throw new Error('Lokasi tidak ditemukan di Google Maps');
+          }
+          throw new Error(`Google Maps geocoding gagal: ${data.status}`);
+        }
+
+      } catch (googleError) {
+        console.error('[Geocoding] Google Maps fallback also failed:', googleError.message);
+        // Continue to original error handling
+      }
+    }
 
     if (error.message.includes('fetch') || error.message.includes('Network')) {
       throw new Error('Gagal terhubung ke server geocoding');

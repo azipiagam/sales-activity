@@ -61,10 +61,8 @@ export default function Header({
     return () => clearInterval(timer);
   }, []);
 
-  // Cleanup anchor elements when component updates to prevent stale references
   useEffect(() => {
     return () => {
-      // Cleanup function to ensure anchor elements are reset
       if (logoutMenuAnchorEl) {
         setLogoutMenuAnchorEl(null);
       }
@@ -89,13 +87,10 @@ export default function Header({
 
   const handleReset = async () => {
     try {
-      // Invalidate all caches to clear old data
       invalidateCache();
 
-      // Refresh Home data (all plans) without loading screen
       await fetchAllPlans(true, true);
 
-      // Refresh Plan data for the selected date without loading screen
       await fetchPlansByDate(selectedDate, true, true);
 
       console.log('Data refreshed successfully');
@@ -144,7 +139,7 @@ export default function Header({
           sx={{
             position: 'relative',
             overflow: 'hidden',
-            minHeight: { xs: '90px', sm: '100px', md: '110px' },
+            minHeight: { xs: '70px', sm: '75px', md: '80px' },
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

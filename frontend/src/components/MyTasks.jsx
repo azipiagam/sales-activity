@@ -196,75 +196,20 @@ export default function MyTasks({ selectedDate }) {
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
 
   return (
-    <Container 
-      maxWidth="md" 
-      sx={{ 
-        mt: 0,
+    <Container
+      maxWidth="md"
+      sx={{
+        mt: -2,
         mb: 1,
         px: { xs: 2, sm: 3 },
       }}
     >
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mt: { xs: 4.1, sm: 4, md: 4.5 },
-          mb: 2,
-        }}
-      >
-        <Typography
-          variant="h6"
-          sx={{
-            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-            fontWeight: 700,
-            color: '#333',
-          }}
-        >
-          My Activity Plan
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            animation: `${fadeIn} 1.2s ease-out`,
-          }}
-        >
-          <AccessTimeIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.1rem' },
-              color: '#81c784', // Light green color
-              animation: isAnimating 
-                ? `${fadeOut} 1.2s ease-in-out forwards` 
-                : `${fadeIn} 1.2s ease-in-out forwards`,
-              alignSelf: 'center',
-              flexShrink: 0,
-            }}
-          />
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-              color: '#999', // Light grey color
-              animation: isAnimating 
-                ? `${fadeOut} 1.2s ease-in-out forwards` 
-                : `${fadeIn} 1.2s ease-in-out forwards`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              lineHeight: 1,
-            }}
-          >
-            {dateString} {timeString}
-          </Typography>
-        </Box>
-      </Box>
-      
-      <Box
-        sx={{
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(3, 1fr)' },
           gap: { xs: 1.5, sm: 2 },
+          mt: 4,
         }}
       >
         {/* In Progress Card */}

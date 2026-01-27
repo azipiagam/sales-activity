@@ -12,7 +12,6 @@ export default function LatestCustomers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading delay
     const timer = setTimeout(() => {
       // Dummy customer data
       const dummyCustomers = [
@@ -55,7 +54,7 @@ export default function LatestCustomers() {
       
       setCustomers(dummyCustomers);
       setLoading(false);
-    }, 500); // Simulate 500ms loading time
+    }, 500); 
 
     return () => clearTimeout(timer);
   }, []);

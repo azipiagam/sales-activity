@@ -1,5 +1,5 @@
 // React
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 
 // Material-UI Components
 import Drawer from '@mui/material/Drawer';
@@ -18,13 +18,13 @@ import CloseIcon from '@mui/icons-material/Close';
 // Custom imports
 import { apiRequest } from '../config/api';
 import AddressMap from './AddressMap';
-import AddAddress from './AddAddress';
 import AlertDialog from './AlertDialog';
 import LoadingPlan from './loading/LoadingPlan';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 // Utilities
 import { parse } from 'date-fns';
+import { getCoordinatesFromAddressEnhanced } from '../utils/geocoding';
 
 // Constants
 const ACTIVITY_TYPES = {
@@ -218,9 +218,13 @@ export default function AddPlan({ open, onClose }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showLoadingPlan, setShowLoadingPlan] = useState(false);
+  const [geocodingLoading, setGeocodingLoading] = useState(false);
+  const [geocodingConfidence, setGeocodingConfidence] = useState(null);
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
-  const [addAddressOpen, setAddAddressOpen] = useState(false);
+
+  // Refs
+  const geocodingTimeoutRef = useRef(null);
 
   // Custom Hooks
   const { formData, updateField, resetForm } = useFormState();
@@ -249,7 +253,7 @@ export default function AddPlan({ open, onClose }) {
     updateField(field, event.target.value);
   }, [updateField]);
 
-  const handleCustomerChange = useCallback((event, newValue) => {
+  const handleCustomerChange = useCallback(async (event, newValue) => {
     try {
       if (!newValue) {
         updateField('customer', null);
@@ -257,6 +261,9 @@ export default function AddPlan({ open, onClose }) {
         setCustomerAddress('');
         setInputValue('');
         setSearchInput('');
+        setGeocodingConfidence(null);
+        // Reset location when customer is cleared
+        resetLocation();
         return;
       }
 
@@ -269,6 +276,28 @@ export default function AddPlan({ open, onClose }) {
       setCustomerAddress(fullAddress);
       setInputValue(customerName);
       setSearchInput('');
+
+      // Geocode the customer address if it exists
+      if (fullAddress && fullAddress.trim()) {
+        setGeocodingLoading(true);
+        try {
+          const geocodingResult = await getCoordinatesFromAddressEnhanced(fullAddress);
+          const { lat, lng, confidence } = geocodingResult;
+
+          // Update location coordinates
+          handleLocationChange(lat, lng);
+
+          // Store confidence level
+          setGeocodingConfidence(confidence);
+
+          console.log(`Customer location found: ${lat}, ${lng} for address: "${fullAddress}" (confidence: ${confidence})`);
+        } catch (geocodingError) {
+          console.warn('Failed to geocode customer address:', geocodingError.message);
+          // Keep default location, don't show error to user as it's not critical
+        } finally {
+          setGeocodingLoading(false);
+        }
+      }
     } catch (error) {
       console.error('Error handling customer change:', error);
       setErrorDialog({ open: true, message: 'Terjadi kesalahan saat memilih customer. Silakan coba lagi.', fieldType: 'customer' });
@@ -277,8 +306,9 @@ export default function AddPlan({ open, onClose }) {
       setCustomerAddress('');
       setInputValue('');
       setSearchInput('');
+      setGeocodingLoading(false);
     }
-  }, [updateField, buildFullAddress]);
+  }, [updateField, buildFullAddress, handleLocationChange, resetLocation]);
 
   const handleCustomerInputChange = useCallback((event, newInputValue, reason) => {
     setInputValue(newInputValue);
@@ -421,6 +451,12 @@ export default function AddPlan({ open, onClose }) {
   };
 
   const handleClose = useCallback(() => {
+    // Clear any pending geocoding timeout
+    if (geocodingTimeoutRef.current) {
+      clearTimeout(geocodingTimeoutRef.current);
+      geocodingTimeoutRef.current = null;
+    }
+
     resetForm();
     setCustomerAddress('');
     resetLocation();
@@ -428,18 +464,35 @@ export default function AddPlan({ open, onClose }) {
     setSuccessDialog({ open: false, message: '' });
     setLoading(false);
     setShowLoadingPlan(false);
+    setGeocodingLoading(false);
+    setGeocodingConfidence(null);
     setSearchInput('');
     setInputValue('');
     onClose();
   }, [resetForm, resetLocation, onClose]);
 
-  const handleAddressConfirm = useCallback((addressData) => {
-    // Update alamat yang dipilih jika ada
-    if (addressData.address) {
-      setCustomerAddress(addressData.address);
+  const handleAddressChange = useCallback(async (newAddress) => {
+    setCustomerAddress(newAddress);
+
+    // Geocode immediately if address is valid
+    if (newAddress && newAddress.trim().length >= 5) {
+      setGeocodingLoading(true);
+      try {
+        const geocodingResult = await getCoordinatesFromAddressEnhanced(newAddress.trim());
+        const { lat, lng, confidence } = geocodingResult;
+
+        handleLocationChange(lat, lng);
+        setGeocodingConfidence(confidence);
+        console.log(`Address geocoded: ${lat}, ${lng} for "${newAddress}" (confidence: ${confidence})`);
+      } catch (geocodingError) {
+        console.warn('Failed to geocode address:', geocodingError.message);
+      } finally {
+        setGeocodingLoading(false);
+      }
+    } else {
+      setGeocodingLoading(false);
     }
-    // Lokasi sudah diupdate melalui handleLocationChange
-  }, []);
+  }, [handleLocationChange]);
 
   return (
     <Drawer
@@ -677,7 +730,7 @@ export default function AddPlan({ open, onClose }) {
           />
         </Box>
 
-        {/* Cari Lokasi Button */}
+        {/* Alamat dan Lokasi */}
         <Box sx={{ mb: 3 }}>
           <Typography
             variant="body2"
@@ -688,41 +741,97 @@ export default function AddPlan({ open, onClose }) {
               fontWeight: 600,
             }}
           >
-            Cari Lokasi
+            Alamat Terpilih
           </Typography>
-          <Button
-            variant="outlined"
+          <TextField
             fullWidth
-            onClick={() => setAddAddressOpen(true)}
-            disabled={!formData.customer}
+            multiline
+            rows={2}
+            placeholder="Masukkan alamat lengkap..."
+            value={customerAddress}
+            onChange={(e) => handleAddressChange(e.target.value)}
             sx={{
-              py: { xs: 1.5, sm: 1.75 },
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
-              borderRadius: { xs: '8px', sm: '10px' },
-              textTransform: 'none',
-              borderStyle: latitude && longitude ? 'solid' : 'dashed',
-              borderWidth: latitude && longitude ? '1px' : '2px',
-              backgroundColor: latitude && longitude ? 'rgba(107, 163, 208, 0.08)' : 'transparent',
-              '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: latitude && longitude ? 'rgba(107, 163, 208, 0.12)' : 'rgba(107, 163, 208, 0.08)',
-              },
-              '&:disabled': {
-                borderColor: '#ccc',
-                color: '#ccc',
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: { xs: '8px', sm: '10px' },
+                '&:hover fieldset': {
+                  borderColor: '#6BA3D0',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#6BA3D0',
+                },
               },
             }}
-          >
-            {latitude && longitude
-              ? `Lokasi Terpilih: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
-              : customerAddress
-                ? 'Klik untuk memilih lokasi'
-                : 'Pilih customer terlebih dahulu'
-            }
-          </Button>
+          />
+
+          <Box sx={{
+            height: '450px',
+            borderRadius: { xs: '8px', sm: '10px' },
+            overflow: 'hidden',
+            border: '1px solid rgba(0, 0, 0, 0.23)',
+            position: 'relative',
+          }}>
+            {geocodingLoading && (
+              <Box sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                zIndex: 10,
+              }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress sx={{ color: '#6BA3D0', mb: 1 }} />
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    Mencari lokasi customer...
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+            <AddressMap
+              address={customerAddress}
+              latitude={latitude}
+              longitude={longitude}
+              onLocationChange={handleLocationChange}
+            />
+          </Box>
+
+          {latitude && longitude && (
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                color: '#333',
+                mt: 1,
+                backgroundColor: '#f5f5f5',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontFamily: 'monospace',
+              }}
+            >
+              Koordinat: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+              {geocodingConfidence && (
+                <span style={{
+                  marginLeft: '8px',
+                  color: geocodingConfidence === 'exact' ? '#2e7d32' :
+                         geocodingConfidence === 'good' ? '#1976d2' : '#f57c00'
+                }}>
+                  ({geocodingConfidence === 'exact' ? '🎯 Lokasi tepat' :
+                    geocodingConfidence === 'good' ? '📍 Lokasi baik' :
+                    '⚠️ Lokasi perkiraan - geser marker untuk akurasi'})
+                </span>
+              )}
+              {isDefaultLocation(latitude, longitude) && !geocodingConfidence && (
+                <span style={{ color: '#d32f2f', marginLeft: '8px' }}>
+                  (Geser marker untuk mengatur lokasi)
+                </span>
+              )}
+            </Typography>
+          )}
         </Box>
 
         {/* Tujuan */}
@@ -860,14 +969,6 @@ export default function AddPlan({ open, onClose }) {
         </Box>
       </Box>
 
-      {/* Add Address Drawer */}
-      <AddAddress
-        open={addAddressOpen}
-        onClose={() => setAddAddressOpen(false)}
-        customerAddress={customerAddress}
-        onLocationChange={handleLocationChange}
-        onAddressConfirm={handleAddressConfirm}
-      />
 
       {/* Loading Plan Overlay */}
       {showLoadingPlan && <LoadingPlan />}
