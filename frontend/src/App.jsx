@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Global error handler untuk DOM manipulation errors
 const handleGlobalError = (event) => {
@@ -41,6 +40,7 @@ import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
+import GoogleMapsProvider from './components/GoogleMapsProvider';
 import backgroundSvg from './media/4.svg';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 
@@ -76,7 +76,6 @@ function AppContent() {
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [direction, setDirection] = useState(0);
   const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
 
   // Setup global error handlers
@@ -103,12 +102,6 @@ function AppContent() {
   }, [location.pathname]);
 
   const handleNavChange = (newValue) => {
-    if (newValue > navValue) {
-      setDirection(1); 
-    } else {
-      setDirection(-1); 
-    }
-    
     setNavValue(newValue);
     // navValue = 0 → Home → route '/'
     // navValue = 1 → Plan (My Activity Plan) → route '/plan'
@@ -192,23 +185,8 @@ function AppContent() {
             mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
         >
-        {/* Custom page transition without AnimatePresence to avoid Portal conflicts */}
-        <motion.div
-          key={`page-${navValue}`}
-          initial={{
-            opacity: 0,
-            x: direction === -1 ? -50 : 50
-          }}
-          animate={{
-            opacity: 1,
-            x: 0
-          }}
-          transition={{
-            duration: 0.3,
-            ease: [0.4, 0, 0.2, 1]
-          }}
-          style={{ width: '100%' }}
-        >
+        {/* Page content without animation to prevent Portal conflicts */}
+        <div style={{ width: '100%' }}>
           {navValue === 0 ? (
             <Home />
           ) : (
@@ -217,7 +195,7 @@ function AppContent() {
               <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
             </>
           )}
-        </motion.div>
+        </div>
         </Box>
       </Box>
 
@@ -253,36 +231,38 @@ function App() {
         {/* Disable React.StrictMode to prevent double mounting in development */}
         <BrowserRouter>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={id}>
-            <ActivityPlanProvider>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <AppContent />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/plan"
-                  element={
-                    <ProtectedRoute>
-                      <AppContent />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customers/:id"
-                  element={
-                    <ProtectedRoute>
-                      <CustomerDetailPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </ActivityPlanProvider>
+            <GoogleMapsProvider>
+              <ActivityPlanProvider>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <AppContent />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/plan"
+                    element={
+                      <ProtectedRoute>
+                        <AppContent />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/customers/:id"
+                    element={
+                      <ProtectedRoute>
+                        <CustomerDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </ActivityPlanProvider>
+            </GoogleMapsProvider>
           </LocalizationProvider>
         </BrowserRouter>
       </ThemeProvider>

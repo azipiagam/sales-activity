@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import { useGoogleMaps } from './GoogleMapsProvider';
 
 
 export default function AddressMap({ address, onLocationChange, latitude, longitude }) {
+  const { isLoaded, loadError } = useGoogleMaps();
   const defaultCenter = { lat: -6.2088, lng: 106.8456 };
   const defaultZoom = 15;
 
@@ -49,26 +51,65 @@ export default function AddressMap({ address, onLocationChange, latitude, longit
 
 
 
+  // Show loading state while Google Maps is loading
+  if (!isLoaded) {
+    return (
+      <div style={{
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px'
+      }}>
+        <div style={{ textAlign: 'center', color: '#666' }}>
+          <div>Loading Google Maps...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if loading failed
+  if (loadError) {
+    return (
+      <div style={{
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#ffebee',
+        borderRadius: '8px'
+      }}>
+        <div style={{ textAlign: 'center', color: '#d32f2f' }}>
+          <div>Failed to load Google Maps</div>
+          <div style={{ fontSize: '0.875rem', marginTop: '4px' }}>
+            Please check your internet connection
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <LoadScript googleMapsApiKey="AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg">
-      <GoogleMap
-        mapContainerStyle={{ height: '100%', width: '100%' }}
-        center={mapCenter}
-        zoom={mapZoom}
-        onLoad={onMapLoad}
-        options={{
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: true,
-          fullscreenControl: true,
-        }}
-      >
-        <Marker
-          position={markerPosition}
-          draggable={true}
-          onDragEnd={onMarkerDragEnd}
-        />
-      </GoogleMap>
-    </LoadScript>
+    <GoogleMap
+      mapContainerStyle={{ height: '100%', width: '100%' }}
+      center={mapCenter}
+      zoom={mapZoom}
+      onLoad={onMapLoad}
+      options={{
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: true,
+        fullscreenControl: true,
+      }}
+    >
+      <Marker
+        position={markerPosition}
+        draggable={true}
+        onDragEnd={onMarkerDragEnd}
+      />
+    </GoogleMap>
   );
 }
