@@ -21,7 +21,9 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';  
+import ListItemText from '@mui/material/ListItemText';
+import PersonIcon from '@mui/icons-material/Person';
+import LocationOnIcon from '@mui/icons-material/LocationOn';  
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -712,23 +714,46 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           )}
 
           {/* Task Title */}
-          <Typography
-            variant="h6"
+          <Box
             sx={{
-              fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-              fontWeight: 700,
-              color: '#333',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
               mb: 2,
-              wordBreak: 'break-word',
-              whiteSpace: 'normal',
-              overflowWrap: 'break-word',
-              lineHeight: 1.4,
               maxWidth: { xs: '90%', sm: '85%', md: '80%' },
               pr: { xs: 2, sm: 3, md: 4 },
             }}
           >
-            {activeTask.namaCustomer}
-          </Typography>
+            {activeTask.namaCustomer === 'CheckIn' ? (
+              <LocationOnIcon
+                sx={{
+                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                  color: '#6BA3D0',
+                }}
+              />
+            ) : (
+              <PersonIcon
+                sx={{
+                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                  color: '#6BA3D0',
+                }}
+              />
+            )}
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                fontWeight: 700,
+                color: '#6BA3D0',
+                wordBreak: 'break-word',
+                whiteSpace: 'normal',
+                overflowWrap: 'break-word',
+                lineHeight: 1.4,
+              }}
+            >
+              {activeTask.namaCustomer}
+            </Typography>
+          </Box>
 
           {/* Date and Time */}
           <Box

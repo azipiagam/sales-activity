@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Global error handler untuk DOM manipulation errors
 const handleGlobalError = (event) => {
@@ -185,17 +186,39 @@ function AppContent() {
             mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
         >
-        {/* Page content without animation to prevent Portal conflicts */}
-        <div style={{ width: '100%' }}>
+        {/* Page content with smooth transitions */}
+        <AnimatePresence mode="wait">
           {navValue === 0 ? (
-            <Home />
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
+              <Home />
+            </motion.div>
           ) : (
-            <>
+            <motion.div
+              key="plan"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
               <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
               <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-            </>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
         </Box>
       </Box>
 
