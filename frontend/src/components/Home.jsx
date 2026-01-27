@@ -3,36 +3,14 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Alert from '@mui/material/Alert';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { keyframes } from '@mui/system';
 import { parse, format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import { getSales } from '../utils/auth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
-const fadeOut = keyframes`
-  from {
-    opacity: 2;
-  }
-  to {
-    opacity: 0.6;
-  }
-`;
-
-const fadeIn = keyframes`
-  from {
-    opacity: 0.6;
-  }
-  to {
-    opacity: 2;
-  }
-`;
-
 export default function Home() {
   const { fetchAllPlans, allPlans, isLoading, getError } = useActivityPlans();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [isAnimating, setIsAnimating] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const loading = isLoading('all');
@@ -131,31 +109,6 @@ export default function Home() {
   }, [fetchAllPlans, allPlans]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentTime(new Date());
-        setTimeout(() => {
-          setIsAnimating(false);
-        }, 800);
-      }, 2400);
-    }, 3000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const day = String(currentTime.getDate()).padStart(2, '0');
-  const month = String(currentTime.getMonth() + 1).padStart(2, '0');
-  const year = currentTime.getFullYear();
-  const dateString = `${day}-${month}-${year}`;
-  
-  const hours = currentTime.getHours();
-  const minutes = String(currentTime.getMinutes()).padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 || 12;
-  const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-
-  useEffect(() => {
     // Get current logged in user
     const currentUser = getSales();
     const currentUserId = currentUser?.internal_id;
@@ -224,71 +177,14 @@ export default function Home() {
 
 
   return (
-    <Container 
-      maxWidth="md" 
-      sx={{ 
-        mt: 0,
+    <Container
+      maxWidth="md"
+      sx={{
+        mt: 4,
         mb: 1,
         px: { xs: 2, sm: 3 },
       }}
     >
-      {/* Clean Header with Date Navigation */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mt: { xs: 4.1, sm: 4, md: 4.5 },
-          mb: 2,
-        }}
-      >
-        <Typography
-          variant="h6"
-          sx={{
-            fontSize: { xs: '1.25rem', sm: '1.5rem' },
-            fontWeight: 700,
-            color: '#1F2937',
-          }}
-        >
-          Dashboard
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            animation: `${fadeIn} 1.2s ease-out`,
-          }}
-        >
-          <AccessTimeIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.1rem' },
-              color: '#81c784', // Light green color
-              animation: isAnimating 
-                ? `${fadeOut} 1.2s ease-in-out forwards` 
-                : `${fadeIn} 1.2s ease-in-out forwards`,
-              alignSelf: 'center',
-              flexShrink: 0,
-            }}
-          />
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-              color: '#999', // Light grey color
-              animation: isAnimating 
-                ? `${fadeOut} 1.2s ease-in-out forwards` 
-                : `${fadeIn} 1.2s ease-in-out forwards`,
-              display: 'inline-flex',
-              alignItems: 'center',
-              lineHeight: 1,
-            }}
-          >
-            {dateString} {timeString}
-          </Typography>
-        </Box>
-      </Box>
-
       {/* Task Dashboard */}
       <TaskDashboard selectedDate={selectedDate} />
 
