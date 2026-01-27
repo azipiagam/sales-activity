@@ -38,7 +38,7 @@ class AuthController extends Controller
                 ms.email,
                 ms.job_title,
                 ms.department,
-                ms.locationn
+                ms.location
             FROM `{$project}.{$dataset}.sales_auth` sa
             LEFT JOIN `{$project}.{$dataset}.master_sales` ms
                 ON sa.sales_internal_id = ms.internal_id
