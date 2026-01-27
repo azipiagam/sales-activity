@@ -435,6 +435,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           latitude: locationData.latitude,
           longitude: locationData.longitude,
           accuracy: locationData.accuracy,
+          photo: capturedImage || null,
         }),
       });
       

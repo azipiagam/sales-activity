@@ -6,6 +6,7 @@ namespace App\Services;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 class ActivityPlanService
 {
@@ -147,7 +148,7 @@ class ActivityPlanService
         });
     }
 
-    public function markAsDone($planId, $result, $latitude, $longitude, $accuracy = null)
+    public function markAsDone($planId, $result, $latitude, $longitude, $accuracy = null, $capturedImage = null, $salesInternalId = null)
     {
         $dataset = env('BIGQUERY_DATASET');
         $project = env('BIGQUERY_PROJECT_ID');
@@ -169,14 +170,53 @@ class ActivityPlanService
         
         $plan = $existing[0];
         
+        // Handle photo upload dari base64
+        $photoPath = null;
+        if ($capturedImage && !empty($capturedImage)) {
+            try {
+                $base64Image = $capturedImage;
+                
+                // Remove data:image/jpeg;base64, prefix jika ada
+                if (strpos($base64Image, 'data:image') === 0) {
+                    $base64Image = preg_replace('#^data:image/\w+;base64,#i', '', $base64Image);
+                }
+                
+                $imageData = base64_decode($base64Image);
+                
+                if ($imageData) {
+                    // Use sales_internal_id from plan if not provided
+                    $salesId = $salesInternalId ?? $plan['sales_internal_id'];
+                    $filename = 'user-' . $salesId . '-' . time() . '.jpg';
+                    $path = 'user-photos/' . $filename;
+                    
+                    // Save image to storage
+                    \Illuminate\Support\Facades\Storage::disk('public')->put($path, $imageData);
+                    
+                    $photoPath = '/storage/' . $path;
+                    
+                    \Log::info('Activity photo saved', [
+                        'path' => $path,
+                        'size' => strlen($imageData),
+                        'plan_id' => $planId,
+                    ]);
+                }
+            } catch (\Exception $photoError) {
+                \Log::warning('Activity photo save failed', [
+                    'message' => $photoError->getMessage(),
+                    'plan_id' => $planId,
+                ]);
+                // Continue without photo if save fails
+            }
+        }
+        
         // Always use INSERT strategy
-        return $this->markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy, $plan);
+        return $this->markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy, $plan, $photoPath);
     }
 
     /**
      * Insert new version with 'done' status
      */
-    protected function markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy = null, $plan = null)
+    protected function markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy = null, $plan = null, $photoPath = null)
     {
         $now = Carbon::now()->toDateTimeString();
         $dataset = env('BIGQUERY_DATASET');
@@ -216,7 +256,7 @@ class ActivityPlanService
                 'keterangan_tambahan' => $plan['keterangan_tambahan'],
                 'customer_location_lat' => $plan['customer_location_lat'] ?? null,
                 'customer_location_lng' => $plan['customer_location_lng'] ?? null,
-                'user_photo' => $plan['user_photo'] ?? null,
+                'user_photo' => $photoPath ?? ($plan['user_photo'] ?? null),
                 'status' => 'done',
                 'result' => $result,
                 'result_location_lat' => $latitude,

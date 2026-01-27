@@ -151,10 +151,11 @@ class ActivityPlanController extends Controller
     public function markAsDone(Request $request, $id)
     {
         $request->validate([
-            'result' => 'required|string',
+            'result' => 'nullable|string',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'accuracy' => 'nullable|numeric',
+            'photo' => 'nullable|string', // base64 image
         ]);
 
         $this->activityPlanService->markAsDone(
@@ -162,7 +163,9 @@ class ActivityPlanController extends Controller
             $request->result,
             $request->latitude,
             $request->longitude,
-            $request->accuracy
+            $request->accuracy,
+            $request->photo ?? null,
+            $request->sales_internal_id ?? null
         );
 
         return response()->json(['message' => 'Activity marked as done']);
