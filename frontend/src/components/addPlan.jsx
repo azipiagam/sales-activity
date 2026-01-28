@@ -741,12 +741,12 @@ export default function AddPlan({ open, onClose }) {
               fontWeight: 600,
             }}
           >
-            Alamat Terpilih
+            Alamat 
           </Typography>
           <TextField
             fullWidth
             multiline
-            rows={2}
+            rows={4}
             placeholder="Masukkan alamat lengkap..."
             value={customerAddress}
             onChange={(e) => handleAddressChange(e.target.value)}
@@ -765,7 +765,7 @@ export default function AddPlan({ open, onClose }) {
           />
 
           <Box sx={{
-            height: '450px',
+            height: '350px',
             borderRadius: { xs: '8px', sm: '10px' },
             overflow: 'hidden',
             border: '1px solid rgba(0, 0, 0, 0.23)',

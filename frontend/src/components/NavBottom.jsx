@@ -33,9 +33,32 @@ export default function NavBottom({ value, onChange }) {
     setOpenCheckIn(true);
   };
 
+  const handleOverlayClick = () => {
+    setIsExpanded(false);
+  };
+
   return (
     <>
-      {/* No overlay - keep background normal */}
+      {/* Overlay when expanded */}
+      {isExpanded && (
+        <Box
+          onClick={handleOverlayClick}
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 999,
+            animation: 'fadeIn 0.3s ease-out both',
+            '@keyframes fadeIn': {
+              from: { opacity: 0 },
+              to: { opacity: 1 },
+            },
+          }}
+        />
+      )}
 
       <Box
         sx={{
