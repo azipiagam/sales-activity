@@ -9,18 +9,18 @@ import { getSales } from '../utils/auth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
-export default function Home() {
+export default function Dashboard() {
   const { fetchAllPlans, allPlans, isLoading, getError } = useActivityPlans();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   const loading = isLoading('all');
   const error = getError('all');
 
-  // Fetch home data using shared context
+  // Fetch dashboard data using shared context
   useEffect(() => {
     let isMounted = true;
 
-    const fetchHome = async () => {
+    const fetchDashboard = async () => {
       try {
         // Get current logged in user
         const currentUser = getSales();
@@ -31,7 +31,7 @@ export default function Home() {
         }
 
         let data = allPlans;
-        
+
         if (!data) {
           data = await fetchAllPlans();
         }
@@ -96,12 +96,12 @@ export default function Home() {
         // TODO: Apply timeFilter to filter processedData if needed
       } catch (err) {
         if (isMounted) {
-          console.error('Error fetching home data:', err);
+          console.error('Error fetching dashboard data:', err);
         }
       }
     };
 
-    fetchHome();
+    fetchDashboard();
 
     return () => {
       isMounted = false;

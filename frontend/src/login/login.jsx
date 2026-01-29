@@ -63,7 +63,7 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('sales', JSON.stringify(data.sales));
 
-      // Pastikan user selalu diarahkan ke Home setelah login pertama kali
+      // Pastikan user selalu diarahkan ke Dashboard setelah login pertama kali
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan saat login');

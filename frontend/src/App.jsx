@@ -35,7 +35,7 @@ import NavBottom from './components/NavBottom';
 import Header from './components/Header';
 import MyTasks from './components/MyTasks';
 import ActiveTask from './components/ActiveTask';
-import Home from './Home';
+import Dashboard from './Dashboard';
 import LoadingManager from './components/loading/LoadingManager';
 import Login from './login/login';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -91,20 +91,20 @@ function AppContent() {
   }, []); 
 
   useEffect(() => {
-    // Pastikan setelah login pertama kali, user selalu melihat Home
-    // navValue = 0 → Home
+    // Pastikan setelah login pertama kali, user selalu melihat Dashboard
+    // navValue = 0 → Dashboard
     // navValue = 1 → Plan (My Activity Plan)
     if (location.pathname === '/plan') {
       setNavValue(1);
     } else {
-      // Default ke Home (navValue = 0) untuk route '/' atau route lainnya
+      // Default ke Dashboard (navValue = 0) untuk route '/' atau route lainnya
       setNavValue(0);
     }
   }, [location.pathname]);
 
   const handleNavChange = (newValue) => {
     setNavValue(newValue);
-    // navValue = 0 → Home → route '/'
+    // navValue = 0 → Dashboard → route '/'
     // navValue = 1 → Plan (My Activity Plan) → route '/plan'
     if (newValue === 0) {
       navigate('/', { replace: false });
@@ -200,7 +200,7 @@ function AppContent() {
               }}
               style={{ width: '100%' }}
             >
-              <Home />
+              <Dashboard />
             </motion.div>
           ) : (
             <motion.div

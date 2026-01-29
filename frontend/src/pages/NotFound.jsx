@@ -7,7 +7,7 @@ import {
   Button,
   Paper,
 } from '@mui/material';
-import { Home, ArrowBack } from '@mui/icons-material';
+import { Dashboard, ArrowBack } from '@mui/icons-material';
 
 const NotFound = () => {
   const navigate = useNavigate();
@@ -59,10 +59,10 @@ const NotFound = () => {
             </Button>
             <Button
               variant="outlined"
-              startIcon={<Home />}
+              startIcon={<Dashboard />}
               onClick={() => navigate('/', { replace: true })}
             >
-              Beranda
+              Dashboard
             </Button>
           </Box>
         </Paper>

@@ -11,7 +11,7 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { format, parse } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
-export default function HomeCards() {
+export default function DashboardCards() {
   const { allPlans, fetchAllPlans } = useActivityPlans();
   const [stats, setStats] = useState({ plan: 0, missed: 0, done: 0, reschedule: 0, cancel: 0 });
   const [timeFilter, setTimeFilter] = useState('Bulanan');
@@ -31,13 +31,13 @@ export default function HomeCards() {
     setTimeFilter(value);
     handleFilterClose();
   };
-  
+
 
   useEffect(() => {
     const calculateStats = async () => {
       try {
         let data = allPlans;
-        
+
         if (!data) {
           data = await fetchAllPlans();
         }
@@ -65,13 +65,13 @@ export default function HomeCards() {
         validTasks.forEach(task => {
           let status = (task.status || 'in progress').toLowerCase().trim();
           const originalStatus = status;
-          
+
           // Check if task is cancelled
           if (status === 'cancelled' || status === 'cancel') {
             cancelCount++;
             return;
           }
-          
+
           if (task.plan_date) {
             let visitDate;
             try {
@@ -82,9 +82,9 @@ export default function HomeCards() {
             } catch {
               visitDate = new Date(task.plan_date);
             }
-            
+
             const taskDateStr = format(visitDate, 'yyyy-MM-dd');
-            
+
             if (status === 'in progress' && taskDateStr < todayStr) {
               status = 'missed';
             }
@@ -129,7 +129,7 @@ export default function HomeCards() {
 
   const pieChartData = useMemo(() => {
     return allCategories
-      .filter(card => card.value > 0) 
+      .filter(card => card.value > 0)
       .map((card) => ({
         id: card.id,
         value: card.value,
@@ -139,8 +139,8 @@ export default function HomeCards() {
   }, [allCategories]);
 
   return (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         mt: { xs: 2, sm: 3, md: 3 },
         mb: { xs: 3, sm: 4, md: 4 },
         px: { xs: 1, sm: 0 },
@@ -193,11 +193,11 @@ export default function HomeCards() {
               flexShrink: 0,
             }}
           >
-            <CalendarTodayIcon 
-              sx={{ 
+            <CalendarTodayIcon
+              sx={{
                 fontSize: { xs: '0.875rem', sm: '1rem' },
                 color: '#6BA3D0',
-              }} 
+              }}
             />
             <Typography
               variant="body2"
@@ -209,16 +209,16 @@ export default function HomeCards() {
             >
               {timeFilter}
             </Typography>
-            <ExpandMoreIcon 
-              sx={{ 
+            <ExpandMoreIcon
+              sx={{
                 fontSize: { xs: '1rem', sm: '1.125rem' },
                 color: '#666',
                 transition: 'transform 0.2s ease-in-out',
                 transform: filterAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
-              }} 
+              }}
             />
           </Button>
-          
+
           <Menu
             anchorEl={filterAnchorEl}
             open={Boolean(filterAnchorEl)}
@@ -374,3 +374,4 @@ export default function HomeCards() {
     </Box>
   );
 }
+
