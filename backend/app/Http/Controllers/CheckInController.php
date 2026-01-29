@@ -29,6 +29,8 @@ class CheckInController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'address' => 'nullable|string',
+            'city' => 'nullable|string',
+            'state' => 'nullable|string',
             'result' => 'nullable|string',
             'timestamp' => 'required|date',
             'capturedImage' => 'nullable|string', // base64 image
@@ -76,6 +78,8 @@ class CheckInController extends Controller
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'address' => $request->address,
+                'city' => $request->city,
+                'state' => $request->state,
                 'result' => $request->result,
                 'timestamp' => $request->timestamp,
                 'user_photo' => $userPhoto,

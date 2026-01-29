@@ -33,7 +33,6 @@ export default function MyTasks({ selectedDate }) {
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
   
-  // Use selectedDate if provided, otherwise use today
   const dateToUse = useMemo(() => {
     if (selectedDate) {
       const date = new Date(selectedDate);

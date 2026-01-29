@@ -10,9 +10,10 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import LoginIcon from '@mui/icons-material/Login';
 import { motion } from 'framer-motion';
 import { getApiUrl } from '../config/api';
-import backgroundHeaderSvg from '../media/backgroundLogin.svg';
+import backgroundHeaderSvg from '../media/bgh1.svg';
 // import backgroundBody from '../media/background.svg';
 
 export default function Login() {
@@ -134,7 +135,7 @@ export default function Login() {
               lineHeight: 1.2,
             }}
           >
-            Sales Activity
+            Touch Point
           </Typography>
           <Typography
             variant="body1"
@@ -374,6 +375,7 @@ export default function Login() {
                 type="submit"
                 fullWidth
                 variant="contained"
+                startIcon={!loading ? <LoginIcon /> : null}
                 sx={{
                   mt: 4,
                   mb: 2,
@@ -382,10 +384,14 @@ export default function Login() {
                   fontSize: { xs: '1rem', sm: '1.0625rem' },
                   fontWeight: 600,
                   textTransform: 'none',
+                  color: 'white',
                   background: blueGradient,
                   boxShadow: '0 8px 20px rgba(107, 163, 208, 0.35), 0 4px 8px rgba(107, 163, 208, 0.2)',
                   position: 'relative',
                   overflow: 'hidden',
+                  '& .MuiButton-startIcon': {
+                    color: 'white',
+                  },
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -420,7 +426,7 @@ export default function Login() {
                 {loading ? (
                   <CircularProgress size={26} sx={{ color: 'white' }} />
                 ) : (
-                  'Masuk'
+                  'Login'
                 )}
               </Button>
             </motion.div>

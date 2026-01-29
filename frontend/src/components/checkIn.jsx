@@ -39,6 +39,8 @@ export default function CheckIn({ open, onClose }) {
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [result, setResult] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [checkInResult, setCheckInResult] = useState(null);
   const [showMap, setShowMap] = useState(false);
 
@@ -131,15 +133,31 @@ export default function CheckIn({ open, onClose }) {
 
       if (data && data.display_name) {
         setAddress(data.display_name);
+        const addressData = data.address || {};
+        const cityValue =
+          addressData.city ||
+          addressData.town ||
+          addressData.village ||
+          addressData.municipality ||
+          addressData.suburb ||
+          addressData.county ||
+          '';
+        const stateValue = addressData.state || addressData.region || '';
+        setCity(cityValue);
+        setState(stateValue);
         console.log('Address set to:', data.display_name);
       } else {
         console.warn('No display_name in response, using coordinates as fallback');
         setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        setCity('');
+        setState('');
       }
     } catch (error) {
       console.error('Error reverse geocoding:', error);
       console.log('Falling back to coordinates only');
       setAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      setCity('');
+      setState('');
     } finally {
       setAddressLoading(false);
     }
@@ -251,6 +269,8 @@ export default function CheckIn({ open, onClose }) {
   const handleClose = useCallback(() => {
     setLocation(null);
     setAddress('');
+    setCity('');
+    setState('');
     setResult('');
     setError('');
     setSuccess(false);
@@ -283,6 +303,8 @@ export default function CheckIn({ open, onClose }) {
         latitude: location.latitude,
         longitude: location.longitude,
         address: finalAddress,
+        city: city || '',
+        state: state || '',
         result: result,
         timestamp: new Date().toISOString(),
         capturedImage: capturedImage,
@@ -317,7 +339,7 @@ export default function CheckIn({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [location, address, result, capturedImage, handleClose]);
+  }, [location, address, city, state, result, capturedImage, handleClose]);
 
 
   return (

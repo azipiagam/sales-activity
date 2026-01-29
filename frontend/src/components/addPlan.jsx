@@ -491,7 +491,7 @@ export default function AddPlan({ open, onClose }) {
       }
     } else {
       setGeocodingLoading(false);
-    }
+    }x`x`
   }, [handleLocationChange]);
 
   return (

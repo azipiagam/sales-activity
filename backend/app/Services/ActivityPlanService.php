@@ -654,6 +654,8 @@ class ActivityPlanService
                 'keterangan_tambahan' => 'CheckIn Di Tempat',
                 'customer_location_lat' => null, // No customer location
                 'customer_location_lng' => null, // No customer location
+                'city' => $data['city'] ?? null,
+                'state' => $data['state'] ?? null,
                 'user_photo' => $data['user_photo'] ?? null,
                 'status' => 'done', // Status langsung Done
                 'result' => $data['result'] ?? null,

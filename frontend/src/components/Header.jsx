@@ -436,19 +436,19 @@ export default function Header({
           onClose={handleLogoutMenuClose}
           anchorOrigin={{
             vertical: 'bottom',
-            horizontal: 'left',
+            horizontal: 'right',
           }}
           transformOrigin={{
             vertical: 'top',
-            horizontal: 'left',
+            horizontal: 'right',
           }}
           PaperProps={{
             sx: {
               mt: 1,
-              minWidth: 180,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
-              borderRadius: '12px',
-              border: '1px solid rgba(0, 0, 0, 0.05)',
+              minWidth: 190,
+              boxShadow: '0 6px 24px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.08)',
+              borderRadius: '14px',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
               overflow: 'hidden',
             },
           }}
@@ -461,11 +461,14 @@ export default function Header({
           <MenuItem
             onClick={handleLogout}
             sx={{
-              py: 1.5,
+              py: 1.25,
               px: 2,
               gap: 1.5,
+              borderRadius: '10px',
+              mx: 0.5,
+              my: 0.25,
               '&:hover': {
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                backgroundColor: 'rgba(107, 163, 208, 0.10)',
               },
             }}
           >
