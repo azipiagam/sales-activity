@@ -14,6 +14,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 
 // Custom imports
 import { apiRequest } from '../config/api';
@@ -30,10 +31,10 @@ import { getCoordinatesFromAddressEnhanced } from '../utils/geocoding';
 const ACTIVITY_TYPES = {
   VISIT: 'Visit',
   FOLLOW_UP: 'Follow Up',
-};
+};     
 
 const DEBOUNCE_DELAY = 500;
-const MIN_SEARCH_LENGTH = 2;
+const MIN_SEARCH_LENGTH = 2;      
 const DEFAULT_COORDINATES = {
   LAT: -6.2088,
   LNG: 106.8456,
@@ -522,6 +523,8 @@ export default function AddPlan({ open, onClose }) {
             justifyContent: 'space-between',
             alignItems: 'center',
             mb: 3,
+            pb: 2,
+            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
           }}
         >
           <Typography
@@ -529,9 +532,13 @@ export default function AddPlan({ open, onClose }) {
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#333',
+              color: '#6BA3D0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
+            <AssignmentIcon sx={{ color: '#6BA3D0' }} />
             Create Activity Plan
           </Typography>
           <IconButton

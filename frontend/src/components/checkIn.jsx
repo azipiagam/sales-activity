@@ -17,19 +17,20 @@ import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import MapIcon from '@mui/icons-material/Map';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 
 // Google Maps components
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import AddressMap from './AddressMap';
 
 // Webcam component
 import Webcam from 'react-webcam';
 
 // Custom imports
 import { apiRequest } from '../config/api';
+import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 export default function CheckIn({ open, onClose }) {
   // UI State
@@ -42,7 +43,6 @@ export default function CheckIn({ open, onClose }) {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [checkInResult, setCheckInResult] = useState(null);
-  const [showMap, setShowMap] = useState(false);
 
   // Camera State
   const [cameraActive, setCameraActive] = useState(false);
@@ -51,6 +51,8 @@ export default function CheckIn({ open, onClose }) {
 
   // Address loading state
   const [addressLoading, setAddressLoading] = useState(false);
+
+  const { invalidateCache, fetchPlansByDate } = useActivityPlans();
 
   // Refs untuk kamera
   const webcamRef = useRef(null);
@@ -105,6 +107,13 @@ export default function CheckIn({ open, onClose }) {
       }
     );
   }, []);
+
+  // Auto fetch lokasi saat drawer dibuka
+  useEffect(() => {
+    if (open && !location && !addressLoading && !loading && !success) {
+      handleGetCurrentLocation();
+    }
+  }, [open, location, addressLoading, loading, success, handleGetCurrentLocation]);
 
 
   // Reverse geocoding to get address from coordinates
@@ -276,13 +285,18 @@ export default function CheckIn({ open, onClose }) {
     setSuccess(false);
     setCheckInResult(null);
     setLoading(false);
-    setShowMap(false);
     setCameraActive(false);
     setCapturedImage(null);
     setCameraError(null);
     setAddressLoading(false);
     onClose();
   }, [onClose]);
+
+  // Update location from map drag (optional)
+  const handleMapLocationChange = useCallback((lat, lng) => {
+    setLocation({ latitude: lat, longitude: lng });
+    getAddressFromCoordinates(lat, lng);
+  }, [getAddressFromCoordinates]);
 
   // Handle check-in process
   const handleCheckIn = useCallback(async () => {
@@ -328,6 +342,19 @@ export default function CheckIn({ open, onClose }) {
         data: responseData.data,
       });
       setSuccess(true);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      try {
+        invalidateCache(today);
+        await fetchPlansByDate(today, true, true);
+      } catch (refreshError) {
+        console.error('Error refreshing data after check-in:', refreshError);
+      }
+      window.dispatchEvent(new CustomEvent('activityPlanCreated', {
+        detail: { source: 'check-in', date: today.toISOString(), checkInData: responseData.data }
+      }));
+
       handleClose();
     } catch (error) {
       console.error('Error during check-in:', error);
@@ -339,7 +366,7 @@ export default function CheckIn({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [location, address, city, state, result, capturedImage, handleClose]);
+  }, [location, address, city, state, result, capturedImage, invalidateCache, fetchPlansByDate, handleClose]);
 
 
   return (
@@ -370,6 +397,8 @@ export default function CheckIn({ open, onClose }) {
             justifyContent: 'space-between',
             alignItems: 'center',
             mb: 3,
+            pb: 2,
+            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
           }}
         >
           <Typography
@@ -377,9 +406,13 @@ export default function CheckIn({ open, onClose }) {
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#333',
+              color: '#6BA3D0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
+            <MyLocationIcon sx={{ color: '#6BA3D0' }} />
             Check In
           </Typography>
           <IconButton
@@ -427,7 +460,7 @@ export default function CheckIn({ open, onClose }) {
             Lokasi Saat Ini
           </Typography>
 
-          {/* Get Location Button */}
+          {/* Get Location Button (optional refresh) */}
           <Button
             variant="outlined"
             fullWidth
@@ -453,7 +486,7 @@ export default function CheckIn({ open, onClose }) {
               },
             }}
           >
-            {addressLoading ? 'Mengambil Lokasi...' : 'Ambil Lokasi Saat Ini'}
+            {addressLoading ? 'Mengambil Lokasi...' : 'Perbarui Lokasi'}
           </Button>
 
           {/* Location Display */}
@@ -486,31 +519,11 @@ export default function CheckIn({ open, onClose }) {
                 </Typography>
               ) : null}
 
-              {/* Map Toggle Button */}
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => setShowMap(!showMap)}
-                startIcon={<MapIcon />}
-                sx={{
-                  mt: 1,
-                  p: 0,
-                  fontSize: '0.75rem',
-                  color: '#6BA3D0',
-                  textTransform: 'none',
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                {showMap ? 'Sembunyikan Peta' : 'Tampilkan Peta'}
-              </Button>
             </Box>
           )}
 
           {/* Map Display */}
-          {location && showMap && (
+          {location && (
             <Box sx={{ mt: 2, mb: 2 }}>
               <Typography
                 variant="body2"
@@ -533,30 +546,12 @@ export default function CheckIn({ open, onClose }) {
                   borderColor: 'divider',
                 }}
               >
-                <LoadScript googleMapsApiKey="AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg">
-                  <GoogleMap
-                    mapContainerStyle={{ height: '100%', width: '100%' }}
-                    center={{
-                      lat: location.latitude,
-                      lng: location.longitude
-                    }}
-                    zoom={15}
-                    options={{
-                      zoomControl: true,
-                      streetViewControl: false,
-                      mapTypeControl: false,
-                      fullscreenControl: false,
-                    }}
-                  >
-                    <Marker
-                      position={{
-                        lat: location.latitude,
-                        lng: location.longitude
-                      }}
-                      title="Lokasi Check-in"
-                    />
-                  </GoogleMap>
-                </LoadScript>
+                <AddressMap
+                  address={address}
+                  latitude={location.latitude}
+                  longitude={location.longitude}
+                  onLocationChange={handleMapLocationChange}
+                />
               </Box>
             </Box>
           )}

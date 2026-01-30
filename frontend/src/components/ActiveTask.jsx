@@ -161,15 +161,16 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             }
           }
           
-          return {
-            id: taskData.id,
-            namaCustomer: taskData.customer_name || 'N/A',
-            idPlan: taskData.plan_no || 'N/A',
-            tujuan: formattedTujuan,
-            tambahan: taskData.keterangan_tambahan || '',
-            visitDate: visitDate,
-            status: status,
-          };
+        return {
+          id: taskData.id,
+          namaCustomer: taskData.customer_name || 'N/A',
+          idPlan: taskData.plan_no || 'N/A',
+          tujuan: formattedTujuan,
+          tambahan: taskData.keterangan_tambahan || '',
+          result: taskData.result || '',
+          visitDate: visitDate,
+          status: status,
+        };
         });
         
         // Filter tasks based on selectedFilter
@@ -291,6 +292,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           idPlan: taskData.plan_no || 'N/A',
           tujuan: formattedTujuan,
           tambahan: taskData.keterangan_tambahan || '',
+          result: taskData.result || '',
           visitDate: visitDate,
           status: status,
         };
@@ -338,7 +340,17 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   }, [dateToUse, selectedFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
 
   useEffect(() => {
-    const handlePlanCreated = () => {
+    const handlePlanCreated = async (event) => {
+      const eventDate = event?.detail?.date ? new Date(event.detail.date) : dateToUse;
+      const targetDate = isNaN(eventDate.getTime()) ? dateToUse : eventDate;
+
+      try {
+        invalidateCache(targetDate);
+        await fetchPlansByDate(targetDate, true, true);
+      } catch (refreshError) {
+        console.error('Error refreshing data after create:', refreshError);
+      }
+
       fetchActiveTask();
     };
 
@@ -347,7 +359,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     return () => {
       window.removeEventListener('activityPlanCreated', handlePlanCreated);
     };
-  }, [fetchActiveTask]);
+  }, [fetchActiveTask, invalidateCache, fetchPlansByDate, dateToUse]);
 
   const handleOpenModal = (taskId) => {
     setCurrentTaskId(taskId);
@@ -952,6 +964,32 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 }}
               >
                 {activeTask.tambahan}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Result (only for done) */}
+          {activeTask.status === 'done' && activeTask.result && (
+            <Box sx={{ mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
+                  color: '#999',
+                  mb: 0.5,
+                }}
+              >
+                Result
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  color: '#666',
+                  lineHeight: 1.6,
+                }}
+              >
+                {activeTask.result}
               </Typography>
             </Box>
           )}

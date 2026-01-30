@@ -9,7 +9,7 @@ import Fab from '@mui/material/Fab';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import AddPlan from './addPlan';
 import CheckIn from './checkIn';
 import { Fade } from '@mui/material';
@@ -217,7 +217,7 @@ export default function NavBottom({ value, onChange }) {
                 },
               }}
             >
-              <CheckCircleIcon
+              <MyLocationIcon
                 sx={{
                   fontSize: { xs: '1.75rem', sm: '2rem' },
                   color: 'white',

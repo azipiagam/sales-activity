@@ -201,4 +201,31 @@ class ActivityPlanController extends Controller
         
         return response()->json($plans);
     }
+
+    /**
+     * Get activity plans within a date range (fast range fetch)
+     * URL: GET /api/activity-plans/range?from=YYYY-MM-DD&to=YYYY-MM-DD&sales_internal_id=...
+     */
+    public function getRangePlans(Request $request)
+    {
+        $salesInternalId = $request->sales_internal_id;
+        $from = $request->get('from');
+        $to = $request->get('to');
+
+        if (!$salesInternalId) {
+            return response()->json([
+                'message' => 'sales_internal_id is required'
+            ], 400);
+        }
+
+        if (!$from || !$to) {
+            return response()->json([
+                'message' => 'from and to (YYYY-MM-DD) are required'
+            ], 400);
+        }
+
+        $plans = $this->activityPlanService->getByRangeAndSales($salesInternalId, $from, $to);
+
+        return response()->json($plans);
+    }
 }

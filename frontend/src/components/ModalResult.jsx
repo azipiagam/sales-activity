@@ -11,6 +11,7 @@ import Webcam from 'react-webcam';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 
 export default function ModalResult({
   openModal,
@@ -191,10 +192,12 @@ export default function ModalResult({
           maxWidth: '90vw',
           bgcolor: 'background.paper',
           borderRadius: { xs: '16px', sm: '18px', md: '20px' },
-          boxShadow: 24,
+          boxShadow: '0 25px 50px -12px rgba(107, 163, 208, 0.15), 0 0 0 1px rgba(107, 163, 208, 0.08)',
           p: { xs: 3, sm: 4 },
           maxHeight: '75vh',
           overflow: 'auto',
+          border: '1px solid rgba(107, 163, 208, 0.1)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Modal Header with Title and Close Button */}
@@ -204,6 +207,12 @@ export default function ModalResult({
             justifyContent: 'space-between',
             alignItems: 'center',
             mb: 3,
+            pb: 2,
+            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
+            background: 'linear-gradient(135deg, rgba(107, 163, 208, 0.02) 0%, rgba(107, 163, 208, 0.01) 100%)',
+            borderRadius: '12px 12px 0 0',
+            px: 1,
+            py: 1,
           }}
         >
           <Typography
@@ -213,18 +222,31 @@ export default function ModalResult({
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#333',
+              color: '#6BA3D0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
+            <AssignmentIcon sx={{
+              color: '#6BA3D0',
+              transition: 'transform 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.1)',
+              }
+            }} />
             Result
           </Typography>
           <IconButton
             onClick={handleCloseModal}
             sx={{
               color: '#666',
+              transition: 'all 0.2s ease',
+              borderRadius: '8px',
               '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                color: '#333',
+                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                color: '#6BA3D0',
+                transform: 'scale(1.05)',
               },
             }}
           >
@@ -234,17 +256,6 @@ export default function ModalResult({
 
         {/* Hasil dari aktivitas */}
         <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              color: '#666',
-              mb: 1.5,
-              fontWeight: 500,
-            }}
-          >
-            Result :
-          </Typography>
           <TextField
             multiline
             rows={6}
@@ -256,14 +267,21 @@ export default function ModalResult({
               '& .MuiOutlinedInput-root': {
                 borderRadius: { xs: '8px', sm: '10px' },
                 fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                transition: 'all 0.2s ease',
                 '& fieldset': {
                   borderColor: '#ddd',
+                  transition: 'border-color 0.2s ease',
                 },
                 '&:hover fieldset': {
                   borderColor: '#6BA3D0',
+                  boxShadow: '0 0 0 2px rgba(107, 163, 208, 0.1)',
                 },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#6BA3D0',
+                '&.Mui-focused': {
+                  '& fieldset': {
+                    borderColor: '#6BA3D0',
+                    borderWidth: '2px',
+                  },
+                  boxShadow: '0 0 0 3px rgba(107, 163, 208, 0.15)',
                 },
               },
             }}
@@ -281,7 +299,7 @@ export default function ModalResult({
               fontWeight: 500,
             }}
           >
-            Foto Kegiatan (Opsional - Frontend Only):
+            Foto Kegiatan (Opsional):
           </Typography>
 
           {/* Tombol Buka Kamera */}
@@ -459,16 +477,25 @@ export default function ModalResult({
             fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
             fontWeight: 600,
             backgroundColor: '#6BA3D0',
+            background: 'linear-gradient(135deg, #6BA3D0 0%, #5a8fb8 100%)',
             color: 'white',
             borderRadius: { xs: '8px', sm: '10px' },
             textTransform: 'none',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(107, 163, 208, 0.2)',
             '&:hover': {
               backgroundColor: '#5a8fb8',
+              background: 'linear-gradient(135deg, #5a8fb8 0%, #4a7fa8 100%)',
               color: 'white',
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(107, 163, 208, 0.3)',
             },
             '&:disabled': {
               backgroundColor: '#ccc',
+              background: '#ccc',
               color: '#666',
+              transform: 'none',
+              boxShadow: 'none',
             },
           }}
         >

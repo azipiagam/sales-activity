@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
-import CircularProgress from '@mui/material/CircularProgress';
+import Skeleton from '@mui/material/Skeleton';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
@@ -249,7 +249,12 @@ export default function MyTasks({ selectedDate }) {
             Plan
           </Typography>
           {loading ? (
-            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+            <Skeleton
+              variant="text"
+              width="60%"
+              height={40}
+              sx={{ transform: 'none' }}
+            />
           ) : (
             <Typography
               variant="h4"
@@ -303,7 +308,12 @@ export default function MyTasks({ selectedDate }) {
             Done
           </Typography>
           {loading ? (
-            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+            <Skeleton
+              variant="text"
+              width="60%"
+              height={40}
+              sx={{ transform: 'none' }}
+            />
           ) : (
             <Typography
               variant="h4"
@@ -357,7 +367,12 @@ export default function MyTasks({ selectedDate }) {
             More To Go
           </Typography>
           {loading ? (
-            <CircularProgress size={24} sx={{ color: '#6BA3D0' }} />
+            <Skeleton
+              variant="text"
+              width="60%"
+              height={40}
+              sx={{ transform: 'none' }}
+            />
           ) : (
             <Typography
               variant="h4"

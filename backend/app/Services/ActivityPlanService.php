@@ -148,6 +148,48 @@ class ActivityPlanService
         });
     }
 
+    /**
+     * Get activity plans by range and sales (inclusive)
+     */
+    public function getByRangeAndSales($salesInternalId, $fromDate, $toDate)
+    {
+        if (!$salesInternalId || !$fromDate || !$toDate) {
+            return [];
+        }
+
+        $cacheKey = "activity_plans:range:{$salesInternalId}:{$fromDate}:{$toDate}";
+
+        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId, $fromDate, $toDate) {
+            $dataset = env('BIGQUERY_DATASET');
+            $project = env('BIGQUERY_PROJECT_ID');
+
+            $sql = "
+                WITH latest_versions AS (
+                    SELECT *,
+                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+                    FROM `{$project}.{$dataset}.activity_plans`
+                    WHERE sales_internal_id = @sales_internal_id
+                ),
+                filtered_plans AS (
+                    SELECT * EXCEPT(rn)
+                    FROM latest_versions
+                    WHERE rn = 1
+                    AND plan_date BETWEEN @from_date AND @to_date
+                    AND status NOT IN ('deleted')
+                )
+                SELECT *
+                FROM filtered_plans
+                ORDER BY plan_date DESC, created_at DESC
+            ";
+
+            return $this->bigQuery->query($sql, [
+                'sales_internal_id' => $salesInternalId,
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+            ]);
+        });
+    }
+
     public function markAsDone($planId, $result, $latitude, $longitude, $accuracy = null, $capturedImage = null, $salesInternalId = null)
     {
         $dataset = env('BIGQUERY_DATASET');
