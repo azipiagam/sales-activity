@@ -19,8 +19,8 @@ import AddressMap from './AddressMap';
 
 // Constants
 const DEFAULT_COORDINATES = {
-  LAT: -6.2088,
-  LNG: 106.8456,
+  LAT: -6.14524734321372,
+  LNG: 106.67938722917663,
   TOLERANCE: 0.0001,
 };
 

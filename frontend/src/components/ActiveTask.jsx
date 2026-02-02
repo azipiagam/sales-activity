@@ -3,7 +3,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Modal from '@mui/material/Modal';
 import TextField from '@mui/material/TextField';
@@ -80,7 +79,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           id: t.id,
           plan_no: t.plan_no,
           status: t.status,
-          plan_date: t.plan_date,
           sales_internal_id: t.sales_internal_id
         })) : null
       });
@@ -100,7 +98,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               console.log('[ActiveTask] In progress task found:', {
                 id: task.id,
                 plan_no: task.plan_no,
-                plan_date: task.plan_date,
                 status: normalizedStatus,
                 shouldInclude
               });
@@ -115,8 +112,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         tasks: activeTasksData.map(t => ({
           id: t.id,
           plan_no: t.plan_no,
-          status: t.status,
-          plan_date: t.plan_date
+          status: t.status
         }))
       });
       
@@ -128,12 +124,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         
         const processedTasks = activeTasksData.map(taskData => {
           let visitDate = new Date();
-          if (taskData.plan_date) {
-            visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
-            if (isNaN(visitDate.getTime())) {
-              visitDate = new Date(taskData.plan_date);
-            }
-          }
           
           const taskDateStr = format(visitDate, 'yyyy-MM-dd');
           
@@ -262,12 +252,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
       const processedTasks = activeTasksData.map(taskData => {
         let visitDate = new Date();
-        if (taskData.plan_date) {
-          visitDate = parse(taskData.plan_date, 'yyyy-MM-dd', new Date());
-          if (isNaN(visitDate.getTime())) {
-            visitDate = new Date(taskData.plan_date);
-          }
-        }
 
         const taskDateStr = format(visitDate, 'yyyy-MM-dd');
 
@@ -581,12 +565,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   };
 
 
-  // Format date for display (without time)
-  const formatDateTime = (date) => {
-    if (!date) return 'N/A';
-    const dateStr = format(date, 'dd-MM-yyyy');
-    return dateStr;
-  };
 
   // Show loading state (but not if DateCarousel is loading - it has priority)
   if (loading && !isDateCarouselLoading) {
@@ -768,31 +746,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             </Typography>
           </Box>
 
-          {/* Date and Time */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 2,
-              gap: 1,
-            }}
-          >
-            <AccessTimeIcon
-              sx={{
-                fontSize: { xs: '1rem', sm: '1.1rem' },
-                color: '#81c784', // Light green color
-              }}
-            />
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-                color: '#999', // Light grey color
-              }}
-            >
-              {formatDateTime(activeTask.visitDate)}
-            </Typography>
-          </Box>
 
           {/* Plan No */}
           <Box sx={{ mb: 2 }}>
@@ -1316,3 +1269,4 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   );
 }
 
+  

@@ -11,6 +11,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import LoginIcon from '@mui/icons-material/Login';
+import PersonIcon from '@mui/icons-material/Person';
+import LockIcon from '@mui/icons-material/Lock';
 import { motion } from 'framer-motion';
 import { getApiUrl } from '../config/api';
 import backgroundHeaderSvg from '../media/bgh1.svg';
@@ -76,36 +78,36 @@ export default function Login() {
     setShowPassword(!showPassword);
   };
 
+  const handleChangePassword = () => {
+    navigate('/change-password');
+  };
+
   // Warna biru dari backgroundHeader.svg
   const blueGradient = `linear-gradient(135deg, #6ba3d0 0%, #72a8d4 20%, #79add7 40%, #7fb2db 60%, #86b7de 80%, #8dbce2 100%)`;
 
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#F8FAFC',
+        background: blueGradient,
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'auto',
       }}
     >
       {/* Header Section dengan Background SVG - Text Only */}
       <Box
         sx={{
-          height: { xs: '22vh', sm: '20vh', md: '18vh' },
-          minHeight: { xs: '160px', sm: '180px', md: '200px' },
+          height: { xs: '32vh', sm: '30vh', md: '28vh' },
+          minHeight: { xs: '220px', sm: '240px', md: '260px' },
           position: 'relative',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundImage: `url(${backgroundHeaderSvg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          px: { xs: 3, sm: 4 },
+          background: blueGradient,
           '&::after': {
             content: '""',
             position: 'absolute',
@@ -120,37 +122,39 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2, type: 'spring', stiffness: 100 }}
-          style={{ position: 'relative', zIndex: 1, textAlign: 'center', width: '100%' }}
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            textAlign: 'center',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+          }}
         >
-          <Typography
-            variant="h4"
-            component="h1"
+          <Box
+            component="img"
+            src="/logo-pilar.png"
+            alt="Logo Pilar"
             sx={{
-              color: 'white',
-              fontWeight: 800,
-              fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.75rem' },
-              textShadow: '0 4px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15)',
-              letterSpacing: { xs: '0.5px', sm: '1px', md: '1.5px' },
-              mb: { xs: 1, sm: 1.5 },
-              lineHeight: 1.2,
+              width: { xs: 100, sm: 120, md: 140 },
+              height: 'auto',
+              display: 'block',
+              filter: 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.28))',
             }}
-          >
-            Touch Point
-          </Typography>
+          />
           <Typography
             variant="body1"
             sx={{
-              color: 'rgba(255, 255, 255, 0.95)',
-              fontWeight: 400,
-              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
+              color: 'white',
+              fontWeight: 500,
+              fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
               textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              letterSpacing: { xs: '0.3px', sm: '0.5px' },
-              lineHeight: 1.4,
-              maxWidth: '600px',
-              mx: 'auto',
+              opacity: 0.9,
             }}
           >
-            Silakan login untuk melanjutkan aktivitas Anda
+            Silahkan login ke akun Touchpoint
           </Typography>
         </motion.div>
       </Box>
@@ -162,7 +166,7 @@ export default function Login() {
           backgroundColor: 'white',
           borderTopLeftRadius: { xs: '44px', sm: '52px', md: '60px' },
           borderTopRightRadius: { xs: '44px', sm: '52px', md: '60px' },
-          mt: { xs: '-25px', sm: '-30px', md: '-35px' },
+          mt: { xs: '-10px', sm: '-15px', md: '-20px' },
           position: 'relative',
           zIndex: 2,
           boxShadow: '0 -8px 32px rgba(107, 163, 208, 0.12), 0 -2px 8px rgba(0, 0, 0, 0.06)',
@@ -170,7 +174,7 @@ export default function Login() {
           pt: { xs: 5, sm: 6, md: 7 },
           pb: { xs: 5, sm: 6 },
           background: 'linear-gradient(to bottom, #FFFFFF 0%, #FAFBFC 100%)',
-          minHeight: { xs: 'calc(100vh - 160px)', sm: 'calc(100vh - 180px)', md: 'calc(100vh - 200px)' },
+          flex: 1,
         }}
       >
         <motion.div
@@ -178,22 +182,7 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Typography
-            variant="h4"
-            align="center"
-            sx={{
-              fontWeight: 700,
-              background: blueGradient,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              fontSize: { xs: '1.875rem', sm: '2.25rem', md: '2.5rem' },
-              mb: 1,
-              letterSpacing: '-0.5px',
-            }}
-          >
-            Login
-          </Typography>
+
           {/* <Typography
             variant="body2"
             align="center"
@@ -245,6 +234,14 @@ export default function Login() {
                 required
                 disabled={loading}
                 autoComplete="username"
+                placeholder="Masukkan username"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonIcon sx={{ color: '#64748B' }} />
+                    </InputAdornment>
+                  ),
+                }}
                 sx={{
                   mb: 2,
                   '& .MuiOutlinedInput-root': {
@@ -303,7 +300,13 @@ export default function Login() {
                 required
                 disabled={loading}
                 autoComplete="current-password"
+                placeholder="Masukkan password"
                 InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon sx={{ color: '#64748B' }} />
+                    </InputAdornment>
+                  ),
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
@@ -365,6 +368,27 @@ export default function Login() {
                 }}
               />
             </motion.div>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+              <Button
+                variant="text"
+                onClick={handleChangePassword}
+                disabled={loading}
+                sx={{
+                  p: 0,
+                  minWidth: 'auto',
+                  textTransform: 'none',
+                  fontSize: '0.8125rem',
+                  color: '#6ba3d0',
+                  '&:hover': {
+                    backgroundColor: 'transparent',
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                Ganti Password?
+              </Button>
+            </Box>
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -432,6 +456,38 @@ export default function Login() {
             </motion.div>
           </Box>
         </motion.div>
+      </Box>
+
+      {/* Footer Section */}
+      <Box
+        sx={{
+          py: 3,
+          px: { xs: 3, sm: 4 },
+          backgroundColor: '#F8FAFC',
+          textAlign: 'center',
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            color: '#64748B',
+            fontSize: '0.75rem',
+            fontWeight: 400,
+          }}
+        >
+          © 2026 Touch Point - Sales Activity Management
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: '#94A3B8',
+            fontSize: '0.6875rem',
+            mt: 0.5,
+            display: 'block',
+          }}
+        >
+          Version 1.0.0
+        </Typography>
       </Box>
     </Box>
   );

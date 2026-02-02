@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
+import PeopleIcon from '@mui/icons-material/People';
 
 export default function LatestCustomers() {
   const navigate = useNavigate();
@@ -94,8 +95,17 @@ export default function LatestCustomers() {
               fontSize: { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' },
               fontWeight: 700,
               color: '#1F2937',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
+            <PeopleIcon
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
+                color: '#1F2937',
+              }}
+            />
             Customers
           </Typography>
           <IconButton
