@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ActivityPlanController;
 use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\GeocodeController;
+use App\Http\Controllers\DashboardController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -19,6 +20,11 @@ Route::get('/test', function () {
 
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
+    Route::get('/dashboard/state-stats', [DashboardController::class, 'getStateStats']);
+    Route::get('/dashboard/customer-visits', [DashboardController::class, 'getCustomerVisits']);
 
     // Customer search autocomplete
     Route::get('/customers/search', [CustomerController::class, 'search']);
