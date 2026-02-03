@@ -8,12 +8,12 @@ import MenuItem from '@mui/material/MenuItem';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { format, parse } from 'date-fns';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { apiRequest } from '../config/api';
+import { getSales } from '../utils/auth';
 
 export default function DashboardCards() {
-  const { allPlans, fetchAllPlans } = useActivityPlans();
-  const [stats, setStats] = useState({ plan: 0, missed: 0, done: 0, reschedule: 0, cancel: 0 });
+  const [stats, setStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [timeFilter, setTimeFilter] = useState('Bulanan');
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
 
@@ -34,92 +34,92 @@ export default function DashboardCards() {
 
 
   useEffect(() => {
-    const calculateStats = async () => {
-      try {
-        let data = allPlans;
+    let isMounted = true;
 
-        if (!data) {
-          data = await fetchAllPlans();
+    const filterKeyByLabel = {
+      'Hari Ini': 'daily',
+      'Mingguan': 'weekly',
+      'Bulanan': 'monthly',
+    };
+
+    const toNumber = (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const fetchStats = async () => {
+      try {
+        if (isMounted) {
+          setIsLoadingStats(true);
         }
 
-        if (!data || !Array.isArray(data)) {
-          setStats({ plan: 0, missed: 0, done: 0, reschedule: 0, cancel: 0 });
+        const currentUser = getSales();
+        const salesInternalId = currentUser?.internal_id;
+
+        if (!salesInternalId) {
+          if (isMounted) {
+            setStats(null);
+            setIsLoadingStats(false);
+          }
           return;
         }
 
-        const today = new Date();
-        const todayStr = format(today, 'yyyy-MM-dd');
+        const filterKey = filterKeyByLabel[timeFilter] || 'monthly';
+        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+        const response = await apiRequest(`dashboard/stats?${query}`);
 
-        const validTasks = data.filter(task => {
-          const normalizedStatus = (task.status || '').toLowerCase().trim();
-          return normalizedStatus !== 'deleted';
-        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stats (${response.status})`);
+        }
 
-        // Calculate counts
-        let planCount = 0;
-        let missedCount = 0;
-        let doneCount = 0;
-        let rescheduleCount = 0;
-        let cancelCount = 0;
+        const payload = await response.json();
+        const selectedStats = payload?.data?.[filterKey];
 
-        validTasks.forEach(task => {
-          let status = (task.status || 'in progress').toLowerCase().trim();
-          const originalStatus = status;
-
-          // Check if task is cancelled
-          if (status === 'cancelled' || status === 'cancel') {
-            cancelCount++;
-            return;
+        if (!selectedStats) {
+          if (isMounted) {
+            setStats(null);
+            setIsLoadingStats(false);
           }
+          return;
+        }
 
-          if (task.plan_date) {
-            let visitDate;
-            try {
-              visitDate = parse(task.plan_date, 'yyyy-MM-dd', new Date());
-              if (isNaN(visitDate.getTime())) {
-                visitDate = new Date(task.plan_date);
-              }
-            } catch {
-              visitDate = new Date(task.plan_date);
-            }
-
-            const taskDateStr = format(visitDate, 'yyyy-MM-dd');
-
-            if (status === 'in progress' && taskDateStr < todayStr) {
-              status = 'missed';
-            }
-            else if (status === 'rescheduled' && taskDateStr < todayStr) {
-              status = 'missed';
-            }
-          }
-
-          // Count by status
-          if (status === 'done') {
-            doneCount++;
-          } else if (status === 'missed') {
-            missedCount++;
-          } else if (originalStatus === 'rescheduled' && status !== 'missed') {
-            rescheduleCount++;
-          } else if (status === 'in progress') {
-            planCount++;
-          }
-        });
-
-        setStats({ plan: planCount, missed: missedCount, done: doneCount, reschedule: rescheduleCount, cancel: cancelCount });
+        if (isMounted) {
+          setStats({
+            plan: toNumber(selectedStats.in_progress),
+            missed: toNumber(selectedStats.missed),
+            done: toNumber(selectedStats.done),
+            reschedule: 0,
+            cancel: 0,
+          });
+          setIsLoadingStats(false);
+        }
       } catch (err) {
-        console.error('Error calculating stats:', err);
-        setStats({ plan: 0, missed: 0, done: 0, reschedule: 0, cancel: 0 });
+        console.error('Error fetching dashboard stats:', err);
+        if (isMounted) {
+          setStats(null);
+          setIsLoadingStats(false);
+        }
       }
     };
 
-    calculateStats();
-  }, [allPlans, fetchAllPlans]);
+    fetchStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [timeFilter]);
 
   const totalStats = useMemo(() => {
+    if (!stats) {
+      return 0;
+    }
     return stats.plan + stats.missed + stats.done;
   }, [stats]);
 
   const allCategories = useMemo(() => {
+    if (!stats) {
+      return [];
+    }
     return [
       { id: 1, label: 'Plan', value: stats.plan, color: '#6BA3D0' },
       { id: 2, label: 'Missed', value: stats.missed, color: '#F87171' },
@@ -276,7 +276,17 @@ export default function DashboardCards() {
             },
           }}
         >
-          {totalStats > 0 && pieChartData.length > 0 ? (
+          {isLoadingStats ? (
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#9CA3AF',
+                fontSize: '0.875rem',
+              }}
+            >
+              Loading...
+            </Typography>
+          ) : totalStats > 0 && pieChartData.length > 0 ? (
             <PieChart
               series={[
                 {

@@ -1,65 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
+import { apiRequest } from '../config/api';
+import { getSales } from '../utils/auth';
 
 export default function LatestCustomers() {
-  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Dummy customer data
-      const dummyCustomers = [
-        {
-          id: 1,
-          customer_name: 'John Smith',
-          company_name: 'Tech Solutions Inc.',
-          city: 'Jakarta',
-          state: 'DKI Jakarta',
-        },
-        {
-          id: 2,
-          customer_name: 'Sarah Johnson',
-          company_name: 'Digital Marketing Pro',
-          city: 'Surabaya',
-          state: 'Jawa Timur',
-        },
-        {
-          id: 3,
-          customer_name: 'Michael Chen',
-          company_name: 'Global Trading Co.',
-          city: 'Bandung',
-          state: 'Jawa Barat',
-        },
-        {
-          id: 4,
-          customer_name: 'Emily Davis',
-          company_name: 'Creative Agency',
-          city: 'Yogyakarta',
-          state: 'DI Yogyakarta',
-        },
-        {
-          id: 5,
-          customer_name: 'David Wilson',
-          company_name: 'Innovation Labs',
-          city: 'Medan',
-          state: 'Sumatera Utara',
-        },
-      ];
-      
-      setCustomers(dummyCustomers);
-      setLoading(false);
-    }, 500); 
+    let isMounted = true;
 
-    return () => clearTimeout(timer);
+    const fetchCustomers = async () => {
+      try {
+        if (isMounted) {
+          setLoading(true);
+        }
+
+        const currentUser = getSales();
+        const salesInternalId = currentUser?.internal_id;
+
+        if (!salesInternalId) {
+          if (isMounted) {
+            setCustomers([]);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+        const response = await apiRequest(`dashboard/customer-visits?${query}`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch customers (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const periodKey = 'weekly';
+        const rows = Array.isArray(payload?.data?.[periodKey]) ? payload.data[periodKey] : [];
+        const mappedCustomers = rows.map((row) => ({
+          id: row.customer_id ?? null,
+          customer_name: row.customer_name,
+          visit_count: Number(row.visit_count) || 0,
+        }));
+
+        if (isMounted) {
+          setCustomers(mappedCustomers);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching latest customers:', err);
+        if (isMounted) {
+          setCustomers([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchCustomers();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredCustomers = normalizedQuery
+    ? customers.filter((customer) => {
+        const name = String(customer.customer_name ?? '').toLowerCase();
+        return name.includes(normalizedQuery);
+      })
+    : customers;
 
   return (
     <Box 
@@ -109,6 +128,12 @@ export default function LatestCustomers() {
             Customers
           </Typography>
           <IconButton
+            onClick={() => {
+              setIsSearchOpen((prev) => !prev);
+              if (isSearchOpen) {
+                setSearchQuery('');
+              }
+            }}
             sx={{
               color: '#6BA3D0',
               padding: { xs: '8px', sm: '10px' },
@@ -117,13 +142,34 @@ export default function LatestCustomers() {
               },
             }}
           >
-            <SearchIcon 
-              sx={{ 
-                fontSize: { xs: '1.25rem', sm: '1.5rem' } 
-              }} 
-            />
+            <SearchIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
           </IconButton>
         </Box>
+
+        {isSearchOpen && (
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customer..."
+              fullWidth
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ color: '#9CA3AF' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(107, 163, 208, 0.06)',
+                },
+              }}
+            />
+          </Box>
+        )}
 
         {/* Customer List */}
         {loading ? (
@@ -164,6 +210,25 @@ export default function LatestCustomers() {
               No customers found
             </Typography>
           </Box>
+        ) : filteredCustomers.length === 0 ? (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              py: 4,
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#9CA3AF',
+                fontSize: '0.875rem',
+              }}
+            >
+              No customers found
+            </Typography>
+          </Box>
         ) : (
           <Box
             sx={{
@@ -172,21 +237,16 @@ export default function LatestCustomers() {
               gap: { xs: 1.5, sm: 2 },
             }}
           >
-            {customers.map((customer, index) => (
+            {filteredCustomers.map((customer, index) => (
               <Box
                 key={customer.id || index}
-                onClick={() => navigate(`/customers/${customer.id}`)}
                 sx={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   py: { xs: 1, sm: 1.5 },
-                  borderBottom: index < customers.length - 1 ? '1px solid rgba(0, 0, 0, 0.06)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: 'rgba(107, 163, 208, 0.05)',
-                  },
+                  borderBottom:
+                    index < filteredCustomers.length - 1 ? '1px solid rgba(0, 0, 0, 0.06)' : 'none',
                 }}
               >
                 <Box
@@ -205,33 +265,21 @@ export default function LatestCustomers() {
                       color: '#1F2937',
                     }}
                   >
-                    {customer.customer_name || customer.company_name || 'N/A'}
+                    {customer.customer_name || 'N/A'}
                   </Typography>
-                  {customer.company_name && customer.customer_name && (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                        color: '#6B7280',
-                        fontWeight: 400,
-                      }}
-                    >
-                      {customer.company_name}
-                    </Typography>
-                  )}
-                  {(customer.city || customer.state) && (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                        color: '#9CA3AF',
-                        fontWeight: 400,
-                      }}
-                    >
-                      {[customer.city, customer.state].filter(Boolean).join(', ')}
-                    </Typography>
-                  )}
                 </Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                    color: '#1F2937',
+                    fontWeight: 600,
+                    ml: 2,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {customer.visit_count ?? 0}
+                </Typography>
               </Box>
             ))}
           </Box>
@@ -240,4 +288,3 @@ export default function LatestCustomers() {
     </Box>
   );
 }
-

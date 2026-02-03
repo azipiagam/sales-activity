@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PieChart } from '@mui/x-charts/PieChart';
+import { apiRequest } from '../config/api';
+import { getSales } from '../utils/auth';
 
 export default function LatestCustomerDetail() {
   const navigate = useNavigate();
@@ -15,79 +17,105 @@ export default function LatestCustomerDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      const dummyCustomers = [
-        {
-          id: 1,
-          customer_name: 'John Smith',
-          company_name: 'Tech Solutions Inc.',
-          city: 'Jakarta',
-          state: 'DKI Jakarta',
-          chartData: [
-            { id: 1, value: 45, label: 'Done', color: '#34D399' },
-            { id: 2, value: 30, label: 'Plan', color: '#6BA3D0' },
-            { id: 3, value: 25, label: 'Missed', color: '#F87171' },
-          ],
-        },  
-        {
-          id: 2,
-          customer_name: 'Sarah Johnson',
-          company_name: 'Digital Marketing Pro',
-          city: 'Surabaya',
-          state: 'Jawa Timur',
-          chartData: [
-            { id: 1, value: 60, label: 'Completed', color: '#34D399' },
-            { id: 2, value: 25, label: 'In Progress', color: '#6BA3D0' },
-            { id: 3, value: 15, label: 'Pending', color: '#F87171' },
-          ],
-        },
-        {
-          id: 3,
-          customer_name: 'Michael Chen',
-          company_name: 'Global Trading Co.',
-          city: 'Bandung',
-          state: 'Jawa Barat',
-          chartData: [
-            { id: 1, value: 35, label: 'Completed', color: '#34D399' },
-            { id: 2, value: 40, label: 'In Progress', color: '#6BA3D0' },
-            { id: 3, value: 25, label: 'Pending', color: '#F87171' },
-          ],
-        },
-        {
-          id: 4,
-          customer_name: 'Emily Davis',
-          company_name: 'Creative Agency',
-          city: 'Yogyakarta',
-          state: 'DI Yogyakarta',
-          chartData: [
-            { id: 1, value: 70, label: 'Completed', color: '#34D399' },
-            { id: 2, value: 20, label: 'In Progress', color: '#6BA3D0' },
-            { id: 3, value: 10, label: 'Pending', color: '#F87171' },
-          ],
-        },
-        {
-          id: 5,
-          customer_name: 'David Wilson',
-          company_name: 'Innovation Labs',
-          city: 'Medan',
-          state: 'Sumatera Utara',
-          chartData: [
-            { id: 1, value: 50, label: 'Completed', color: '#34D399' },
-            { id: 2, value: 35, label: 'In Progress', color: '#6BA3D0' },
-            { id: 3, value: 15, label: 'Pending', color: '#F87171' },
-          ],
-        },
-      ];
-      
-      // Find customer by ID
-      const customerId = parseInt(id, 10);
-      const foundCustomer = dummyCustomers.find(c => c.id === customerId);
-      setCustomer(foundCustomer || null);
-      setLoading(false);
-    }, 500);
+    let isMounted = true;
 
-    return () => clearTimeout(timer);
+    const fetchCustomer = async () => {
+      try {
+        if (isMounted) {
+          setLoading(true);
+        }
+
+        const currentUser = getSales();
+        const salesInternalId = currentUser?.internal_id;
+
+        if (!salesInternalId) {
+          if (isMounted) {
+            setCustomer(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+        const response = await apiRequest(`dashboard/customer-visits?${query}`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch customer detail (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const customerId = id ? Number(id) : null;
+        const dataByPeriod = payload?.data || {};
+
+        const findCustomerByPeriod = (periodKey) => {
+          const rows = Array.isArray(dataByPeriod[periodKey]) ? dataByPeriod[periodKey] : [];
+          return rows.find((row) => String(row.customer_id) === String(customerId));
+        };
+
+        const dailyRow = findCustomerByPeriod('daily');
+        const weeklyRow = findCustomerByPeriod('weekly');
+        const monthlyRow = findCustomerByPeriod('monthly');
+        const allTimeRow = findCustomerByPeriod('all_time');
+
+        const customerName =
+          dailyRow?.customer_name ||
+          weeklyRow?.customer_name ||
+          monthlyRow?.customer_name ||
+          allTimeRow?.customer_name ||
+          null;
+
+        if (!customerName) {
+          if (isMounted) {
+            setCustomer(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const toNumber = (value) => {
+          const parsed = Number(value);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const dailyCount = toNumber(dailyRow?.visit_count);
+        const weeklyCount = toNumber(weeklyRow?.visit_count);
+        const monthlyCount = toNumber(monthlyRow?.visit_count);
+        const allTimeCount = toNumber(allTimeRow?.visit_count);
+
+        const remainingWeek = Math.max(weeklyCount - dailyCount, 0);
+        const remainingMonth = Math.max(monthlyCount - weeklyCount, 0);
+        const olderVisits = Math.max(allTimeCount - monthlyCount, 0);
+
+        const chartData = [
+          { id: 1, value: dailyCount, label: 'Hari Ini', color: '#34D399' },
+          { id: 2, value: remainingWeek, label: 'Sisa Minggu', color: '#6BA3D0' },
+          { id: 3, value: remainingMonth, label: 'Sisa Bulan', color: '#FBBF24' },
+          { id: 4, value: olderVisits, label: 'Sebelumnya', color: '#F87171' },
+        ];
+
+        if (isMounted) {
+          setCustomer({
+            id: customerId,
+            customer_name: customerName,
+            chartData,
+            total_visits: allTimeCount,
+          });
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching customer detail:', err);
+        if (isMounted) {
+          setCustomer(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchCustomer();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const handleBack = () => {
@@ -234,6 +262,18 @@ export default function LatestCustomerDetail() {
                   }}
                 >
                   {customer.company_name}
+                </Typography>
+              )}
+              {Number.isFinite(customer.total_visits) && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    color: '#6B7280',
+                    fontWeight: 400,
+                  }}
+                >
+                  Total kunjungan: {customer.total_visits}
                 </Typography>
               )}
               {(customer.city || customer.state) && (

@@ -1,31 +1,62 @@
-import React, { useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Tooltip from '@mui/material/Tooltip';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
+import { apiRequest } from '../config/api';
+import { getSales } from '../utils/auth';
 
 export default function TaskDashboard({ selectedDate }) {
   const [bulananFilter, setBulananFilter] = useState('Bulanan');
-  const [provinsiFilter, setProvinsiFilter] = useState('Provinsi');
+  const [provinsiFilter, setProvinsiFilter] = useState('Semua Provinsi');
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
   const [provinsiAnchorEl, setProvinsiAnchorEl] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const taskData = {
-    plan: 5,
-    missed: 5,
-    done: 4,
+  const getMenuWidth = (anchorEl) => {
+    if (!anchorEl) return undefined;
+    const { width } = anchorEl.getBoundingClientRect();
+    return Number.isFinite(width) ? Math.round(width) : undefined;
   };
 
-  const total = taskData.plan + taskData.missed + taskData.done;
+  const [taskData, setTaskData] = useState(null);
+  const [stateStats, setStateStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   const bulananOptions = ['Hari Ini', 'Mingguan', 'Bulanan'];
-  const provinsiOptions = ['Semua Provinsi', 'Jawa Barat', 'Jawa Tengah', 'Jawa Timur', 'DKI Jakarta'];
+  const provinsiOptions = useMemo(() => {
+    const baseOptions = ['Semua Provinsi'];
+    if (!stateStats) {
+      return baseOptions;
+    }
+
+    const periodKeys = Object.keys(stateStats);
+    const stateSet = new Set();
+
+    periodKeys.forEach((periodKey) => {
+      const periodData = stateStats?.[periodKey];
+      if (periodData && typeof periodData === 'object') {
+        Object.keys(periodData).forEach((state) => {
+          if (state) {
+            stateSet.add(state);
+          }
+        });
+      }
+    });
+
+    return [...baseOptions, ...Array.from(stateSet).sort()];
+  }, [stateStats]);
 
   const handleBulananClick = (event) => {
     setBulananAnchorEl(event.currentTarget);
@@ -53,11 +84,153 @@ export default function TaskDashboard({ selectedDate }) {
     handleProvinsiClose();
   };
 
-  const chartData = [
-    { id: 1, value: taskData.plan, label: 'Plan', color: '#6BA3D0' }, // Soft blue
-    { id: 2, value: taskData.missed, label: 'Missed', color: '#F87171' }, // Soft red
-    { id: 3, value: taskData.done, label: 'Done', color: '#34D399' }, // Soft green
-  ].filter(item => item.value > 0);
+  const handleToggleFilters = () => {
+    setFiltersOpen((prev) => {
+      const next = !prev;
+      if (!next) {
+        setBulananAnchorEl(null);
+        setProvinsiAnchorEl(null);
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStateStats = async () => {
+      try {
+        if (isMounted) {
+          setIsLoadingStats(true);
+        }
+
+        const currentUser = getSales();
+        const salesInternalId = currentUser?.internal_id;
+
+        if (!salesInternalId) {
+          if (isMounted) {
+            setStateStats(null);
+            setTaskData(null);
+            setIsLoadingStats(false);
+          }
+          return;
+        }
+
+        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+        const response = await apiRequest(`dashboard/state-stats?${query}`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch state stats (${response.status})`);
+        }
+
+        const payload = await response.json();
+        const statsPayload = payload?.data;
+
+        if (!statsPayload) {
+          if (isMounted) {
+            setStateStats(null);
+            setTaskData(null);
+            setIsLoadingStats(false);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setStateStats(statsPayload);
+          setIsLoadingStats(false);
+        }
+      } catch (err) {
+        console.error('Error fetching state stats:', err);
+        if (isMounted) {
+          setStateStats(null);
+          setTaskData(null);
+          setIsLoadingStats(false);
+        }
+      }
+    };
+
+    fetchStateStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const filterKeyByLabel = {
+      'Hari Ini': 'daily',
+      'Mingguan': 'weekly',
+      'Bulanan': 'monthly',
+    };
+
+    const toNumber = (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    if (!stateStats) {
+      setTaskData(null);
+      return;
+    }
+
+    const periodKey = filterKeyByLabel[bulananFilter] || 'monthly';
+    const periodData = stateStats?.[periodKey];
+
+    if (!periodData || typeof periodData !== 'object') {
+      setTaskData(null);
+      return;
+    }
+
+    const isAllStates = provinsiFilter === 'Semua Provinsi' || provinsiFilter === 'Provinsi';
+
+    if (isAllStates) {
+      const aggregated = Object.values(periodData).reduce(
+        (acc, stateValue) => ({
+          in_progress: acc.in_progress + toNumber(stateValue?.in_progress),
+          missed: acc.missed + toNumber(stateValue?.missed),
+          done: acc.done + toNumber(stateValue?.done),
+        }),
+        { in_progress: 0, missed: 0, done: 0 }
+      );
+
+      setTaskData({
+        plan: aggregated.in_progress,
+        missed: aggregated.missed,
+        done: aggregated.done,
+      });
+      return;
+    }
+
+    const selectedStateData = periodData?.[provinsiFilter];
+    if (!selectedStateData) {
+      setTaskData(null);
+      return;
+    }
+
+    setTaskData({
+      plan: toNumber(selectedStateData.in_progress),
+      missed: toNumber(selectedStateData.missed),
+      done: toNumber(selectedStateData.done),
+    });
+  }, [stateStats, bulananFilter, provinsiFilter]);
+
+  const total = useMemo(() => {
+    if (!taskData) {
+      return 0;
+    }
+    return taskData.plan + taskData.missed + taskData.done;
+  }, [taskData]);
+
+  const chartData = useMemo(() => {
+    if (!taskData) {
+      return [];
+    }
+    return [
+      { id: 1, value: taskData.plan, label: 'Plan', color: '#6BA3D0' }, // Soft blue
+      { id: 2, value: taskData.missed, label: 'Missed', color: '#F87171' }, // Soft red
+      { id: 3, value: taskData.done, label: 'Done', color: '#34D399' }, // Soft green
+    ].filter(item => item.value > 0);
+  }, [taskData]);
 
   return (
     <Card
@@ -72,197 +245,287 @@ export default function TaskDashboard({ selectedDate }) {
         mt: -1,
       }}
     >
-      {/* Filters */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: { xs: 1.5, sm: 2 },
-          mb: 3,
-          justifyContent: 'center',
-        }}
-      >
-        {/* Bulanan Filter */}
-        <Button
-          onClick={handleBulananClick}
+      {/* Filter Toggle */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography
+          variant="h6"
           sx={{
+            fontSize: { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' },
+            fontWeight: 700,
+            color: '#1F2937',
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            backgroundColor: '#FFFFFF',
-            borderRadius: '12px',
-            padding: { xs: '8px 14px', sm: '10px 16px' },
-            textTransform: 'none',
-            color: '#374151',
-            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-            fontWeight: 500,
-            boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-            border: '1px solid rgba(0, 0, 0, 0.05)',
-            minWidth: { xs: '100px', sm: '120px' },
-            '&:hover': {
-              backgroundColor: '#F9FAFB',
-              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
-            },
+            userSelect: 'none',
           }}
         >
-          <CalendarTodayIcon
+          <DashboardIcon
             sx={{
-              fontSize: { xs: '1rem', sm: '1.125rem' },
-              color: '#6BA3D0',
+              fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
+              color: '#1F2937',
             }}
           />
-          <Typography
-            variant="body2"
+          Dashboard
+        </Typography>
+        <Tooltip title={filtersOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'} arrow>
+          <IconButton
+            onClick={handleToggleFilters}
+            aria-label="toggle filters"
+            aria-expanded={filtersOpen}
+            size="small"
             sx={{
-              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-              fontWeight: 500,
-              color: '#374151',
-              flex: 1,
-              textAlign: 'left',
+              width: 40,
+              height: 40,
+              borderRadius: '12px',
+              border: '1px solid rgba(17, 24, 39, 0.08)',
+              backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
+              boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+              '&:hover': {
+                backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
+                boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+              },
             }}
           >
-            {bulananFilter}
-          </Typography>
-          <ExpandMoreIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.125rem' },
-              color: '#6B7280',
-              transition: 'transform 0.2s ease-in-out',
-              transform: bulananAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          />
-        </Button>
-
-        <Menu
-          anchorEl={bulananAnchorEl}
-          open={Boolean(bulananAnchorEl)}
-          onClose={handleBulananClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'left',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'left',
-          }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              borderRadius: '12px',
-              boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-              minWidth: 160,
-            },
-          }}
-        >
-          {bulananOptions.map((option) => (
-            <MenuItem
-              key={option}
-              onClick={() => handleBulananChange(option)}
-              selected={option === bulananFilter}
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                padding: { xs: '10px 16px', sm: '12px 20px' },
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(107, 163, 208, 0.1)',
-                },
-              }}
-            >
-              {option}
-            </MenuItem>
-          ))}
-        </Menu>
-
-        {/* Provinsi Filter */}
-        <Button
-          onClick={handleProvinsiClick}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            backgroundColor: '#FFFFFF',
-            borderRadius: '12px',
-            padding: { xs: '8px 14px', sm: '10px 16px' },
-            textTransform: 'none',
-            color: '#374151',
-            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-            fontWeight: 500,
-            boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-            border: '1px solid rgba(0, 0, 0, 0.05)',
-            minWidth: { xs: '100px', sm: '120px' },
-            '&:hover': {
-              backgroundColor: '#F9FAFB',
-              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
-            },
-          }}
-        >
-          <LocationOnIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.125rem' },
-              color: '#6BA3D0',
-            }}
-          />
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-              fontWeight: 500,
-              color: '#374151',
-              flex: 1,
-              textAlign: 'left',
-            }}
-          >
-            {provinsiFilter}
-          </Typography>
-          <ExpandMoreIcon
-            sx={{
-              fontSize: { xs: '1rem', sm: '1.125rem' },
-              color: '#6B7280',
-              transition: 'transform 0.2s ease-in-out',
-              transform: provinsiAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          />
-        </Button>
-
-        <Menu
-          anchorEl={provinsiAnchorEl}
-          open={Boolean(provinsiAnchorEl)}
-          onClose={handleProvinsiClose}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              borderRadius: '12px',
-              boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-              minWidth: 180,
-            },
-          }}
-        >
-          {provinsiOptions.map((option) => (
-            <MenuItem
-              key={option}
-              onClick={() => handleProvinsiChange(option)}
-              selected={option === provinsiFilter}
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                padding: { xs: '10px 16px', sm: '12px 20px' },
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(107, 163, 208, 0.1)',
-                },
-              }}
-            >
-              {option}
-            </MenuItem>
-          ))}
-        </Menu>
+            <FilterListIcon sx={{ color: '#6BA3D0' }} />
+          </IconButton>
+        </Tooltip>
       </Box>
+
+      <Collapse in={filtersOpen} timeout={180} unmountOnExit>
+        {/* Filters */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gap: { xs: 1, sm: 1.5 },
+            mb: 3,
+            p: { xs: 1, sm: 1.25 },
+            borderRadius: { xs: '14px', sm: '16px' },
+            backgroundColor: '#F9FAFB',
+            border: '1px solid rgba(17, 24, 39, 0.06)',
+          }}
+        >
+          {/* Bulanan Filter */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#6B7280',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                px: 0.5,
+              }}
+            >
+              Periode
+            </Typography>
+            <Button
+              onClick={handleBulananClick}
+              fullWidth
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                justifyContent: 'space-between',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                padding: { xs: '10px 12px', sm: '12px 14px' },
+                textTransform: 'none',
+                color: '#374151',
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                fontWeight: 500,
+                boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+                border: '1px solid rgba(0, 0, 0, 0.05)',
+                '&:hover': {
+                  backgroundColor: '#F9FAFB',
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                <CalendarTodayIcon
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '1.125rem' },
+                    color: '#6BA3D0',
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                    fontWeight: 600,
+                    color: '#111827',
+                    minWidth: 0,
+                  }}
+                  title={bulananFilter}
+                >
+                  {bulananFilter}
+                </Typography>
+              </Box>
+              <ExpandMoreIcon
+                sx={{
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  color: '#6B7280',
+                  transition: 'transform 0.2s ease-in-out',
+                  transform: bulananAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0,
+                }}
+              />
+            </Button>
+          </Box>
+
+          <Menu
+            anchorEl={bulananAnchorEl}
+            open={Boolean(bulananAnchorEl)}
+            onClose={handleBulananClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'left',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'left',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                borderRadius: '12px',
+                boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
+                border: '1px solid rgba(0, 0, 0, 0.06)',
+                width: getMenuWidth(bulananAnchorEl),
+              },
+            }}
+          >
+            {bulananOptions.map((option) => (
+              <MenuItem
+                key={option}
+                onClick={() => handleBulananChange(option)}
+                selected={option === bulananFilter}
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                  padding: { xs: '10px 16px', sm: '12px 20px' },
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                  },
+                }}
+              >
+                {option}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {/* Provinsi Filter */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#6B7280',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+                px: 0.5,
+              }}
+            >
+              Provinsi
+            </Typography>
+            <Button
+              onClick={handleProvinsiClick}
+              fullWidth
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                justifyContent: 'space-between',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                padding: { xs: '10px 12px', sm: '12px 14px' },
+                textTransform: 'none',
+                color: '#374151',
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                fontWeight: 500,
+                boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+                border: '1px solid rgba(0, 0, 0, 0.05)',
+                '&:hover': {
+                  backgroundColor: '#F9FAFB',
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                <LocationOnIcon
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '1.125rem' },
+                    color: '#6BA3D0',
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                    fontWeight: 600,
+                    color: '#111827',
+                    minWidth: 0,
+                  }}
+                  title={provinsiFilter}
+                >
+                  {provinsiFilter}
+                </Typography>
+              </Box>
+              <ExpandMoreIcon
+                sx={{
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  color: '#6B7280',
+                  transition: 'transform 0.2s ease-in-out',
+                  transform: provinsiAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                  flexShrink: 0,
+                }}
+              />
+            </Button>
+          </Box>
+
+          <Menu
+            anchorEl={provinsiAnchorEl}
+            open={Boolean(provinsiAnchorEl)}
+            onClose={handleProvinsiClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'left',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'left',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                borderRadius: '12px',
+                boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
+                border: '1px solid rgba(0, 0, 0, 0.06)',
+                width: getMenuWidth(provinsiAnchorEl),
+              },
+            }}
+          >
+            {provinsiOptions.map((option) => (
+              <MenuItem
+                key={option}
+                onClick={() => handleProvinsiChange(option)}
+                selected={option === provinsiFilter}
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                  padding: { xs: '10px 16px', sm: '12px 20px' },
+                  '&.Mui-selected': {
+                    backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                  },
+                }}
+              >
+                {option}
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
+      </Collapse>
 
       {/* Donut Chart */}
       <Box
@@ -274,7 +537,17 @@ export default function TaskDashboard({ selectedDate }) {
           mb: 3,
         }}
       >
-        {total > 0 && chartData.length > 0 ? (
+        {isLoadingStats ? (
+          <Typography
+            variant="body2"
+            sx={{
+              color: '#9CA3AF',
+              fontSize: '0.875rem',
+            }}
+          >
+            Loading...
+          </Typography>
+        ) : total > 0 && chartData.length > 0 ? (
           <Box sx={{ position: 'relative' }}>
             <PieChart
               series={[
