@@ -113,7 +113,7 @@ export default function LatestCustomers() {
             sx={{
               fontSize: { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' },
               fontWeight: 700,
-              color: '#1F2937',
+              color: '#6BA3D0',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
@@ -122,7 +122,7 @@ export default function LatestCustomers() {
             <PeopleIcon
               sx={{
                 fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
-                color: '#1F2937',
+                color: '#6BA3D0',
               }}
             />
             Customers
@@ -166,6 +166,13 @@ export default function LatestCustomers() {
                   borderRadius: '12px',
                   backgroundColor: 'rgba(107, 163, 208, 0.06)',
                 },
+                '& .MuiInputBase-input': {
+                  color: '#6BA3D0',
+                },
+                '& .MuiInputBase-input::placeholder': {
+                  color: '#6BA3D0',
+                  opacity: 1,
+                },
               }}
             />
           </Box>
@@ -184,7 +191,7 @@ export default function LatestCustomers() {
             <Typography
               variant="body2"
               sx={{
-                color: '#9CA3AF',
+                color: '#6BA3D0',
                 fontSize: '0.875rem',
               }}
             >
@@ -203,7 +210,7 @@ export default function LatestCustomers() {
             <Typography
               variant="body2"
               sx={{
-                color: '#9CA3AF',
+                color: '#6BA3D0',
                 fontSize: '0.875rem',
               }}
             >
@@ -222,7 +229,7 @@ export default function LatestCustomers() {
             <Typography
               variant="body2"
               sx={{
-                color: '#9CA3AF',
+                color: '#6BA3D0',
                 fontSize: '0.875rem',
               }}
             >
@@ -262,7 +269,7 @@ export default function LatestCustomers() {
                     sx={{
                       fontSize: { xs: '0.9375rem', sm: '1rem' },
                       fontWeight: 500,
-                      color: '#1F2937',
+                      color: '#6BA3D0',
                     }}
                   >
                     {customer.customer_name || 'N/A'}
@@ -272,7 +279,7 @@ export default function LatestCustomers() {
                   variant="body2"
                   sx={{
                     fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                    color: '#1F2937',
+                    color: '#6BA3D0',
                     fontWeight: 600,
                     ml: 2,
                     whiteSpace: 'nowrap',
