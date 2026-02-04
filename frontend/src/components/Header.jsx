@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Popover from '@mui/material/Popover';
@@ -8,12 +8,15 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
 import DateCarousel from './DateCarousel';
@@ -34,17 +37,38 @@ export default function Header({
   onPickerDateChange,
   selectedDate,
   onDateChange,
-  onDateCarouselLoadingChange
+  onDateCarouselLoadingChange,
+  onRefresh,
+  dashboardPeriod,
+  onDashboardPeriodChange,
+  dashboardProvince,
+  onDashboardProvinceChange,
+  dashboardProvinceOptions,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const isLogoutMenuOpen = Boolean(logoutMenuAnchorEl);
+  const [periodAnchorEl, setPeriodAnchorEl] = useState(null);
+  const [provinceAnchorEl, setProvinceAnchorEl] = useState(null);
 
   const { invalidateCache, fetchAllPlans, fetchPlansByDate } = useActivityPlans();
 
   const sales = getSales();
   const salesName = (sales && sales.name) ? sales.name : 'Sales';
+
+  const isPlanPage = location.pathname === '/plan';
+  const isDashboardPage = location.pathname === '/';
+
+  const periodValue = dashboardPeriod || 'Bulan ini';
+  const provinceValue = dashboardProvince || 'Semua Provinsi';
+  const periodOptions = ['Hari Ini', '7 Hari Terakhir', 'Bulan ini'];
+  const provinceOptions = Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0
+    ? dashboardProvinceOptions
+    : ['Semua Provinsi'];
+
+  const bottomControlHeight = { xs: 64, sm: 70, md: 74 };
   
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -85,8 +109,42 @@ export default function Header({
     navigate('/login');
   };
 
+  const handlePeriodClick = (event) => {
+    if (event?.currentTarget) setPeriodAnchorEl(event.currentTarget);
+  };
+
+  const handlePeriodClose = () => {
+    setPeriodAnchorEl(null);
+  };
+
+  const handlePeriodChange = (value) => {
+    if (typeof onDashboardPeriodChange === 'function') {
+      onDashboardPeriodChange(value);
+    }
+    handlePeriodClose();
+  };
+
+  const handleProvinceClick = (event) => {
+    if (event?.currentTarget) setProvinceAnchorEl(event.currentTarget);
+  };
+
+  const handleProvinceClose = () => {
+    setProvinceAnchorEl(null);
+  };
+
+  const handleProvinceChange = (value) => {
+    if (typeof onDashboardProvinceChange === 'function') {
+      onDashboardProvinceChange(value);
+    }
+    handleProvinceClose();
+  };
+
   const handleReset = async () => {
     try {
+      if (typeof onRefresh === 'function') {
+        onRefresh();
+      }
+
       invalidateCache();
 
       await fetchAllPlans(true, true);
@@ -389,43 +447,157 @@ export default function Header({
           }}
         />
 
-        {/* DATE CAROUSEL */}
-        <Box
-          sx={{
-            px: { xs: 2, sm: 3 },
-            py: { xs: 1, sm: 1.25 },
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: `url(${backgroundHeader})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              opacity: 0.6,
-              pointerEvents: 'none',
-              zIndex: 0,
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            },
-          }}
-        >
+        {/* BOTTOM AREA: DateCarousel (Plan) / Filters (Dashboard) */}
+        {(isPlanPage || isDashboardPage) && (
           <Box
             sx={{
+              px: { xs: 2, sm: 3 },
+              py: { xs: 1, sm: 1.25 },
               position: 'relative',
-              zIndex: 1,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: `url(${backgroundHeader})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: 0.6,
+                pointerEvents: 'none',
+                zIndex: 0,
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              },
             }}
           >
-            <DateCarousel selectedDate={selectedDate} onDateChange={onDateChange} onLoadingChange={onDateCarouselLoadingChange} />
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              {isPlanPage ? (
+                <DateCarousel
+                  selectedDate={selectedDate}
+                  onDateChange={onDateChange}
+                  onLoadingChange={onDateCarouselLoadingChange}
+                  height={bottomControlHeight}
+                />
+              ) : (
+                <Paper
+                  elevation={2}
+                  sx={{
+                    width: '100%',
+                    height: bottomControlHeight,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: { xs: 0.75, sm: 1 },
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+                    px: { xs: 0.75, sm: 1, md: 1.5 },
+                    py: 1,
+                    overflow: 'visible',
+                  }}
+                >
+                  <Button
+                    onClick={handlePeriodClick}
+                    variant="contained"
+                    disableElevation
+                    startIcon={<AccessTimeIcon />}
+                    endIcon={
+                      <ExpandMoreIcon
+                        sx={{
+                          transition: 'transform 200ms ease',
+                          transform: periodAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                        }}
+                      />
+                    }
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      justifyContent: 'space-between',
+                      backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
+                      borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+                      px: 1.5,
+                      py: 0.9,
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      '&:hover': { backgroundColor: '#F9FAFB' },
+                      '& .MuiButton-startIcon': { color: '#6BA3D0' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: '#6B7280', lineHeight: 1.15 }}>
+                        Periode
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
+                          fontWeight: 500,
+                          color: '#111827',
+                          lineHeight: 1.15,
+                        }}
+                        noWrap
+                      >
+                        {periodValue}
+                      </Typography>
+                    </Box>
+                  </Button>
+
+                  <Button
+                    onClick={handleProvinceClick}
+                    variant="contained"
+                    disableElevation
+                    startIcon={<LocationOnIcon />}
+                    endIcon={
+                      <ExpandMoreIcon
+                        sx={{
+                          transition: 'transform 200ms ease',
+                          transform: provinceAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                        }}
+                      />
+                    }
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      justifyContent: 'space-between',
+                      backgroundColor: '#FFFFFF',
+                      color: '#1F2937',
+                      borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+                      px: 1.5,
+                      py: 0.9,
+                      border: '1px solid rgba(0,0,0,0.06)',
+                      '&:hover': { backgroundColor: '#F9FAFB' },
+                      '& .MuiButton-startIcon': { color: '#6BA3D0' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: '#6B7280', lineHeight: 1.15 }}>
+                        Provinsi
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
+                          fontWeight: 500,
+                          color: '#111827',
+                          lineHeight: 1.15,
+                        }}
+                        noWrap
+                        title={provinceValue}
+                      >
+                        {provinceValue}
+                      </Typography>
+                    </Box>
+                  </Button>
+                </Paper>
+              )}
+            </Box>
           </Box>
-        </Box>
+        )}
       </Box>
 
       {/* LOGOUT MENU DROPDOWN */}
@@ -485,6 +657,68 @@ export default function Header({
             />
           </MenuItem>
         </Menu>
+      )}
+
+      {/* DASHBOARD FILTER MENUS */}
+      {isDashboardPage && (
+        <>
+          <Menu
+            anchorEl={periodAnchorEl}
+            open={Boolean(periodAnchorEl)}
+            onClose={handlePeriodClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                minWidth: 220,
+                borderRadius: '14px',
+                border: '1px solid rgba(0,0,0,0.06)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+              },
+            }}
+          >
+            {periodOptions.map((option) => (
+              <MenuItem
+                key={option}
+                selected={option === periodValue}
+                onClick={() => handlePeriodChange(option)}
+                sx={{ fontSize: { xs: '0.62rem', sm: '0.66rem' } }}
+              >
+                {option}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Menu
+            anchorEl={provinceAnchorEl}
+            open={Boolean(provinceAnchorEl)}
+            onClose={handleProvinceClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                minWidth: 240,
+                maxHeight: 360,
+                borderRadius: '14px',
+                border: '1px solid rgba(0,0,0,0.06)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+              },
+            }}
+          >
+            {provinceOptions.map((option) => (
+              <MenuItem
+                key={option}
+                selected={option === provinceValue}
+                onClick={() => handleProvinceChange(option)}
+                sx={{ fontSize: { xs: '0.62rem', sm: '0.66rem' } }}
+              >
+                {option}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
       )}
 
       {/* DATE PICKER */}

@@ -2,7 +2,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 
 // Material-UI Components
-import Drawer from '@mui/material/Drawer';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -11,6 +12,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Divider from '@mui/material/Divider';
 import TextareaAutosize from '@mui/material/TextareaAutosize';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
@@ -32,7 +35,7 @@ import Webcam from 'react-webcam';
 import { apiRequest } from '../config/api';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
-export default function CheckIn({ open, onClose }) {
+export default function CheckIn({ open, onClose, onOpenAddPlan }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,6 +56,9 @@ export default function CheckIn({ open, onClose }) {
   const [addressLoading, setAddressLoading] = useState(false);
 
   const { invalidateCache, fetchPlansByDate } = useActivityPlans();
+
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Refs untuk kamera
   const webcamRef = useRef(null);
@@ -107,6 +113,7 @@ export default function CheckIn({ open, onClose }) {
       }
     );
   }, []);
+
 
   // Auto fetch lokasi saat drawer dibuka
   useEffect(() => {
@@ -292,6 +299,11 @@ export default function CheckIn({ open, onClose }) {
     onClose();
   }, [onClose]);
 
+  const handleSwitchToAddPlan = useCallback(() => {
+    handleClose();
+    if (onOpenAddPlan) onOpenAddPlan();
+  }, [handleClose, onOpenAddPlan]);
+
   // Update location from map drag (optional)
   const handleMapLocationChange = useCallback((lat, lng) => {
     setLocation({ latitude: lat, longitude: lng });
@@ -370,26 +382,36 @@ export default function CheckIn({ open, onClose }) {
 
 
   return (
-    <Drawer
-      anchor="bottom"
+    <Dialog
       open={open}
       onClose={handleClose}
+      fullScreen={fullScreen}
+      fullWidth
+      maxWidth="md"
+      scroll="paper"
+      sx={{
+        '& .MuiDialog-container': {
+          alignItems: fullScreen ? 'center' : 'flex-end',
+        },
+      }}
       PaperProps={{
         sx: {
-          borderTopLeftRadius: '20px',
-          borderTopRightRadius: '20px',
-          maxHeight: '90vh',
+          borderTopLeftRadius: fullScreen ? 0 : '20px',
+          borderTopRightRadius: fullScreen ? 0 : '20px',
+          maxHeight: fullScreen ? '100%' : '90vh',
+          width: '100%',
         },
       }}
     >
-      <Box
-        sx={{
-          padding: { xs: 2, sm: 3, md: 4 },
-          maxWidth: { xs: '100%', sm: '600px', md: '700px' },
-          margin: '0 auto',
-          width: '100%',
-        }}
-      >
+      <DialogContent sx={{ p: 0 }}>
+        <Box
+          sx={{
+            padding: { xs: 2, sm: 3, md: 4 },
+            maxWidth: { xs: '100%', sm: '600px', md: '700px' },
+            margin: '0 auto',
+            width: '100%',
+          }}
+        >
         {/* Header */}
         <Box
           sx={{
@@ -426,6 +448,47 @@ export default function CheckIn({ open, onClose }) {
           >
             <CloseIcon />
           </IconButton>
+        </Box>
+
+        <Box sx={{ mb: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              p: 0.5,
+              borderRadius: '999px',
+              backgroundColor: 'rgba(107, 163, 208, 0.12)',
+              border: '1px solid rgba(107, 163, 208, 0.2)',
+            }}
+          >
+            <Button
+              variant="text"
+              fullWidth
+              onClick={handleSwitchToAddPlan}
+              sx={{
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#4e8ec2',
+              }}
+            >
+              Add Plan
+            </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                backgroundColor: '#6BA3D0',
+                '&:hover': { backgroundColor: '#5a8fb8' },
+              }}
+              disabled
+            >
+              Check In
+            </Button>
+          </Box>
         </Box>
 
         {/* Error Message */}
@@ -885,6 +948,7 @@ export default function CheckIn({ open, onClose }) {
         </Box>
       </Box>
 
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }

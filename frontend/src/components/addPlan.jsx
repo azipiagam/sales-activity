@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 
 // Material-UI Components
-import Drawer from '@mui/material/Drawer';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -11,6 +12,8 @@ import Button from '@mui/material/Button';
 import TextareaAutosize from '@mui/material/TextareaAutosize';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
@@ -215,7 +218,7 @@ const useLocationHandler = () => {
   };
 };
 
-export default function AddPlan({ open, onClose }) {
+export default function AddPlan({ open, onClose, onOpenCheckIn }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showLoadingPlan, setShowLoadingPlan] = useState(false);
@@ -249,6 +252,9 @@ export default function AddPlan({ open, onClose }) {
   } = useLocationHandler();
 
   const { invalidateCache, fetchPlansByDate } = useActivityPlans();
+
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
@@ -492,30 +498,45 @@ export default function AddPlan({ open, onClose }) {
       }
     } else {
       setGeocodingLoading(false);
-    }x`x`
+    }
   }, [handleLocationChange]);
 
+  const handleSwitchToCheckIn = useCallback(() => {
+    handleClose();
+    if (onOpenCheckIn) onOpenCheckIn();
+  }, [handleClose, onOpenCheckIn]);
+
   return (
-    <Drawer
-      anchor="bottom"
+    <Dialog
       open={open}
       onClose={handleClose}
+      fullScreen={fullScreen}
+      fullWidth
+      maxWidth="md"
+      scroll="paper"
+      sx={{
+        '& .MuiDialog-container': {
+          alignItems: fullScreen ? 'center' : 'flex-end',
+        },
+      }}
       PaperProps={{
         sx: {
-          borderTopLeftRadius: '20px',
-          borderTopRightRadius: '20px',
-          maxHeight: '90vh',
+          borderTopLeftRadius: fullScreen ? 0 : '20px',
+          borderTopRightRadius: fullScreen ? 0 : '20px',
+          maxHeight: fullScreen ? '100%' : '90vh',
+          width: '100%',
         },
       }}
     >
-      <Box
-        sx={{
-          padding: { xs: 2, sm: 3, md: 4 },
-          maxWidth: { xs: '100%', sm: '600px', md: '700px' },
-          margin: '0 auto',
-          width: '100%',
-        }}
-      >
+      <DialogContent sx={{ p: 0 }}>
+        <Box
+          sx={{
+            padding: { xs: 2, sm: 3, md: 4 },
+            maxWidth: { xs: '100%', sm: '600px', md: '700px' },
+            margin: '0 auto',
+            width: '100%',
+          }}
+        >
         {/* Header */}
         <Box
           sx={{
@@ -552,6 +573,47 @@ export default function AddPlan({ open, onClose }) {
           >
             <CloseIcon />
           </IconButton>
+        </Box>
+
+        <Box sx={{ mb: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              p: 0.5,
+              borderRadius: '999px',
+              backgroundColor: 'rgba(107, 163, 208, 0.12)',
+              border: '1px solid rgba(107, 163, 208, 0.2)',
+            }}
+          >
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                backgroundColor: '#6BA3D0',
+                '&:hover': { backgroundColor: '#5a8fb8' },
+              }}
+              disabled
+            >
+              Add Plan
+            </Button>
+            <Button
+              variant="text"
+              fullWidth
+              onClick={handleSwitchToCheckIn}
+              sx={{
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#4e8ec2',
+              }}
+            >
+              Check In
+            </Button>
+          </Box>
         </Box>
 
         {/* Error Dialog */}
@@ -979,7 +1041,8 @@ export default function AddPlan({ open, onClose }) {
 
       {/* Loading Plan Overlay */}
       {showLoadingPlan && <LoadingPlan />}
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
 

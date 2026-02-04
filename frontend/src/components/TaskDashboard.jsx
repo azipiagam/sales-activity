@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -13,18 +13,94 @@ import CircularProgress from '@mui/material/CircularProgress';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
 
-export default function TaskDashboard({ selectedDate }) {
-  const [bulananFilter, setBulananFilter] = useState('Bulanan');
+// Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI.
+const stateStatsCache = new Map(); // key -> { data, timestamp }
+const pendingStateStatsRequests = new Map(); // key -> Promise
+const STATE_STATS_STALE_TIME = 30 * 1000; // 30s
+
+const computeTaskDataFromStats = (stats, periodLabel, provinsiLabel) => {
+  const filterKeyByLabel = {
+    'Hari Ini': 'daily',
+    '7 Hari Terakhir': 'weekly',
+    'Mingguan': 'weekly',
+    'Bulanan': 'monthly',
+    'Bulan ini': 'monthly',
+  };
+
+  const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  if (!stats) {
+    return null;
+  }
+
+  const periodKey = filterKeyByLabel[periodLabel] || 'monthly';
+  const periodData = stats?.[periodKey];
+
+  if (!periodData || typeof periodData !== 'object') {
+    return null;
+  }
+
+  const isAllStates = provinsiLabel === 'Semua Provinsi' || provinsiLabel === 'Provinsi';
+
+  if (isAllStates) {
+    const aggregated = Object.values(periodData).reduce(
+      (acc, stateValue) => ({
+        in_progress: acc.in_progress + toNumber(stateValue?.in_progress),
+        missed: acc.missed + toNumber(stateValue?.missed),
+        done: acc.done + toNumber(stateValue?.done),
+      }),
+      { in_progress: 0, missed: 0, done: 0 }
+    );
+
+    return {
+      plan: aggregated.in_progress,
+      missed: aggregated.missed,
+      done: aggregated.done,
+    };
+  }
+
+  const selectedStateData = periodData?.[provinsiLabel];
+  if (!selectedStateData) {
+    return null;
+  }
+
+  return {
+    plan: toNumber(selectedStateData.in_progress),
+    missed: toNumber(selectedStateData.missed),
+    done: toNumber(selectedStateData.done),
+  };
+};
+
+export default function TaskDashboard({
+  selectedDate,
+  refreshKey,
+  periodFilter,
+  onPeriodFilterChange,
+  provinceFilter,
+  onProvinceFilterChange,
+  onProvinceOptionsChange,
+  hideFilters = false,
+}) {
+  const [bulananFilter, setBulananFilter] = useState('Bulan ini');
   const [provinsiFilter, setProvinsiFilter] = useState('Semua Provinsi');
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
   const [provinsiAnchorEl, setProvinsiAnchorEl] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const lastRefreshKeyRef = useRef(refreshKey);
+  const latestRequestIdRef = useRef(0);
+
+  const effectivePeriodFilter = periodFilter ?? bulananFilter;
+  const effectiveProvinceFilter = provinceFilter ?? provinsiFilter;
 
   const getMenuWidth = (anchorEl) => {
     if (!anchorEl) return undefined;
@@ -32,9 +108,18 @@ export default function TaskDashboard({ selectedDate }) {
     return Number.isFinite(width) ? Math.round(width) : undefined;
   };
 
-  const [taskData, setTaskData] = useState(null);
-  const [stateStats, setStateStats] = useState(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const salesInternalId = getSales()?.internal_id;
+  const stateStatsCacheKey = salesInternalId ? `state-stats:${salesInternalId}` : null;
+
+  const [stateStats, setStateStats] = useState(() => {
+    if (!stateStatsCacheKey) return null;
+    return stateStatsCache.get(stateStatsCacheKey)?.data ?? null;
+  });
+
+  const [isLoadingStats, setIsLoadingStats] = useState(() => {
+    if (!stateStatsCacheKey) return false;
+    return !(stateStatsCache.get(stateStatsCacheKey)?.data);
+  });
 
   const bulananOptions = ['Hari Ini', '7 Hari Terakhir', 'Bulan ini'];
   const provinsiOptions = useMemo(() => {
@@ -69,7 +154,11 @@ export default function TaskDashboard({ selectedDate }) {
   };
 
   const handleBulananChange = (value) => {
-    setBulananFilter(value);
+    if (typeof onPeriodFilterChange === 'function') {
+      onPeriodFilterChange(value);
+    } else {
+      setBulananFilter(value);
+    }
     handleBulananClose();
   };
 
@@ -82,7 +171,11 @@ export default function TaskDashboard({ selectedDate }) {
   };
 
   const handleProvinsiChange = (value) => {
-    setProvinsiFilter(value);
+    if (typeof onProvinceFilterChange === 'function') {
+      onProvinceFilterChange(value);
+    } else {
+      setProvinsiFilter(value);
+    }
     handleProvinsiClose();
   };
 
@@ -99,43 +192,84 @@ export default function TaskDashboard({ selectedDate }) {
 
   useEffect(() => {
     let isMounted = true;
+    const requestId = ++latestRequestIdRef.current;
+
+    const isManualRefresh = refreshKey !== lastRefreshKeyRef.current;
+    lastRefreshKeyRef.current = refreshKey;
+
+    if (isManualRefresh && stateStatsCacheKey) {
+      stateStatsCache.delete(stateStatsCacheKey);
+      pendingStateStatsRequests.delete(stateStatsCacheKey);
+    }
 
     const fetchStateStats = async () => {
-      try {
+      if (!salesInternalId || !stateStatsCacheKey) {
         if (isMounted) {
+          setStateStats(null);
+          setIsLoadingStats(false);
+        }
+        return;
+      }
+
+      const cached = isManualRefresh ? null : stateStatsCache.get(stateStatsCacheKey);
+      const hasCachedData = Boolean(cached?.data);
+
+      try {
+        if (isMounted && (isManualRefresh || !hasCachedData)) {
           setIsLoadingStats(true);
         }
 
-        const currentUser = getSales();
-        const salesInternalId = currentUser?.internal_id;
-
-        if (!salesInternalId) {
-          if (isMounted) {
-            setStateStats(null);
-            setTaskData(null);
-            setIsLoadingStats(false);
+        if (!isManualRefresh && hasCachedData) {
+          const age = Date.now() - cached.timestamp;
+          if (age < STATE_STATS_STALE_TIME) {
+            if (isMounted) {
+              setIsLoadingStats(false);
+            }
+            return;
           }
+        }
+
+        let requestPromise = pendingStateStatsRequests.get(stateStatsCacheKey);
+        if (!requestPromise) {
+          requestPromise = (async () => {
+            const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+            const response = await apiRequest(`dashboard/state-stats?${query}`);
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch state stats (${response.status})`);
+            }
+
+            const payload = await response.json();
+            return payload?.data ?? null;
+          })();
+
+          const trackedPromise = requestPromise;
+          pendingStateStatsRequests.set(stateStatsCacheKey, trackedPromise);
+          trackedPromise.finally(() => {
+            if (pendingStateStatsRequests.get(stateStatsCacheKey) === trackedPromise) {
+              pendingStateStatsRequests.delete(stateStatsCacheKey);
+            }
+          });
+        }
+
+        const statsPayload = await requestPromise;
+
+        if (!isMounted || latestRequestIdRef.current !== requestId) {
           return;
         }
-
-        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
-        const response = await apiRequest(`dashboard/state-stats?${query}`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch state stats (${response.status})`);
-        }
-
-        const payload = await response.json();
-        const statsPayload = payload?.data;
 
         if (!statsPayload) {
-          if (isMounted) {
+          if (isMounted && !hasCachedData) {
             setStateStats(null);
-            setTaskData(null);
-            setIsLoadingStats(false);
           }
+          if (isMounted) setIsLoadingStats(false);
           return;
         }
+
+        stateStatsCache.set(stateStatsCacheKey, {
+          data: statsPayload,
+          timestamp: Date.now(),
+        });
 
         if (isMounted) {
           setStateStats(statsPayload);
@@ -143,11 +277,13 @@ export default function TaskDashboard({ selectedDate }) {
         }
       } catch (err) {
         console.error('Error fetching state stats:', err);
-        if (isMounted) {
-          setStateStats(null);
-          setTaskData(null);
-          setIsLoadingStats(false);
+        if (!isMounted || latestRequestIdRef.current !== requestId) {
+          return;
         }
+        if (isMounted && !hasCachedData) {
+          setStateStats(null);
+        }
+        if (isMounted) setIsLoadingStats(false);
       }
     };
 
@@ -156,65 +292,18 @@ export default function TaskDashboard({ selectedDate }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [salesInternalId, stateStatsCacheKey, refreshKey]);
 
   useEffect(() => {
-    const filterKeyByLabel = {
-      'Hari Ini': 'daily',
-      'Mingguan': 'weekly',
-      'Bulanan': 'monthly',
-    };
-
-    const toNumber = (value) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
-
-    if (!stateStats) {
-      setTaskData(null);
-      return;
+    if (typeof onProvinceOptionsChange === 'function') {
+      onProvinceOptionsChange(provinsiOptions);
     }
+  }, [provinsiOptions, onProvinceOptionsChange]);
 
-    const periodKey = filterKeyByLabel[bulananFilter] || 'monthly';
-    const periodData = stateStats?.[periodKey];
-
-    if (!periodData || typeof periodData !== 'object') {
-      setTaskData(null);
-      return;
-    }
-
-    const isAllStates = provinsiFilter === 'Semua Provinsi' || provinsiFilter === 'Provinsi';
-
-    if (isAllStates) {
-      const aggregated = Object.values(periodData).reduce(
-        (acc, stateValue) => ({
-          in_progress: acc.in_progress + toNumber(stateValue?.in_progress),
-          missed: acc.missed + toNumber(stateValue?.missed),
-          done: acc.done + toNumber(stateValue?.done),
-        }),
-        { in_progress: 0, missed: 0, done: 0 }
-      );
-
-      setTaskData({
-        plan: aggregated.in_progress,
-        missed: aggregated.missed,
-        done: aggregated.done,
-      });
-      return;
-    }
-
-    const selectedStateData = periodData?.[provinsiFilter];
-    if (!selectedStateData) {
-      setTaskData(null);
-      return;
-    }
-
-    setTaskData({
-      plan: toNumber(selectedStateData.in_progress),
-      missed: toNumber(selectedStateData.missed),
-      done: toNumber(selectedStateData.done),
-    });
-  }, [stateStats, bulananFilter, provinsiFilter]);
+  const taskData = useMemo(
+    () => computeTaskDataFromStats(stateStats, effectivePeriodFilter, effectiveProvinceFilter),
+    [stateStats, effectivePeriodFilter, effectiveProvinceFilter]
+  );
 
   const total = useMemo(() => {
     if (!taskData) {
@@ -267,7 +356,7 @@ export default function TaskDashboard({ selectedDate }) {
         mt: -1,
       }}
     >
-      {/* Filter Toggle */}
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 1 }}>
         <Typography
           variant="h6"
@@ -289,31 +378,34 @@ export default function TaskDashboard({ selectedDate }) {
           />
           Dashboard
         </Typography>
-        <Tooltip title={filtersOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'} arrow>
-          <IconButton
-            onClick={handleToggleFilters}
-            aria-label="toggle filters"
-            aria-expanded={filtersOpen}
-            size="small"
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: '12px',
-              border: '1px solid rgba(17, 24, 39, 0.08)',
-              backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
-              boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-              '&:hover': {
-                backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
-                boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
-              },
-            }}
-          >
-            <FilterListIcon sx={{ color: '#6BA3D0' }} />
-          </IconButton>
-        </Tooltip>
+        {!hideFilters && (
+          <Tooltip title={filtersOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'} arrow>
+            <IconButton
+              onClick={handleToggleFilters}
+              aria-label="toggle filters"
+              aria-expanded={filtersOpen}
+              size="small"
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
+                border: '1px solid rgba(17, 24, 39, 0.08)',
+                backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
+                boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+                '&:hover': {
+                  backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
+                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                },
+              }}
+            >
+              <FilterListIcon sx={{ color: '#6BA3D0' }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
-      <Collapse in={filtersOpen} timeout={180} unmountOnExit>
+      {!hideFilters && (
+        <Collapse in={filtersOpen} timeout={180} unmountOnExit>
         {/* Filters */}
         <Box
           sx={{
@@ -380,9 +472,9 @@ export default function TaskDashboard({ selectedDate }) {
                     color: '#111827',
                     minWidth: 0,
                   }}
-                  title={bulananFilter}
+                  title={effectivePeriodFilter}
                 >
-                  {bulananFilter}
+                  {effectivePeriodFilter}
                 </Typography>
               </Box>
               <ExpandMoreIcon
@@ -423,7 +515,7 @@ export default function TaskDashboard({ selectedDate }) {
               <MenuItem
                 key={option}
                 onClick={() => handleBulananChange(option)}
-                selected={option === bulananFilter}
+                selected={option === effectivePeriodFilter}
                 sx={{
                   fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                   padding: { xs: '10px 16px', sm: '12px 20px' },
@@ -490,9 +582,9 @@ export default function TaskDashboard({ selectedDate }) {
                     color: '#111827',
                     minWidth: 0,
                   }}
-                  title={provinsiFilter}
+                  title={effectiveProvinceFilter}
                 >
-                  {provinsiFilter}
+                  {effectiveProvinceFilter}
                 </Typography>
               </Box>
               <ExpandMoreIcon
@@ -533,7 +625,7 @@ export default function TaskDashboard({ selectedDate }) {
               <MenuItem
                 key={option}
                 onClick={() => handleProvinsiChange(option)}
-                selected={option === provinsiFilter}
+                selected={option === effectiveProvinceFilter}
                 sx={{
                   fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                   padding: { xs: '10px 16px', sm: '12px 20px' },
@@ -548,6 +640,7 @@ export default function TaskDashboard({ selectedDate }) {
           </Menu>
         </Box>
       </Collapse>
+      )}
 
       {/* Donut Chart */}
       <Box
@@ -559,7 +652,7 @@ export default function TaskDashboard({ selectedDate }) {
           mb: 3,
         }}
       >
-        <Box sx={{ position: 'relative' }}>
+        <Box sx={{ position: 'relative', width: 240, height: 240 }}>
           <PieChart
             series={[
               {
@@ -625,33 +718,50 @@ export default function TaskDashboard({ selectedDate }) {
               Tasks
             </Typography>
           </Box>
-        </Box>
 
-        {/* Show No Data only when not loading and there is no data */}
-        {!isLoadingStats && (total === 0 || chartData.length === 0) && (
-          <Box
-            sx={{
-              position: 'absolute',
-              width: 240,
-              height: 240,
-              borderRadius: '50%',
-              backgroundColor: '#F3F4F6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Typography
-              variant="body2"
+          {/* Show No Data only when not loading and there is no data */}
+          {!isLoadingStats && (total === 0 || chartData.length === 0) && (
+            <Box
               sx={{
-                color: '#9CA3AF',
-                fontSize: '0.875rem',
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background:
+                  'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95) 0%, #F9FAFB 45%, #F3F4F6 100%)',
+                border: '1px dashed #D1D5DB',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+                textAlign: 'center',
+                px: 2,
+                pointerEvents: 'none',
+                boxShadow: 'inset 0px 0px 0px 1px rgba(255,255,255,0.6)',
               }}
             >
-              No Data
-            </Typography>
-          </Box>
-        )}
+              <Typography
+                variant="body2"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  color: '#6B7280',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                }}
+              >
+                <InboxOutlinedIcon sx={{ fontSize: 52, color: '#9CA3AF' }} />
+                No Data
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
+                Belum ada data untuk filter ini
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
       </Box>
 
       {/* Legend */}

@@ -78,6 +78,10 @@ function AppContent() {
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [dashboardPeriod, setDashboardPeriod] = useState('Bulan ini');
+  const [dashboardProvince, setDashboardProvince] = useState('Semua Provinsi');
+  const [dashboardProvinceOptions, setDashboardProvinceOptions] = useState(['Semua Provinsi']);
 
   // Setup global error handlers
   useEffect(() => {
@@ -141,7 +145,19 @@ function AppContent() {
     }
   };
 
+  const handleRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
   const headerHeight = { xs: '170px', sm: '185px', md: '200px' };
+
+  useEffect(() => {
+    if (Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0) {
+      if (!dashboardProvinceOptions.includes(dashboardProvince)) {
+        setDashboardProvince('Semua Provinsi');
+      }
+    }
+  }, [dashboardProvinceOptions, dashboardProvince]);
 
   return (
     <Box
@@ -162,6 +178,12 @@ function AppContent() {
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
         onDateCarouselLoadingChange={setIsDateCarouselLoading}
+        onRefresh={handleRefresh}
+        dashboardPeriod={dashboardPeriod}
+        onDashboardPeriodChange={setDashboardPeriod}
+        dashboardProvince={dashboardProvince}
+        onDashboardProvinceChange={setDashboardProvince}
+        dashboardProvinceOptions={dashboardProvinceOptions}
       />
 
       {/* CONTENT - Scrollable area with animation */}
@@ -200,7 +222,14 @@ function AppContent() {
               }}
               style={{ width: '100%' }}
             >
-              <Dashboard />
+              <Dashboard
+                refreshKey={refreshKey}
+                periodFilter={dashboardPeriod}
+                onPeriodFilterChange={setDashboardPeriod}
+                provinceFilter={dashboardProvince}
+                onProvinceFilterChange={setDashboardProvince}
+                onProvinceOptionsChange={setDashboardProvinceOptions}
+              />
             </motion.div>
           ) : (
             <motion.div
