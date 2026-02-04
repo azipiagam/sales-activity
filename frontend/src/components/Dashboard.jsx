@@ -9,7 +9,14 @@ import { getSales } from '../utils/auth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
-export default function Dashboard() {
+export default function Dashboard({
+  refreshKey,
+  periodFilter,
+  onPeriodFilterChange,
+  provinceFilter,
+  onProvinceFilterChange,
+  onProvinceOptionsChange,
+}) {
   const { fetchAllPlans, allPlans, isLoading, getError } = useActivityPlans();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -186,7 +193,16 @@ export default function Dashboard() {
       }}
     >
       {/* Task Dashboard */}
-      <TaskDashboard selectedDate={selectedDate} />
+      <TaskDashboard
+        selectedDate={selectedDate}
+        refreshKey={refreshKey}
+        periodFilter={periodFilter}
+        onPeriodFilterChange={onPeriodFilterChange}
+        provinceFilter={provinceFilter}
+        onProvinceFilterChange={onProvinceFilterChange}
+        onProvinceOptionsChange={onProvinceOptionsChange}
+        hideFilters
+      />
 
       {/* Latest Customers */}
       <LatestCustomers />

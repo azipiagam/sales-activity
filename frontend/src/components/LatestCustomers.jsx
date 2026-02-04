@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
+import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
 
@@ -207,15 +208,22 @@ export default function LatestCustomers() {
               py: 4,
             }}
           >
-            <Typography
-              variant="body2"
+            <Box
               sx={{
-                color: '#6BA3D0',
-                fontSize: '0.875rem',
+                width: 84,
+                height: 84,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background:
+                  'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95) 0%, #F9FAFB 45%, #F3F4F6 100%)',
+                border: '1px dashed #D1D5DB',
+                boxShadow: 'inset 0px 0px 0px 1px rgba(255,255,255,0.6)',
               }}
             >
-              No customers found
-            </Typography>
+              <PersonOffOutlinedIcon sx={{ fontSize: 44, color: '#9CA3AF' }} />
+            </Box>
           </Box>
         ) : filteredCustomers.length === 0 ? (
           <Box
@@ -226,15 +234,22 @@ export default function LatestCustomers() {
               py: 4,
             }}
           >
-            <Typography
-              variant="body2"
+            <Box
               sx={{
-                color: '#6BA3D0',
-                fontSize: '0.875rem',
+                width: 84,
+                height: 84,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background:
+                  'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95) 0%, #F9FAFB 45%, #F3F4F6 100%)',
+                border: '1px dashed #D1D5DB',
+                boxShadow: 'inset 0px 0px 0px 1px rgba(255,255,255,0.6)',
               }}
             >
-              No customers found
-            </Typography>
+              <PersonOffOutlinedIcon sx={{ fontSize: 44, color: '#9CA3AF' }} />
+            </Box>
           </Box>
         ) : (
           <Box

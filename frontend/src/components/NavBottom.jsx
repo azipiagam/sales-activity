@@ -20,7 +20,8 @@ export default function NavBottom({ value, onChange }) {
   const [openCheckIn, setOpenCheckIn] = useState(false);
 
   const handleFabClick = () => {
-    setIsExpanded(!isExpanded);
+    setIsExpanded(false);
+    setOpenAddPlan(true);
   };
 
   const handleAddPlan = () => {
@@ -327,11 +328,19 @@ export default function NavBottom({ value, onChange }) {
         </Fab>
       </Box>
 
-      {/* Add Plan Bottom Sheet */}
-      <AddPlan open={openAddPlan} onClose={() => setOpenAddPlan(false)} />
+      {/* Add Plan Dialog */}
+      <AddPlan
+        open={openAddPlan}
+        onClose={() => setOpenAddPlan(false)}
+        onOpenCheckIn={() => setOpenCheckIn(true)}
+      />
 
-      {/* Check In Bottom Sheet */}
-      <CheckIn open={openCheckIn} onClose={() => setOpenCheckIn(false)} />
+      {/* Check In Dialog */}
+      <CheckIn
+        open={openCheckIn}
+        onClose={() => setOpenCheckIn(false)}
+        onOpenAddPlan={() => setOpenAddPlan(true)}
+      />
     </Box>
     </>
   );

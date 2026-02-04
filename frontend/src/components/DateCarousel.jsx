@@ -10,7 +10,12 @@ import LoadingManager from './loading/LoadingManager';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import { format } from 'date-fns';
 
-export default function DateCarousel({ selectedDate: propSelectedDate, onDateChange, onLoadingChange }) {
+export default function DateCarousel({
+  selectedDate: propSelectedDate,
+  onDateChange,
+  onLoadingChange,
+  height,
+}) {
   const primaryColor = '#6BA3D0'; 
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const [isLoading, setIsLoading] = useState(false);
@@ -204,6 +209,7 @@ export default function DateCarousel({ selectedDate: propSelectedDate, onDateCha
         elevation={2}
         sx={{
           width: '100%',
+          ...(height ? { height } : {}),
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
