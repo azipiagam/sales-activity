@@ -193,60 +193,62 @@ class DashboardService
             $sql = "
                 WITH latest_versions AS (
                     SELECT *,
-                        ROW_NUMBER() OVER (PARTITION BY ap.id ORDER BY ap.updated_at DESC) as rn
-                    FROM `{$project}.{$dataset}.activity_plans` ap
-                    WHERE ap.sales_internal_id = @sales_internal_id
-                        AND ap.status NOT IN ('deleted')
-                        AND ap.created_at IS NOT NULL
+                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+                    FROM `{$project}.{$dataset}.activity_plans`
+                    WHERE sales_internal_id = @sales_internal_id
+                        AND status NOT IN ('deleted')
+                        AND created_at IS NOT NULL
                 ),
                 filtered_records AS (
-                    SELECT lv.* EXCEPT(rn, state),
-                        mc.state as customer_state
+                    SELECT 
+                        lv.* EXCEPT(rn, state),
+                        -- Prioritas: state dari activity_plans, fallback ke master_customer
+                        COALESCE(lv.state, mc.state) as state
                     FROM latest_versions lv
                     LEFT JOIN `{$project}.{$dataset}.master_customer` mc
                         ON lv.customer_id = mc.id
-                    WHERE rn = 1
+                    WHERE lv.rn = 1
                 ),
                 daily_stats AS (
                     SELECT 
                         'daily' as period,
-                        COALESCE(customer_state, 'unknown') as state,
+                        COALESCE(state, 'unknown') as state,
                         LOWER(status) as status,
                         COUNT(*) as count
                     FROM filtered_records
                     WHERE CAST(plan_date AS DATE) = CAST(@today AS DATE)
-                    GROUP BY customer_state, status
+                    GROUP BY state, status
                 ),
                 weekly_stats AS (
                     SELECT 
                         'weekly' as period,
-                        COALESCE(customer_state, 'unknown') as state,
+                        COALESCE(state, 'unknown') as state,
                         LOWER(status) as status,
                         COUNT(*) as count
                     FROM filtered_records
                     WHERE CAST(plan_date AS DATE) >= CAST(@start_of_week AS DATE)
                         AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY customer_state, status
+                    GROUP BY state, status
                 ),
                 monthly_stats AS (
                     SELECT 
                         'monthly' as period,
-                        COALESCE(customer_state, 'unknown') as state,
+                        COALESCE(state, 'unknown') as state,
                         LOWER(status) as status,
                         COUNT(*) as count
                     FROM filtered_records
                     WHERE CAST(plan_date AS DATE) >= CAST(@start_of_month AS DATE)
                         AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY customer_state, status
+                    GROUP BY state, status
                 ),
                 alltime_stats AS (
                     SELECT 
                         'all_time' as period,
-                        COALESCE(customer_state, 'unknown') as state,
+                        COALESCE(state, 'unknown') as state,
                         LOWER(status) as status,
                         COUNT(*) as count
                     FROM filtered_records
-                    GROUP BY customer_state, status
+                    GROUP BY state, status
                 )
                 SELECT period, state, status, count
                 FROM daily_stats
