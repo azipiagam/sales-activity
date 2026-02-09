@@ -18,14 +18,35 @@ class ActivityPlanService
         $this->bigQuery = $bigQuery;
     }
 
+    // public function generatePlanNo()
+    // {
+    //     $dataset = env('BIGQUERY_DATASET');
+    //     $project = env('BIGQUERY_PROJECT_ID');
+        
+    //     $sql = "
+    //         SELECT COALESCE(MAX(CAST(SUBSTR(plan_no, 4) AS INT64)), 0) as last_no
+    //         FROM `{$project}.{$dataset}.activity_plans`
+    //     ";
+        
+    //     $result = $this->bigQuery->query($sql);
+    //     $lastNo = $result[0]['last_no'] ?? 0;
+    //     $newNo = $lastNo + 1;
+        
+    //     return 'AP-' . str_pad($newNo, 6, '0', STR_PAD_LEFT);
+    // }
+
     public function generatePlanNo()
     {
         $dataset = env('BIGQUERY_DATASET');
         $project = env('BIGQUERY_PROJECT_ID');
         
+        // ✅ FIX: Pakai REGEXP_EXTRACT biar skip data dummy
         $sql = "
-            SELECT COALESCE(MAX(CAST(SUBSTR(plan_no, 4) AS INT64)), 0) as last_no
+            SELECT COALESCE(MAX(
+                SAFE_CAST(REGEXP_EXTRACT(plan_no, r'AP-(\d+)') AS INT64)
+            ), 0) as last_no
             FROM `{$project}.{$dataset}.activity_plans`
+            WHERE plan_no LIKE 'AP-%'
         ";
         
         $result = $this->bigQuery->query($sql);
@@ -33,6 +54,39 @@ class ActivityPlanService
         $newNo = $lastNo + 1;
         
         return 'AP-' . str_pad($newNo, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     * @return float|null Distance in meters, or null if any coordinate is missing
+     */
+    private function calculateDistance($custLat, $custLng, $resultLat, $resultLng)
+    {
+        // Kalau gak ada customer location (checkin tanpa customer), return null
+        if (!$custLat || !$custLng || !$resultLat || !$resultLng) {
+            return null;
+        }
+        
+        // Haversine formula
+        $earthRadius = 6371000; // meter
+        
+        $latFrom = deg2rad($custLat);
+        $lonFrom = deg2rad($custLng);
+        $latTo = deg2rad($resultLat);
+        $lonTo = deg2rad($resultLng);
+        
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+        
+        $a = sin($latDelta / 2) * sin($latDelta / 2) +
+            cos($latFrom) * cos($latTo) *
+            sin($lonDelta / 2) * sin($lonDelta / 2);
+        
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        
+        $distance = $earthRadius * $c; // meter
+        
+        return round($distance, 2); // 2 decimal (misal: 45.67m)
     }
 
     public function create($data)
@@ -212,6 +266,14 @@ class ActivityPlanService
         
         $plan = $existing[0];
         
+        // ✅ HITUNG DISTANCE (bukan accuracy lagi)
+        $distanceMeter = $this->calculateDistance(
+            $plan['customer_location_lat'] ?? null,
+            $plan['customer_location_lng'] ?? null,
+            $latitude,
+            $longitude
+        );
+        
         // Handle photo upload dari base64
         $photoPath = null;
         if ($capturedImage && !empty($capturedImage)) {
@@ -251,14 +313,14 @@ class ActivityPlanService
             }
         }
         
-        // Always use INSERT strategy
-        return $this->markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy, $plan, $photoPath);
+        // ✅ Pass distanceMeter instead of accuracy
+        return $this->markAsDoneWorkaround($planId, $result, $latitude, $longitude, $distanceMeter, $plan, $photoPath);
     }
 
     /**
      * Insert new version with 'done' status
      */
-    protected function markAsDoneWorkaround($planId, $result, $latitude, $longitude, $accuracy = null, $plan = null, $photoPath = null)
+    protected function markAsDoneWorkaround($planId, $result, $latitude, $longitude, $distanceMeter = null, $plan = null, $photoPath = null)
     {
         $now = Carbon::now()->toDateTimeString();
         $dataset = env('BIGQUERY_DATASET');
@@ -303,7 +365,7 @@ class ActivityPlanService
                 'result' => $result,
                 'result_location_lat' => $latitude,
                 'result_location_lng' => $longitude,
-                'result_location_accuracy' => $accuracy,
+                'result_location_accuracy' => $distanceMeter, // ✅ SEKARANG ISI DISTANCE (meter)
                 'result_location_timestamp' => $now,
                 'result_saved_at' => $now,
                 'created_at' => $plan['created_at'],
@@ -703,7 +765,7 @@ class ActivityPlanService
                 'result' => $data['result'] ?? null,
                 'result_location_lat' => $data['latitude'],
                 'result_location_lng' => $data['longitude'],
-                'result_location_accuracy' => null, // No accuracy data from frontend
+                'result_location_accuracy' => null, // ✅ NULL karena gak ada customer location (jadi gak bisa hitung distance)
                 'result_location_timestamp' => $timestamp,
                 'result_saved_at' => $now,
                 'created_at' => $now,
