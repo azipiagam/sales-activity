@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -11,9 +11,35 @@ import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
 
-export default function LatestCustomers() {
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+// Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI (same pattern as chart).
+const latestCustomersCache = new Map(); // key -> { data, timestamp }
+const pendingLatestCustomersRequests = new Map(); // key -> Promise
+const LATEST_CUSTOMERS_STALE_TIME = 30 * 1000; // 30s
+
+const mapWeeklyCustomers = (payload) => {
+  const periodKey = 'weekly';
+  const rows = Array.isArray(payload?.data?.[periodKey]) ? payload.data[periodKey] : [];
+  return rows.map((row) => ({
+    id: row.customer_id ?? null,
+    customer_name: row.customer_name,
+    visit_count: Number(row.visit_count) || 0,
+  }));
+};
+
+export default function LatestCustomers({ refreshKey }) {
+  const salesInternalId = getSales()?.internal_id;
+  const customersCacheKey = salesInternalId ? `latest-customers:${salesInternalId}` : null;
+  const lastRefreshKeyRef = useRef(refreshKey);
+
+  const [customers, setCustomers] = useState(() => {
+    if (!customersCacheKey) return [];
+    return latestCustomersCache.get(customersCacheKey)?.data ?? [];
+  });
+
+  const [loading, setLoading] = useState(() => {
+    if (!customersCacheKey) return false;
+    return !(latestCustomersCache.get(customersCacheKey));
+  });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -22,14 +48,7 @@ export default function LatestCustomers() {
 
     const fetchCustomers = async () => {
       try {
-        if (isMounted) {
-          setLoading(true);
-        }
-
-        const currentUser = getSales();
-        const salesInternalId = currentUser?.internal_id;
-
-        if (!salesInternalId) {
+        if (!salesInternalId || !customersCacheKey) {
           if (isMounted) {
             setCustomers([]);
             setLoading(false);
@@ -37,30 +56,75 @@ export default function LatestCustomers() {
           return;
         }
 
-        const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
-        const response = await apiRequest(`dashboard/customer-visits?${query}`);
+        const isManualRefresh = refreshKey !== lastRefreshKeyRef.current;
+        lastRefreshKeyRef.current = refreshKey;
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch customers (${response.status})`);
+        if (isManualRefresh) {
+          latestCustomersCache.delete(customersCacheKey);
+          pendingLatestCustomersRequests.delete(customersCacheKey);
         }
 
-        const payload = await response.json();
-        const periodKey = 'weekly';
-        const rows = Array.isArray(payload?.data?.[periodKey]) ? payload.data[periodKey] : [];
-        const mappedCustomers = rows.map((row) => ({
-          id: row.customer_id ?? null,
-          customer_name: row.customer_name,
-          visit_count: Number(row.visit_count) || 0,
-        }));
+        const cached = isManualRefresh ? null : latestCustomersCache.get(customersCacheKey);
+        const hasCachedData = Boolean(cached && Array.isArray(cached.data));
 
-        if (isMounted) {
-          setCustomers(mappedCustomers);
+        if (hasCachedData && isMounted) {
+          setCustomers(cached.data);
           setLoading(false);
+        } else if (isMounted) {
+          setLoading(true);
         }
+
+        if (!isManualRefresh && cached) {
+          const age = Date.now() - cached.timestamp;
+          if (age < LATEST_CUSTOMERS_STALE_TIME) {
+            if (isMounted) {
+              setLoading(false);
+            }
+            return;
+          }
+        }
+
+        let requestPromise = pendingLatestCustomersRequests.get(customersCacheKey);
+        if (!requestPromise || isManualRefresh) {
+          requestPromise = (async () => {
+            const query = new URLSearchParams({ sales_internal_id: salesInternalId }).toString();
+            const response = await apiRequest(`dashboard/customer-visits?${query}`);
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch customers (${response.status})`);
+            }
+
+            const payload = await response.json();
+            return mapWeeklyCustomers(payload);
+          })();
+
+          const trackedPromise = requestPromise;
+          pendingLatestCustomersRequests.set(customersCacheKey, trackedPromise);
+          trackedPromise.finally(() => {
+            if (pendingLatestCustomersRequests.get(customersCacheKey) === trackedPromise) {
+              pendingLatestCustomersRequests.delete(customersCacheKey);
+            }
+          });
+        }
+
+        const mappedCustomers = await requestPromise;
+
+        if (!isMounted) {
+          return;
+        }
+
+        latestCustomersCache.set(customersCacheKey, {
+          data: mappedCustomers,
+          timestamp: Date.now(),
+        });
+
+        setCustomers(mappedCustomers);
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching latest customers:', err);
         if (isMounted) {
-          setCustomers([]);
+          const cached = customersCacheKey ? latestCustomersCache.get(customersCacheKey) : null;
+          setCustomers(cached?.data ?? []);
           setLoading(false);
         }
       }
@@ -71,7 +135,7 @@ export default function LatestCustomers() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [salesInternalId, customersCacheKey, refreshKey]);
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredCustomers = normalizedQuery

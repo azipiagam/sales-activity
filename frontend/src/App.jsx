@@ -16,7 +16,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import GoogleMapsProvider from './components/GoogleMapsProvider';
-import backgroundSvg from './media/4.svg';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -105,7 +104,7 @@ function AppContent() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const headerHeight = { xs: '170px', sm: '185px', md: '200px' };
+  const headerHeight = { xs: '150px', sm: '157px', md: '170px' };
 
   useEffect(() => {
     if (Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0) {
@@ -118,10 +117,11 @@ function AppContent() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'transparent',
+        overflow: 'hidden',
       }}
     >
       {/* HEADER - Always visible, fixed at top */}
@@ -149,22 +149,22 @@ function AppContent() {
       <Box
         sx={{
           flex: 1,
+          minHeight: 0,
           overflow: 'hidden',
           pt: headerHeight,
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <Box
           sx={{
-            minHeight: '100%',
+            flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
-            backgroundImage: `url(${backgroundSvg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed',
+            overscrollBehaviorY: 'contain',
+            WebkitOverflowScrolling: 'touch',
             pb: 10,
-            mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
         >
         {/* Page content with smooth transitions */}

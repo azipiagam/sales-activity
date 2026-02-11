@@ -205,7 +205,7 @@ export default function Dashboard({
       />
 
       {/* Latest Customers */}
-      <LatestCustomers />
+      <LatestCustomers refreshKey={refreshKey} />
 
       {error && (
         <Box sx={{ mb: 2 }}>

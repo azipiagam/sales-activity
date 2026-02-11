@@ -252,6 +252,20 @@ export default function LatestCustomerDetail() {
               >
                 {customer.customer_name || 'N/A'}
               </Typography>
+              {(customer.company_name ||
+                Number.isFinite(customer.total_visits) ||
+                customer.city ||
+                customer.state) && (
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '1px',
+                    backgroundColor: 'rgba(17, 24, 39, 0.08)',
+                    mt: 1,
+                    mb: 1,
+                  }}
+                />
+              )}
               {customer.company_name && (
                 <Typography
                   variant="body2"

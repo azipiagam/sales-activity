@@ -4,7 +4,6 @@ import Box from '@mui/material/Box';
 import NavBottom from '../components/NavBottom';
 import Header from '../components/Header';
 import LatestCustomerDetail from '../components/LatestCustomerDetail';
-import backgroundSvg from '../media/4.svg';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -39,7 +38,7 @@ export default function CustomersPage() {
     }
   };
 
-  const headerHeight = { xs: '170px', sm: '185px', md: '200px' };
+  const headerHeight = { xs: '150px', sm: '157px', md: '170px' };
 
   return (
     <Box
@@ -74,13 +73,8 @@ export default function CustomersPage() {
           sx={{
             minHeight: '100%',
             overflowY: 'auto',
-            backgroundImage: `url(${backgroundSvg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed',
+            overscrollBehaviorY: 'contain',
             pb: 10,
-            mt: { xs: '-20px', sm: '-28px', md: '-30px' },
           }}
         >
           <LatestCustomerDetail />

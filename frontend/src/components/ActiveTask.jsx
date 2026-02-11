@@ -23,6 +23,8 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import PersonIcon from '@mui/icons-material/Person';
 import LocationOnIcon from '@mui/icons-material/LocationOn';  
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -41,6 +43,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [capturedImage, setCapturedImage] = useState(null);
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
   const [activeTasks, setActiveTasks] = useState([]);
+  const [expandedTaskById, setExpandedTaskById] = useState({});
   const [currentTaskId, setCurrentTaskId] = useState(null);
   const [actualVisitDate, setActualVisitDate] = useState(new Date());
   const [newVisitDate, setNewVisitDate] = useState(new Date());
@@ -367,6 +370,13 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     setMenuTaskId(null);
   };
 
+  const toggleTaskDetails = (taskId) => {
+    setExpandedTaskById((prev) => ({
+      ...prev,
+      [taskId]: !prev?.[taskId],
+    }));
+  };
+
   const handleMenuCancel = (taskId) => {
     handleCloseMenu();
     handleCancelTask(taskId);
@@ -611,6 +621,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           minHeight: { xs: 'calc(100vh - 500px)', sm: 'calc(100vh - 450px)', md: 'calc(100vh - 400px)' },
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'center',
         }}
       >
         <Box
@@ -625,7 +636,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             alignItems: 'center',
             justifyContent: 'center',
             gap: 2,
-            flex: 1,
             minHeight: { xs: '200px', sm: '250px', md: '300px' },
           }}
         >
@@ -667,7 +677,10 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         px: { xs: 2, sm: 3 },
       }}
     >
-      {activeTasks.map((activeTask, index) => (
+      {activeTasks.map((activeTask, index) => {
+        const isExpanded = Boolean(expandedTaskById?.[activeTask.id]);
+
+        return (
         <Box
           key={`task-${activeTask.id}-${activeTask.status}-${activeTask.visitDate.getTime()}`}
           sx={{
@@ -675,78 +688,122 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             borderRadius: { xs: '8px', sm: '10px', md: '12px' },
             padding: { xs: 1.5, sm: 2, md: 2.5 },
             border: '1px solid rgba(107, 163, 208, 0.2)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.06)',
             position: 'relative',
             mb: index < activeTasks.length - 1 ? 2 : 0,
             opacity: activeTask.status === 'done' || activeTask.status === 'deleted' ? 0.7 : 1,
-            transition: 'border-bottom 0.2s ease',
+            transition: 'border-bottom 0.2s ease, box-shadow 0.2s ease',
             '&:hover': {
               borderBottom: '1px solid #6BA3D0',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
             },
           }}
         >
-          {/* Menu Button - Only show if status is not "done" or "deleted" */}
-          {activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
-            <IconButton
-              onClick={(e) => handleOpenMenu(e, activeTask.id)}
-              sx={{
-                position: 'absolute',
-                top: { xs: 8, sm: 12 },
-                right: { xs: 8, sm: 12 },
-                color: '#666',
-                zIndex: 10,
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                  color: '#333',
-                },
-              }}
-            >
-              <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-            </IconButton>
-          )}
-
-          {/* Task Title */}
+          {/* Header */}
           <Box
             sx={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mb: 2,
-              maxWidth: { xs: '90%', sm: '85%', md: '80%' },
-              pr: { xs: 2, sm: 3, md: 4 },
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 0.5,
+              mb: isExpanded ? 2 : 1,
             }}
           >
-            {activeTask.namaCustomer === 'CheckIn' ? (
-              <LocationOnIcon
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+              <Box
                 sx={{
-                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-                  color: '#6BA3D0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  minWidth: 0,
+                  flex: 1,
+                  pr: { xs: 1, sm: 2 },
                 }}
-              />
-            ) : (
-              <PersonIcon
-                sx={{
-                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-                  color: '#6BA3D0',
-                }}
-              />
-            )}
-            <Typography
-              variant="h6"
+              >
+                {activeTask.namaCustomer === 'CheckIn' ? (
+                  <LocationOnIcon
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1rem', md: '1rem' },
+                      color: '#6BA3D0',
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <PersonIcon
+                    sx={{
+                      fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                      color: '#6BA3D0',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
+                    fontWeight: 700,
+                    color: '#6BA3D0',
+                    wordBreak: 'break-word',
+                    whiteSpace: 'normal',
+                    overflowWrap: 'break-word',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {activeTask.namaCustomer}
+                </Typography>
+              </Box>
+
+              {isExpanded && activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
+                <IconButton
+                  onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                  size="small"
+                  sx={{
+                    color: '#666',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                      color: '#333',
+                    },
+                  }}
+                  aria-label="Menu task"
+                >
+                  <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+                </IconButton>
+              )}
+            </Box>
+
+            <Button
+              onClick={() => toggleTaskDetails(activeTask.id)}
+              variant="text"
+              size="small"
+              endIcon={
+                isExpanded ? (
+                  <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                ) : (
+                  <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                )
+              }
               sx={{
-                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                textTransform: 'none',
                 fontWeight: 700,
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
                 color: '#6BA3D0',
-                wordBreak: 'break-word',
-                whiteSpace: 'normal',
-                overflowWrap: 'break-word',
-                lineHeight: 1.4,
+                px: 0,
+                minWidth: 'auto',
+                justifyContent: 'flex-start',
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  textDecoration: 'underline',
+                },
               }}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
             >
-              {activeTask.namaCustomer}
-            </Typography>
+              {isExpanded ? 'Hide Detail' : 'View Detail'}
+            </Button>
           </Box>
 
-
+          {isExpanded && (
+            <>
           {/* Plan No */}
           <Box sx={{ mb: 2 }}>
             <Typography
@@ -990,8 +1047,11 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               )}
             </Box>
           )}
+            </>
+          )}
         </Box>
-      ))}
+        );
+      })}
 
       {/* Menu */}
       <Menu

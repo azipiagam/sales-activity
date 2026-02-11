@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import backgroundSvg from './media/background.svg';
+import backgroundSvg from './media/4.svg';
 
 import '@fontsource/inter/300.css';
 import '@fontsource/inter/400.css';
@@ -15,7 +15,6 @@ document.body.style.backgroundImage = `url(${backgroundSvg})`;
 document.body.style.backgroundRepeat = 'no-repeat';
 document.body.style.backgroundSize = 'cover';
 document.body.style.backgroundPosition = 'center';
-document.body.style.backgroundAttachment = 'fixed';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
