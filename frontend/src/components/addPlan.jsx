@@ -14,10 +14,14 @@ import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 // Material-UI Icons
 import CloseIcon from '@mui/icons-material/Close';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AddIcon from '@mui/icons-material/Add';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 
 // Custom imports
 import { apiRequest } from '../config/api';
@@ -27,7 +31,7 @@ import LoadingPlan from './loading/LoadingPlan';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 
 // Utilities
-import { parse } from 'date-fns';
+import { parse, format } from 'date-fns';
 import { getCoordinatesFromAddressEnhanced } from '../utils/geocoding';
 
 // Constants
@@ -255,9 +259,19 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
 
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const minSelectableDate = new Date();
+  minSelectableDate.setHours(0, 0, 0, 0);
 
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
+  }, [updateField]);
+
+  const handleDateChange = useCallback((newValue) => {
+    if (!newValue || !(newValue instanceof Date) || Number.isNaN(newValue.getTime())) {
+      updateField('date', '');
+      return;
+    }
+    updateField('date', format(newValue, 'yyyy-MM-dd'));
   }, [updateField]);
 
   const handleCustomerChange = useCallback(async (event, newValue) => {
@@ -354,7 +368,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     // Validasi tanggal harus >= hari ini
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const planDate = new Date(formData.date);
+    const planDate = parse(formData.date, 'yyyy-MM-dd', new Date());
     planDate.setHours(0, 0, 0, 0);
 
     if (planDate < today) {
@@ -589,6 +603,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
             <Button
               variant="contained"
               fullWidth
+              startIcon={<AddIcon />}
               sx={{
                 borderRadius: '999px',
                 textTransform: 'none',
@@ -604,6 +619,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               variant="text"
               fullWidth
               onClick={handleSwitchToCheckIn}
+              startIcon={<MyLocationIcon />}
               sx={{
                 borderRadius: '999px',
                 textTransform: 'none',
@@ -646,22 +662,26 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
           >
             Date
           </Typography>
-          <TextField
-            fullWidth
-            type="date"
-            value={formData.date}
-            onChange={handleInputChange('date')}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: { xs: '8px', sm: '10px' },
-                '&:hover fieldset': {
-                  borderColor: '#6BA3D0',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#6BA3D0',
+          <DatePicker
+            value={formData.date ? parse(formData.date, 'yyyy-MM-dd', new Date()) : null}
+            onChange={handleDateChange}
+            format="yyyy-MM-dd"
+            minDate={minSelectableDate}
+            slots={{ openPickerIcon: CalendarTodayIcon }}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                placeholder: 'YYYY-MM-DD',
+                sx: {
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: { xs: '8px', sm: '10px' },
+                    '&:hover fieldset': {
+                      borderColor: '#6BA3D0',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#6BA3D0',
+                    },
+                  },
                 },
               },
             }}

@@ -11,6 +11,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
@@ -775,58 +776,75 @@ export default function TaskDashboard({
           flexWrap: 'wrap',
         }}
       >
-        {chartData.map((item) => (
-          <Box
-            key={item.id}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-            }}
-          >
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: item.color,
-                flexShrink: 0,
-                boxShadow: `0px 2px 6px ${alpha(item.color, 0.35)}`,
-              }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {chartData.map((item) => {
+          const iconSx = {
+            fontSize: 18,
+            color: item.color,
+            flexShrink: 0,
+          };
+
+          const marker =
+            item.label === 'Plan' ? (
+              <CalendarTodayIcon sx={iconSx} />
+            ) : item.label === 'Done' ? (
+              <CheckCircleIcon sx={iconSx} />
+            ) : (
               <Box
-                component="span"
                 sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  px: 1,
-                  py: 0.25,
-                  borderRadius: '999px',
-                  backgroundColor: alpha(item.color, 0.12),
-                  color: item.color,
-                  fontWeight: 700,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  letterSpacing: '0.02em',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: item.color,
+                  flexShrink: 0,
+                  boxShadow: `0px 2px 6px ${alpha(item.color, 0.35)}`,
                 }}
-              >
-                {item.label}
+              />
+            );
+
+          return (
+            <Box
+              key={item.id}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.25,
+              }}
+            >
+              {marker}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: '999px',
+                    backgroundColor: alpha(item.color, 0.12),
+                    color: item.color,
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {item.label}
+                </Box>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    color: '#111827',
+                    fontWeight: 500,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {item.value}
+                </Typography>
               </Box>
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                  color: '#111827',
-                  fontWeight: 800,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {item.value}
-              </Typography>
             </Box>
-          </Box>
-        ))}
+          );
+        })}
       </Box>
     </Card>
   );

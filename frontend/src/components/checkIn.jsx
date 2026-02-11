@@ -24,6 +24,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import AddIcon from '@mui/icons-material/Add';
 
 // Google Maps components
 import AddressMap from './AddressMap';
@@ -465,6 +466,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               variant="text"
               fullWidth
               onClick={handleSwitchToAddPlan}
+              startIcon={<AddIcon />}
               sx={{
                 borderRadius: '999px',
                 textTransform: 'none',
@@ -477,6 +479,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
             <Button
               variant="contained"
               fullWidth
+              startIcon={<MyLocationIcon />}
               sx={{
                 borderRadius: '999px',
                 textTransform: 'none',

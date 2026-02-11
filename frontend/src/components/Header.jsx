@@ -20,10 +20,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
 import DateCarousel from './DateCarousel';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { id } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { logout, getSales } from '../utils/auth';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
@@ -85,14 +82,6 @@ export default function Header({
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (logoutMenuAnchorEl) {
-        setLogoutMenuAnchorEl(null);
-      }
-    };
-  }, [logoutMenuAnchorEl]);
-
   const handleLogoutMenuClick = (event) => {
     if (event && event.currentTarget) {
       setLogoutMenuAnchorEl(event.currentTarget);
@@ -136,7 +125,7 @@ export default function Header({
     if (typeof onDashboardProvinceChange === 'function') {
       onDashboardProvinceChange(value);
     }
-    handleProvinceClose();
+    handleProvinceClose(); 
   };
 
   const handleReset = async () => {
@@ -722,30 +711,27 @@ export default function Header({
       )}
 
       {/* DATE PICKER */}
-      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={id}>
-        {calendarAnchorEl && (
-          <Popover
-            open={Boolean(calendarAnchorEl)}
-            anchorEl={calendarAnchorEl}
-            onClose={onCalendarClose}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          >
-            <Box sx={{ p: 2 }}>
-              <DatePicker
-                value={pickerDate}
-                onChange={onPickerDateChange}
-                slotProps={{
-                  textField: {
-                    size: 'small',
-                    sx: { width: 250 },
-                  },
-                }}
-              />
-            </Box>
-          </Popover>
-        )}
-      </LocalizationProvider>
+      <Popover
+        open={Boolean(calendarAnchorEl)}
+        anchorEl={calendarAnchorEl}
+        onClose={onCalendarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+        keepMounted
+      >
+        <Box sx={{ p: 2 }}>
+          <DatePicker
+            value={pickerDate}
+            onChange={onPickerDateChange}
+            slotProps={{
+              textField: {
+                size: 'small',
+                sx: { width: 250 },
+              },
+            }}
+          />
+        </Box>
+      </Popover>
     </>
   );
 }

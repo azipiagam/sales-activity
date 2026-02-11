@@ -5,32 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Global error handler untuk DOM manipulation errors
-const handleGlobalError = (event) => {
-  // Suppress specific DOM errors yang sering muncul di production
-  if (event.message && (
-    event.message.includes('removeChild') ||
-    event.message.includes('Node') ||
-    event.message.includes('child of this node')
-  )) {
-    console.warn('Suppressed DOM manipulation error:', event.message);
-    event.preventDefault();
-    return false;
-  }
-};
-
-const handleUnhandledRejection = (event) => {
-  // Suppress promise rejections related to DOM manipulation
-  if (event.reason && typeof event.reason === 'string' && (
-    event.reason.includes('removeChild') ||
-    event.reason.includes('Node')
-  )) {
-    console.warn('Suppressed DOM promise rejection:', event.reason);
-    event.preventDefault();
-    return false;
-  }
-};
-
 import NavBottom from './components/NavBottom';
 import Header from './components/Header';
 import MyTasks from './components/MyTasks';
@@ -83,16 +57,7 @@ function AppContent() {
   const [dashboardProvince, setDashboardProvince] = useState('Semua Provinsi');
   const [dashboardProvinceOptions, setDashboardProvinceOptions] = useState(['Semua Provinsi']);
 
-  // Setup global error handlers
-  useEffect(() => {
-    window.addEventListener('error', handleGlobalError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-
-    return () => {
-      window.removeEventListener('error', handleGlobalError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
-  }, []); 
+  // Intentionally avoid global window error suppression (surface errors during development).
 
   useEffect(() => {
     // Pastikan setelah login pertama kali, user selalu melihat Dashboard
@@ -127,15 +92,6 @@ function AppContent() {
   const handleCalendarClose = () => {
     setCalendarAnchorEl(null);
   };
-
-  // Cleanup calendar anchor when component updates
-  useEffect(() => {
-    return () => {
-      if (calendarAnchorEl) {
-        setCalendarAnchorEl(null);
-      }
-    };
-  }, [calendarAnchorEl]);
 
   const handlePickerDateChange = (newDate) => {
     if (newDate) {
@@ -185,6 +141,9 @@ function AppContent() {
         onDashboardProvinceChange={setDashboardProvince}
         dashboardProvinceOptions={dashboardProvinceOptions}
       />
+
+      {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
+      {isDateCarouselLoading && <LoadingManager type="moveDate" />}
 
       {/* CONTENT - Scrollable area with animation */}
       <Box

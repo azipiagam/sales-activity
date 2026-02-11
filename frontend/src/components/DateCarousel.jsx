@@ -6,7 +6,6 @@ import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import LoadingManager from './loading/LoadingManager';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import { format } from 'date-fns';
 
@@ -100,6 +99,8 @@ export default function DateCarousel({
   };
 
   const handleDateClick = (date) => {
+    if (isLoading) return;
+
     const clickedDate = new Date(date);
     clickedDate.setHours(0, 0, 0, 0);
     
@@ -156,6 +157,8 @@ export default function DateCarousel({
   };
 
   const handlePreviousWeek = () => {
+    if (isLoading) return;
+
     setIsLoading(true);
     if (onLoadingChange) {
       onLoadingChange(true);
@@ -179,6 +182,8 @@ export default function DateCarousel({
   };
 
   const handleNextWeek = () => {
+    if (isLoading) return;
+
     setIsLoading(true);
     if (onLoadingChange) {
       onLoadingChange(true);
@@ -200,10 +205,6 @@ export default function DateCarousel({
     }, 50);
   };
 
-  if (isLoading) {
-    return <LoadingManager type="moveDate" />;
-  }
-
   return (
     <Paper
         elevation={2}
@@ -222,12 +223,14 @@ export default function DateCarousel({
           px: { xs: 0.5, sm: 1, md: 1.5 },
           py: 1,
           overflow: 'visible', 
+          opacity: isLoading ? 0.65 : 1,
+          pointerEvents: isLoading ? 'none' : 'auto',
         }}
       >
         {/* Left Arrow */}
         <IconButton
           onClick={handlePreviousWeek}
-          disabled={false}
+          disabled={isLoading}
           sx={{
             color: primaryColor,
             backgroundColor: '#FFFFFF',
@@ -328,7 +331,7 @@ export default function DateCarousel({
         {/* Right Arrow */}
         <IconButton
           onClick={handleNextWeek}
-          disabled={false}
+          disabled={isLoading}
           sx={{
             color: primaryColor,
             backgroundColor: '#FFFFFF',

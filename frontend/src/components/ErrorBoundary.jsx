@@ -25,8 +25,6 @@ class ErrorBoundary extends React.Component {
 
     if (!isDOMError) {
       console.error('Error caught by boundary:', error, errorInfo);
-    } else {
-      console.warn('Suppressed DOM error in ErrorBoundary:', errorMessage);
     }
 
     this.setState({
