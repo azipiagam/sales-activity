@@ -1,134 +1,186 @@
 <?php
 // app/Services/DashboardService.php
+// UPDATED: MySQL Version (removed BigQuery & Cache)
 
 namespace App\Services;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
-    protected $bigQuery;
-    protected $cacheTime = 60; // Cache for 60 seconds
-
-    public function __construct(BigQueryService $bigQuery)
-    {
-        $this->bigQuery = $bigQuery;
-    }
-
     /**
      * Get status statistics (daily, weekly, monthly)
-     * 
-     * @param string $salesInternalId
-     * @return array
      */
     public function getStatusStats($salesInternalId)
     {
-        $cacheKey = "dashboard:stats:{$salesInternalId}:" . Carbon::today()->toDateString();
+        $today = Carbon::today()->toDateString();
+        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
+        $startOfMonth = Carbon::today()->day(1)->toDateString();
         
-        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId) {
-            $dataset = env('BIGQUERY_DATASET');
-            $project = env('BIGQUERY_PROJECT_ID');
-            
-            $today = Carbon::today();
-            $startOfWeek = $today->copy()->subDays(6); // Last 7 days including today
-            $startOfMonth = $today->copy()->day(1); // From 1st of month
-            
-            // Query to get latest version of each record and count by status
-            $sql = "
-                WITH latest_versions AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                    FROM `{$project}.{$dataset}.activity_plans`
-                    WHERE sales_internal_id = @sales_internal_id
-                        AND status NOT IN ('deleted')
-                        AND created_at IS NOT NULL
-                ),
-                filtered_records AS (
-                    SELECT * EXCEPT(rn)
-                    FROM latest_versions
-                    WHERE rn = 1
-                ),
-                daily_stats AS (
-                    SELECT 
-                        'daily' as period,
-                        status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) = CAST(@today AS DATE)
-                    GROUP BY status
-                ),
-                weekly_stats AS (
-                    SELECT 
-                        'weekly' as period,
-                        status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_week AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY status
-                ),
-                monthly_stats AS (
-                    SELECT 
-                        'monthly' as period,
-                        status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_month AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY status
-                )
-                SELECT period, status, count
-                FROM daily_stats
-                UNION ALL
-                SELECT period, status, count
-                FROM weekly_stats
-                UNION ALL
-                SELECT period, status, count
-                FROM monthly_stats
-                ORDER BY period, status
-            ";
-            
-            $results = $this->bigQuery->query($sql, [
-                'sales_internal_id' => $salesInternalId,
-                'today' => $today->toDateString(),
-                'start_of_week' => $startOfWeek->toDateString(),
-                'start_of_month' => $startOfMonth->toDateString(),
-            ]);
-            
-            return $this->formatStatsResponse($results);
-        });
-    }
-
-    /**
-     * Format query results into structured response
-     * 
-     * @param array $results
-     * @return array
-     */
-    private function formatStatsResponse($results)
-    {
-        $formatted = [
-            'daily' => $this->getDefaultStatuses(),
-            'weekly' => $this->getDefaultStatuses(),
-            'monthly' => $this->getDefaultStatuses(),
+        // Daily stats
+        $dailyStats = DB::table('activity_plans')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->where('sales_internal_id', $salesInternalId)
+            ->where('status', '!=', 'deleted')
+            ->whereNull('deleted_at')
+            ->whereDate('plan_date', $today)
+            ->groupBy('status')
+            ->get();
+        
+        // Weekly stats
+        $weeklyStats = DB::table('activity_plans')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->where('sales_internal_id', $salesInternalId)
+            ->where('status', '!=', 'deleted')
+            ->whereNull('deleted_at')
+            ->whereBetween('plan_date', [$startOfWeek, $today])
+            ->groupBy('status')
+            ->get();
+        
+        // Monthly stats
+        $monthlyStats = DB::table('activity_plans')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->where('sales_internal_id', $salesInternalId)
+            ->where('status', '!=', 'deleted')
+            ->whereNull('deleted_at')
+            ->whereBetween('plan_date', [$startOfMonth, $today])
+            ->groupBy('status')
+            ->get();
+        
+        return [
+            'daily' => $this->formatStats($dailyStats),
+            'weekly' => $this->formatStats($weeklyStats),
+            'monthly' => $this->formatStats($monthlyStats),
             'summary' => [
-                'date' => Carbon::today()->toDateString(),
+                'date' => $today,
                 'last_updated' => Carbon::now()->toDateTimeString(),
             ]
         ];
+    }
+
+    /**
+     * Get state statistics with status breakdown
+     */
+    public function getStateStats($salesInternalId)
+    {
+        $today = Carbon::today()->toDateString();
+        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
+        $startOfMonth = Carbon::today()->day(1)->toDateString();
         
-        foreach ($results as $row) {
-            $period = $row['period'];
-            $status = $row['status'];
-            $count = (int) $row['count'];
-            
-            if (isset($formatted[$period])) {
-                // Map status values to standard ones
-                $statusKey = $this->normalizeStatus($status);
-                if ($statusKey && isset($formatted[$period][$statusKey])) {
-                    $formatted[$period][$statusKey] = $count;
-                }
+        // Daily stats by state
+        $dailyStats = $this->getStateStatsForPeriod($salesInternalId, $today, $today);
+        
+        // Weekly stats by state
+        $weeklyStats = $this->getStateStatsForPeriod($salesInternalId, $startOfWeek, $today);
+        
+        // Monthly stats by state
+        $monthlyStats = $this->getStateStatsForPeriod($salesInternalId, $startOfMonth, $today);
+        
+        // All time stats by state
+        $allTimeStats = $this->getStateStatsForPeriod($salesInternalId, null, null);
+        
+        return [
+            'daily' => $this->formatStateStats($dailyStats),
+            'weekly' => $this->formatStateStats($weeklyStats),
+            'monthly' => $this->formatStateStats($monthlyStats),
+            'all_time' => $this->formatStateStats($allTimeStats),
+        ];
+    }
+
+    /**
+     * Get state stats for a specific period
+     */
+    private function getStateStatsForPeriod($salesInternalId, $startDate, $endDate)
+    {
+        $query = DB::table('activity_plans as ap')
+            ->leftJoin('master_customer as mc', 'ap.customer_id', '=', 'mc.id')
+            ->select(
+                DB::raw('COALESCE(ap.state, mc.state, "unknown") as state'),
+                'ap.status',
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('ap.sales_internal_id', $salesInternalId)
+            ->where('ap.status', '!=', 'deleted')
+            ->whereNull('ap.deleted_at');
+        
+        if ($startDate && $endDate) {
+            $query->whereBetween('ap.plan_date', [$startDate, $endDate]);
+        }
+        
+        return $query->groupBy('state', 'ap.status')->get();
+    }
+
+    /**
+     * Get customer visit statistics
+     */
+    public function getCustomerVisitStats($salesInternalId)
+    {
+        $today = Carbon::today()->toDateString();
+        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
+        $startOfMonth = Carbon::today()->day(1)->toDateString();
+        
+        // Daily visits
+        $dailyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $today, $today);
+        
+        // Weekly visits
+        $weeklyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $startOfWeek, $today);
+        
+        // Monthly visits
+        $monthlyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $startOfMonth, $today);
+        
+        // All time visits
+        $allTimeVisits = $this->getCustomerVisitsForPeriod($salesInternalId, null, null);
+        
+        return [
+            'daily' => $this->formatCustomerVisits($dailyVisits),
+            'weekly' => $this->formatCustomerVisits($weeklyVisits),
+            'monthly' => $this->formatCustomerVisits($monthlyVisits),
+            'all_time' => $this->formatCustomerVisits($allTimeVisits),
+        ];
+    }
+
+    /**
+     * Get customer visits for a specific period
+     */
+    private function getCustomerVisitsForPeriod($salesInternalId, $startDate, $endDate)
+    {
+        $query = DB::table('activity_plans')
+            ->select(
+                'customer_id',
+                'customer_name',
+                DB::raw('COUNT(*) as visit_count')
+            )
+            ->where('sales_internal_id', $salesInternalId)
+            ->where('status', '!=', 'deleted')
+            ->whereNull('deleted_at');
+        
+        if ($startDate && $endDate) {
+            $query->whereBetween('plan_date', [$startDate, $endDate]);
+        }
+        
+        return $query
+            ->groupBy('customer_id', 'customer_name')
+            ->orderByDesc('visit_count')
+            ->orderBy('customer_name')
+            ->get();
+    }
+
+    /**
+     * Format status stats
+     */
+    private function formatStats($stats)
+    {
+        $formatted = [
+            'missed' => 0,
+            'in_progress' => 0,
+            'done' => 0,
+        ];
+        
+        foreach ($stats as $stat) {
+            $statusKey = $this->normalizeStatus($stat->status);
+            if ($statusKey) {
+                $formatted[$statusKey] = (int) $stat->count;
             }
         }
         
@@ -136,315 +188,62 @@ class DashboardService
     }
 
     /**
-     * Get default statistics structure with zero counts
-     * 
-     * @return array
+     * Format state stats
      */
-    private function getDefaultStatuses()
+    private function formatStateStats($stats)
     {
-        return [
-            'missed' => 0,
-            'in_progress' => 0,
-            'done' => 0,
-        ];
+        $formatted = [];
+        
+        foreach ($stats as $stat) {
+            $state = $stat->state;
+            $statusKey = $this->normalizeStatus($stat->status);
+            
+            if (!isset($formatted[$state])) {
+                $formatted[$state] = [
+                    'missed' => 0,
+                    'in_progress' => 0,
+                    'done' => 0,
+                ];
+            }
+            
+            if ($statusKey) {
+                $formatted[$state][$statusKey] = (int) $stat->count;
+            }
+        }
+        
+        return $formatted;
     }
 
     /**
-     * Normalize status names to standard format
-     * 
-     * @param string $status
-     * @return string|null
+     * Format customer visits
+     */
+    private function formatCustomerVisits($visits)
+    {
+        return $visits->map(function($visit) {
+            return [
+                'customer_id' => $visit->customer_id,
+                'customer_name' => $visit->customer_name,
+                'visit_count' => (int) $visit->visit_count,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Normalize status names
      */
     private function normalizeStatus($status)
     {
         $status = strtolower(trim($status));
         
-        // Map variations to standard status
         $statusMap = [
             'missed' => 'missed',
             'in progress' => 'in_progress',
             'in_progress' => 'in_progress',
+            'rescheduled' => 'in_progress',
             'done' => 'done',
             'completed' => 'done',
         ];
         
         return $statusMap[$status] ?? null;
-    }
-
-    /**
-     * Get state statistics with status breakdown
-     * Daily, Weekly, Monthly, All Time
-     * 
-     * @param string $salesInternalId
-     * @return array
-     */
-    public function getStateStats($salesInternalId)
-    {
-        $cacheKey = "dashboard:state-stats:{$salesInternalId}:" . Carbon::today()->toDateString();
-        
-        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId) {
-            $dataset = env('BIGQUERY_DATASET');
-            $project = env('BIGQUERY_PROJECT_ID');
-            
-            $today = Carbon::today();
-            $startOfWeek = $today->copy()->subDays(6);
-            $startOfMonth = $today->copy()->day(1);
-            
-            $sql = "
-                WITH latest_versions AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                    FROM `{$project}.{$dataset}.activity_plans`
-                    WHERE sales_internal_id = @sales_internal_id
-                        AND status NOT IN ('deleted')
-                        AND created_at IS NOT NULL
-                ),
-                filtered_records AS (
-                    SELECT 
-                        lv.* EXCEPT(rn, state),
-                        -- Prioritas: state dari activity_plans, fallback ke master_customer
-                        COALESCE(lv.state, mc.state) as state
-                    FROM latest_versions lv
-                    LEFT JOIN `{$project}.{$dataset}.master_customer` mc
-                        ON lv.customer_id = mc.id
-                    WHERE lv.rn = 1
-                ),
-                daily_stats AS (
-                    SELECT 
-                        'daily' as period,
-                        COALESCE(state, 'unknown') as state,
-                        LOWER(status) as status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) = CAST(@today AS DATE)
-                    GROUP BY state, status
-                ),
-                weekly_stats AS (
-                    SELECT 
-                        'weekly' as period,
-                        COALESCE(state, 'unknown') as state,
-                        LOWER(status) as status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_week AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY state, status
-                ),
-                monthly_stats AS (
-                    SELECT 
-                        'monthly' as period,
-                        COALESCE(state, 'unknown') as state,
-                        LOWER(status) as status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_month AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY state, status
-                ),
-                alltime_stats AS (
-                    SELECT 
-                        'all_time' as period,
-                        COALESCE(state, 'unknown') as state,
-                        LOWER(status) as status,
-                        COUNT(*) as count
-                    FROM filtered_records
-                    GROUP BY state, status
-                )
-                SELECT period, state, status, count
-                FROM daily_stats
-                UNION ALL
-                SELECT period, state, status, count
-                FROM weekly_stats
-                UNION ALL
-                SELECT period, state, status, count
-                FROM monthly_stats
-                UNION ALL
-                SELECT period, state, status, count
-                FROM alltime_stats
-                ORDER BY period, state, status
-            ";
-            
-            $results = $this->bigQuery->query($sql, [
-                'sales_internal_id' => $salesInternalId,
-                'today' => $today->toDateString(),
-                'start_of_week' => $startOfWeek->toDateString(),
-                'start_of_month' => $startOfMonth->toDateString(),
-            ]);
-            
-            return $this->formatStateStatsResponse($results);
-        });
-    }
-
-    /**
-     * Format state stats response
-     * 
-     * @param array $results
-     * @return array
-     */
-    private function formatStateStatsResponse($results)
-    {
-        $formatted = [
-            'daily' => [],
-            'weekly' => [],
-            'monthly' => [],
-            'all_time' => [],
-        ];
-        
-        foreach ($results as $row) {
-            $period = $row['period'];
-            $state = $row['state'];
-            $status = $row['status'];
-            $count = (int) $row['count'];
-            
-            if (!isset($formatted[$period][$state])) {
-                $formatted[$period][$state] = $this->getDefaultStatuses();
-            }
-            
-            $statusKey = $this->normalizeStatus($status);
-            if ($statusKey) {
-                $formatted[$period][$state][$statusKey] = $count;
-            }
-        }
-        
-        return $formatted;
-    }
-
-    /**
-     * Get customer visit statistics
-     * Daily, Weekly, Monthly, All Time
-     * 
-     * @param string $salesInternalId
-     * @return array
-     */
-    public function getCustomerVisitStats($salesInternalId)
-    {
-        $cacheKey = "dashboard:customer-visits:{$salesInternalId}:" . Carbon::today()->toDateString();
-        
-        return Cache::remember($cacheKey, $this->cacheTime, function () use ($salesInternalId) {
-            $dataset = env('BIGQUERY_DATASET');
-            $project = env('BIGQUERY_PROJECT_ID');
-            
-            $today = Carbon::today();
-            $startOfWeek = $today->copy()->subDays(6);
-            $startOfMonth = $today->copy()->day(1);
-            
-            $sql = "
-                WITH latest_versions AS (
-                    SELECT *,
-                        ROW_NUMBER() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
-                    FROM `{$project}.{$dataset}.activity_plans`
-                    WHERE sales_internal_id = @sales_internal_id
-                        AND status NOT IN ('deleted')
-                        AND created_at IS NOT NULL
-                ),
-                filtered_records AS (
-                    SELECT * EXCEPT(rn)
-                    FROM latest_versions
-                    WHERE rn = 1
-                ),
-                daily_visits AS (
-                    SELECT 
-                        'daily' as period,
-                        customer_id,
-                        customer_name,
-                        COUNT(*) as visit_count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) = CAST(@today AS DATE)
-                    GROUP BY customer_id, customer_name
-                ),
-                weekly_visits AS (
-                    SELECT 
-                        'weekly' as period,
-                        customer_id,
-                        customer_name,
-                        COUNT(*) as visit_count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_week AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY customer_id, customer_name
-                ),
-                monthly_visits AS (
-                    SELECT 
-                        'monthly' as period,
-                        customer_id,
-                        customer_name,
-                        COUNT(*) as visit_count
-                    FROM filtered_records
-                    WHERE CAST(plan_date AS DATE) >= CAST(@start_of_month AS DATE)
-                        AND CAST(plan_date AS DATE) <= CAST(@today AS DATE)
-                    GROUP BY customer_id, customer_name
-                ),
-                alltime_visits AS (
-                    SELECT 
-                        'all_time' as period,
-                        customer_id,
-                        customer_name,
-                        COUNT(*) as visit_count
-                    FROM filtered_records
-                    GROUP BY customer_id, customer_name
-                )
-                SELECT period, customer_id, customer_name, visit_count
-                FROM daily_visits
-                UNION ALL
-                SELECT period, customer_id, customer_name, visit_count
-                FROM weekly_visits
-                UNION ALL
-                SELECT period, customer_id, customer_name, visit_count
-                FROM monthly_visits
-                UNION ALL
-                SELECT period, customer_id, customer_name, visit_count
-                FROM alltime_visits
-                ORDER BY period, visit_count DESC, customer_name
-            ";
-            
-            $results = $this->bigQuery->query($sql, [
-                'sales_internal_id' => $salesInternalId,
-                'today' => $today->toDateString(),
-                'start_of_week' => $startOfWeek->toDateString(),
-                'start_of_month' => $startOfMonth->toDateString(),
-            ]);
-            
-            return $this->formatCustomerVisitsResponse($results);
-        });
-    }
-
-    /**
-     * Format customer visits response
-     * 
-     * @param array $results
-     * @return array
-     */
-    private function formatCustomerVisitsResponse($results)
-    {
-        $formatted = [
-            'daily' => [],
-            'weekly' => [],
-            'monthly' => [],
-            'all_time' => [],
-        ];
-        
-        foreach ($results as $row) {
-            $period = $row['period'];
-            $formatted[$period][] = [
-                'customer_id' => $row['customer_id'],
-                'customer_name' => $row['customer_name'],
-                'visit_count' => (int) $row['visit_count'],
-            ];
-        }
-        
-        return $formatted;
-    }
-
-    /**
-     * Clear cache for a sales person
-     * 
-     * @param string $salesInternalId
-     * @return void
-     */
-    public function clearCache($salesInternalId)
-    {
-        Cache::forget("dashboard:stats:{$salesInternalId}:" . Carbon::today()->toDateString());
-        Cache::forget("dashboard:state-stats:{$salesInternalId}:" . Carbon::today()->toDateString());
-        Cache::forget("dashboard:customer-visits:{$salesInternalId}:" . Carbon::today()->toDateString());
     }
 }

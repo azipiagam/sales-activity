@@ -1,22 +1,18 @@
 <?php
 // app/Http/Controllers/CustomerController.php
+// UPDATED: MySQL Version (removed BigQueryService dependency)
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\BigQueryService;
+use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
-    protected $bigQuery;
-
-    public function __construct(BigQueryService $bigQuery)
-    {
-        $this->bigQuery = $bigQuery;
-    }
-
     /**
      * Search customer by sales_rep (autocomplete)
+     * Changed: MySQL query instead of BigQuery
+     * 
      * URL: GET /api/customers/search?q=customer_name
      */
     public function search(Request $request)
@@ -29,40 +25,33 @@ class CustomerController extends Controller
             return response()->json([]);
         }
 
-        $dataset = env('BIGQUERY_DATASET');
-        $project = env('BIGQUERY_PROJECT_ID');
-        
-        $sql = "
-            SELECT 
-                c.id, 
-                c.customer_name, 
-                c.company_name, 
-                c.address, 
-                c.city,
-                c.state,
-                c.phone,
-                c.email
-            FROM `{$project}.{$dataset}.master_customer` c
-            WHERE (
-                -- Match dengan berbagai format sales_rep
-                c.sales_rep = @sales_name
-                OR c.sales_rep = @sales_internal_id
-                OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_name), '%')
-                OR LOWER(c.sales_rep) LIKE CONCAT('%', LOWER(@sales_internal_id), '%')
+        // MySQL query with LIKE for flexible matching
+        $results = DB::table('master_customer')
+            ->select(
+                'id',
+                'customer_name',
+                'company_name',
+                'address',
+                'city',
+                'state',
+                'phone',
+                'email'
             )
-            AND c.inactive = 'No'
-            AND (
-                LOWER(c.customer_name) LIKE CONCAT('%', LOWER(@query), '%')
-                OR LOWER(c.company_name) LIKE CONCAT('%', LOWER(@query), '%')
-            )
-            ORDER BY c.customer_name
-        ";
-        
-        $results = $this->bigQuery->query($sql, [
-            'sales_name' => $salesName,
-            'sales_internal_id' => $salesInternalId,
-            'query' => $query,
-        ]);
+            ->where(function($q) use ($salesName, $salesInternalId) {
+                // Match sales_rep with various formats
+                $q->where('sales_rep', $salesName)
+                  ->orWhere('sales_rep', $salesInternalId)
+                  ->orWhere('sales_rep', 'LIKE', "%{$salesName}%")
+                  ->orWhere('sales_rep', 'LIKE', "%{$salesInternalId}%");
+            })
+            ->where('inactive', 'No')
+            ->where(function($q) use ($query) {
+                // Search in customer_name or company_name
+                $q->where('customer_name', 'LIKE', "%{$query}%")
+                  ->orWhere('company_name', 'LIKE', "%{$query}%");
+            })
+            ->orderBy('customer_name')
+            ->get();
 
         return response()->json($results);
     }

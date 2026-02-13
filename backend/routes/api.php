@@ -40,4 +40,4 @@ Route::middleware('auth.sales')->group(function () {
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);
-});
+    });
