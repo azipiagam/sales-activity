@@ -104,23 +104,34 @@ class ActivityPlanService
      * Get activity plans by date and sales
      * Changed: Simple MySQL query, no ROW_NUMBER needed
      * Removed: Cache
+     * Sorting: in progress/rescheduled first, then done/missed
      */
     public function getByDateAndSales($salesInternalId, $date)
     {
-        return DB::table('activity_plans')
+        $query = DB::table('activity_plans')
             ->where('sales_internal_id', $salesInternalId)
             ->where('plan_date', $date)
             ->where('status', '!=', 'deleted')
             ->whereNull('deleted_at')
-            ->orderBy('created_at', 'DESC')
-            ->get()
-            ->toArray();
+            ->orderByRaw("
+                CASE 
+                    WHEN status = 'in progress' THEN 1
+                    WHEN status = 'rescheduled' THEN 2
+                    WHEN status = 'done' THEN 3
+                    WHEN status = 'missed' THEN 4
+                    ELSE 5
+                END
+            ")
+            ->orderBy('created_at', 'DESC');
+        
+        return $query->get()->toArray();
     }
 
     /**
      * Get all activity plans by sales (no date filter)
      * Changed: MySQL query
      * Removed: Cache, ROW_NUMBER logic
+     * Sorting: in progress first, then done, by date DESC
      */
     public function getAllBySales($salesInternalId)
     {
@@ -132,6 +143,14 @@ class ActivityPlanService
             ->where('sales_internal_id', $salesInternalId)
             ->where('status', '!=', 'deleted')
             ->whereNull('deleted_at')
+            ->orderByRaw("
+                CASE 
+                    WHEN status IN ('in progress', 'rescheduled') THEN 1
+                    WHEN status = 'done' THEN 2
+                    WHEN status = 'missed' THEN 3
+                    ELSE 4
+                END
+            ")
             ->orderBy('plan_date', 'DESC')
             ->orderBy('created_at', 'DESC')
             ->get()
@@ -142,6 +161,7 @@ class ActivityPlanService
      * Get activity plans by date range
      * Changed: MySQL BETWEEN query
      * Removed: Cache
+     * Sorting: in progress first, then done
      */
     public function getByRangeAndSales($salesInternalId, $fromDate, $toDate)
     {
@@ -154,6 +174,14 @@ class ActivityPlanService
             ->whereBetween('plan_date', [$fromDate, $toDate])
             ->where('status', '!=', 'deleted')
             ->whereNull('deleted_at')
+            ->orderByRaw("
+                CASE 
+                    WHEN status IN ('in progress', 'rescheduled') THEN 1
+                    WHEN status = 'done' THEN 2
+                    WHEN status = 'missed' THEN 3
+                    ELSE 4
+                END
+            ")
             ->orderBy('plan_date', 'DESC')
             ->orderBy('created_at', 'DESC')
             ->get()
