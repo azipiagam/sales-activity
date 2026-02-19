@@ -15,7 +15,6 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
@@ -130,6 +129,7 @@ export default function Header({
 
   const handleReset = async () => {
     try {
+      // Trigger shared refresh key for any page that listens to it.
       if (typeof onRefresh === 'function') {
         onRefresh();
       }
@@ -138,7 +138,9 @@ export default function Header({
 
       await fetchAllPlans(true, true);
 
-      await fetchPlansByDate(selectedDate, true, true);
+      if (selectedDate instanceof Date && !Number.isNaN(selectedDate.getTime())) {
+        await fetchPlansByDate(selectedDate, true, true);
+      }
 
       console.log('Data refreshed successfully');
     } catch (error) {
@@ -248,10 +250,14 @@ export default function Header({
                   flexShrink: 0,
                 }}
               >
-                <BusinessCenterIcon
+                <Box
+                  component="img"
+                  src="/logo-pilar.png"
+                  alt="Logo Pilar"
                   sx={{
-                    color: 'white',
-                    fontSize: { xs: '24px', sm: '26px', md: '28px' },
+                    width: { xs: 35, sm: 26, md: 30 },
+                    height: { xs: 35, sm: 26, md: 30 },
+                    objectFit: 'contain',
                   }}
                 />
               </Box>

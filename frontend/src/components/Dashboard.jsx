@@ -22,6 +22,7 @@ export default function Dashboard({
 
   const loading = isLoading('all');
   const error = getError('all');
+  const shouldShowError = error && !String(error).toLowerCase().includes('failed to fetch');
 
   // Fetch dashboard data using shared context
   useEffect(() => {
@@ -207,7 +208,7 @@ export default function Dashboard({
       {/* Latest Customers */}
       <LatestCustomers refreshKey={refreshKey} />
 
-      {error && (
+      {shouldShowError && (
         <Box sx={{ mb: 2 }}>
           <Alert severity="error">
             {error}
