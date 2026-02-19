@@ -364,7 +364,7 @@ export default function MyTasks({ selectedDate }) {
               mb: 1,
             }}
           >
-            More To Go
+            To Do
           </Typography>
           {loading ? (
             <Skeleton

@@ -332,7 +332,7 @@ export default function LatestCustomers({ refreshKey }) {
                   alignItems: 'center',
                   py: { xs: 1, sm: 1.5 },
                   borderBottom:
-                    index < filteredCustomers.length - 1 ? '1px solid rgba(0, 0, 0, 0.06)' : 'none',
+                    index < filteredCustomers.length - 1 ? '1px dashed #D1D5DB' : 'none',
                 }}
               >
                 <Box

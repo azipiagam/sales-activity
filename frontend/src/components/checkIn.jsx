@@ -360,7 +360,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
       today.setHours(0, 0, 0, 0);
       try {
         invalidateCache(today);
-        await fetchPlansByDate(today, true, true);
+        await fetchPlansByDate(today, true);
       } catch (refreshError) {
         console.error('Error refreshing data after check-in:', refreshError);
       }

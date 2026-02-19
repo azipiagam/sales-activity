@@ -5,13 +5,14 @@ import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Skeleton from '@mui/material/Skeleton';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
 
-export default function DashboardCards() {
+export default function DashboardCards({ refreshKey }) {
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [timeFilter, setTimeFilter] = useState('Bulanan');
@@ -82,7 +83,7 @@ export default function DashboardCards() {
           }
           return;
         }
-
+        
         if (isMounted) {
           setStats({
             plan: toNumber(selectedStats.in_progress),
@@ -107,7 +108,7 @@ export default function DashboardCards() {
     return () => {
       isMounted = false;
     };
-  }, [timeFilter]);
+  }, [timeFilter, refreshKey]);
 
   const totalStats = useMemo(() => {
     if (!stats) {
@@ -117,13 +118,11 @@ export default function DashboardCards() {
   }, [stats]);
 
   const allCategories = useMemo(() => {
-    if (!stats) {
-      return [];
-    }
+    const safeStats = stats ?? { plan: 0, done: 0, missed: 0 };
     return [
-      { id: 1, label: 'Plan', value: stats.plan, color: '#6BA3D0' },
-      { id: 2, label: 'Missed', value: stats.missed, color: '#F87171' },
-      { id: 3, label: 'Done', value: stats.done, color: '#34D399' },
+      { id: 1, label: 'Plan', value: safeStats.plan, color: '#6BA3D0' },
+      { id: 2, label: 'Done', value: safeStats.done, color: '#34D399' },
+      { id: 3, label: 'Missed', value: safeStats.missed, color: '#F87171' },
     ];
   }, [stats]);
 
@@ -277,15 +276,12 @@ export default function DashboardCards() {
           }}
         >
           {isLoadingStats ? (
-            <Typography
-              variant="body2"
-              sx={{
-                color: '#9CA3AF',
-                fontSize: '0.875rem',
-              }}
-            >
-              Loading...
-            </Typography>
+            <Skeleton
+              variant="circular"
+              width={170}
+              height={170}
+              sx={{ bgcolor: '#F3F4F6' }}
+            />
           ) : totalStats > 0 && pieChartData.length > 0 ? (
             <PieChart
               series={[
@@ -337,49 +333,95 @@ export default function DashboardCards() {
           )}
         </Box>
 
-        {/* Legend - Horizontal dengan Value */}
+        {/* Status Cards */}
         <Box
           sx={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: { xs: 2, sm: 3, md: 4 },
-            flexWrap: 'wrap',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: { xs: 1.5, sm: 2 },
             width: '100%',
           }}
         >
-          {allCategories.map((item) => (
+          {isLoadingStats ? (
+            <>
+              {[1, 2, 3].map((idx) => (
+                <Box
+                  key={`status-skeleton-${idx}`}
+                  sx={{
+                    borderRadius: '12px',
+                    border: '1px solid rgba(0, 0, 0, 0.06)',
+                    backgroundColor: '#FFFFFF',
+                    padding: { xs: '10px', sm: '12px' },
+                  }}
+                >
+                  <Skeleton
+                    variant="text"
+                    width={70}
+                    height={18}
+                    sx={{ transform: 'none', mb: 0.5 }}
+                  />
+                  <Skeleton
+                    variant="text"
+                    width={40}
+                    height={24}
+                    sx={{ transform: 'none' }}
+                  />
+                </Box>
+              ))}
+            </>
+          ) : (
+            allCategories.map((item) => (
               <Box
                 key={item.id}
                 sx={{
+                  borderRadius: '12px',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  backgroundColor: '#FFFFFF',
+                  padding: { xs: '10px', sm: '12px' },
+                  boxShadow: '0 6px 16px rgba(15, 23, 42, 0.05)',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 0.5,
+                  minWidth: 0,
                 }}
               >
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    backgroundColor: item.color,
-                    flexShrink: 0,
-                  }}
-                />
                 <Typography
                   variant="body2"
                   sx={{
                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    color: '#374151',
-                    fontWeight: 500,
+                    color: '#6B7280',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
                   }}
                 >
-                  {item.label}: <strong>{item.value}</strong>
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: item.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  {item.label}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '1.125rem' },
+                    color: '#111827',
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.value}
                 </Typography>
               </Box>
-            ))}
-          </Box>
+            ))
+          )}
+        </Box>
       </Card>
     </Box>
   );

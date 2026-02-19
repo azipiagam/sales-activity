@@ -2,16 +2,14 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
-import { alpha } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Skeleton from '@mui/material/Skeleton';
 import Tooltip from '@mui/material/Tooltip';
-import CircularProgress from '@mui/material/CircularProgress';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
@@ -322,6 +320,15 @@ export default function TaskDashboard({
       { id: 2, value: taskData.missed, label: 'Missed', color: '#F87171' }, // Soft red
       { id: 3, value: taskData.done, label: 'Done', color: '#34D399' }, // Soft green
     ].filter(item => item.value > 0);
+  }, [taskData]);
+
+  const statusCards = useMemo(() => {
+    const safeTaskData = taskData ?? { plan: 0, done: 0, missed: 0 };
+    return [
+      { id: 1, label: 'Plan', value: safeTaskData.plan, color: '#6BA3D0' },
+      { id: 2, label: 'Done', value: safeTaskData.done, color: '#34D399' },
+      { id: 3, label: 'Missed', value: safeTaskData.missed, color: '#F87171' },
+    ];
   }, [taskData]);
 
   // Data used for rendering the chart; keep a fallback slice so the donut always shows
@@ -676,13 +683,6 @@ export default function TaskDashboard({
             style={{ opacity: isLoadingStats ? 0.45 : 1, pointerEvents: isLoadingStats ? 'none' : 'auto', transition: 'opacity 200ms ease' }}
           />
 
-          {/* Spinner overlay when loading */}
-          {isLoadingStats && (
-            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-              <CircularProgress size={48} sx={{ color: '#6BA3D0' }} />
-            </Box>
-          )}
-
           {/* Center Text */}
           <Box
             sx={{
@@ -765,86 +765,108 @@ export default function TaskDashboard({
 
       </Box>
 
-      {/* Legend */}
+      {/* Divider */}
       <Box
         sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: { xs: 2, sm: 3 },
-          flexWrap: 'wrap',
+          width: '100%',
+          borderTop: '1px dashed #D1D5DB',
+          mb: 2,
+        }}
+      />
+
+      {/* Status Cards */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: { xs: 1.5, sm: 2 },
+          width: '100%',
         }}
       >
-        {chartData.map((item) => {
-          const iconSx = {
-            fontSize: 18,
-            color: item.color,
-            flexShrink: 0,
-          };
-
-          const marker =
-            item.label === 'Plan' ? (
-              <CalendarTodayIcon sx={iconSx} />
-            ) : item.label === 'Done' ? (
-              <CheckCircleIcon sx={iconSx} />
-            ) : (
+        {isLoadingStats ? (
+          <>
+            {[1, 2, 3].map((idx) => (
               <Box
+                key={`status-skeleton-${idx}`}
                 sx={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  backgroundColor: item.color,
-                  flexShrink: 0,
-                  boxShadow: `0px 2px 6px ${alpha(item.color, 0.35)}`,
+                  borderRadius: '12px',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                  backgroundColor: '#FFFFFF',
+                  padding: { xs: '10px', sm: '12px' },
                 }}
-              />
-            );
-
-          return (
+              >
+                <Skeleton
+                  variant="text"
+                  width={70}
+                  height={18}
+                  sx={{ transform: 'none', mb: 0.5 }}
+                />
+                <Skeleton
+                  variant="text"
+                  width={40}
+                  height={24}
+                  sx={{ transform: 'none' }}
+                />
+              </Box>
+            ))}
+          </>
+        ) : (
+          statusCards.map((item) => (
             <Box
               key={item.id}
               sx={{
+                borderRadius: '12px',
+                border: '1px solid rgba(0, 0, 0, 0.06)',
+                backgroundColor: '#FFFFFF',
+                padding: { xs: '10px', sm: '12px' },
+                boxShadow: '0 6px 16px rgba(15, 23, 42, 0.05)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: 1.25,
+                gap: 0.5,
+                minWidth: 0,
+                textAlign: 'center',
               }}
             >
-              {marker}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  color: '#6B7280',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  justifyContent: 'center',
+                  width: '100%',
+                }}
+              >
                 <Box
-                  component="span"
                   sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: '999px',
-                    backgroundColor: alpha(item.color, 0.12),
-                    color: item.color,
-                    fontWeight: 700,
-                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                    letterSpacing: '0.02em',
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: item.color,
+                    flexShrink: 0,
                   }}
-                >
-                  {item.label}
-                </Box>
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{
-                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                    color: '#111827',
-                    fontWeight: 500,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {item.value}
-                </Typography>
-              </Box>
+                />
+                {item.label}
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: '1rem', sm: '1.125rem' },
+                  color: '#111827',
+                  fontWeight: 700,
+                  width: '100%',
+                  textAlign: 'center',
+                }}
+              >
+                {item.value}
+              </Typography>
             </Box>
-          );
-        })}
+          ))
+        )}
       </Box>
     </Card>
   );
