@@ -100,6 +100,8 @@ export default function TaskDashboard({
 
   const effectivePeriodFilter = periodFilter ?? bulananFilter;
   const effectiveProvinceFilter = provinceFilter ?? provinsiFilter;
+  const safeBulananAnchorEl = bulananAnchorEl?.isConnected ? bulananAnchorEl : null;
+  const safeProvinsiAnchorEl = provinsiAnchorEl?.isConnected ? provinsiAnchorEl : null;
 
   const getMenuWidth = (anchorEl) => {
     if (!anchorEl) return undefined;
@@ -490,7 +492,7 @@ export default function TaskDashboard({
                   fontSize: { xs: '1rem', sm: '1.125rem' },
                   color: '#6B7280',
                   transition: 'transform 0.2s ease-in-out',
-                  transform: bulananAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transform: safeBulananAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
                   flexShrink: 0,
                 }}
               />
@@ -498,8 +500,8 @@ export default function TaskDashboard({
           </Box>
 
           <Menu
-            anchorEl={bulananAnchorEl}
-            open={Boolean(bulananAnchorEl)}
+            anchorEl={safeBulananAnchorEl}
+            open={Boolean(safeBulananAnchorEl)}
             onClose={handleBulananClose}
             anchorOrigin={{
               vertical: 'bottom',
@@ -515,7 +517,7 @@ export default function TaskDashboard({
                 borderRadius: '12px',
                 boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
                 border: '1px solid rgba(0, 0, 0, 0.06)',
-                width: getMenuWidth(bulananAnchorEl),
+                width: getMenuWidth(safeBulananAnchorEl),
               },
             }}
           >
@@ -600,7 +602,7 @@ export default function TaskDashboard({
                   fontSize: { xs: '1rem', sm: '1.125rem' },
                   color: '#6B7280',
                   transition: 'transform 0.2s ease-in-out',
-                  transform: provinsiAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transform: safeProvinsiAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
                   flexShrink: 0,
                 }}
               />
@@ -608,8 +610,8 @@ export default function TaskDashboard({
           </Box>
 
           <Menu
-            anchorEl={provinsiAnchorEl}
-            open={Boolean(provinsiAnchorEl)}
+            anchorEl={safeProvinsiAnchorEl}
+            open={Boolean(safeProvinsiAnchorEl)}
             onClose={handleProvinsiClose}
             anchorOrigin={{
               vertical: 'bottom',
@@ -625,7 +627,7 @@ export default function TaskDashboard({
                 borderRadius: '12px',
                 boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.12)',
                 border: '1px solid rgba(0, 0, 0, 0.06)',
-                width: getMenuWidth(provinsiAnchorEl),
+                width: getMenuWidth(safeProvinsiAnchorEl),
               },
             }}
           >

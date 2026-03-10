@@ -94,7 +94,13 @@ class DashboardService
     private function getStateStatsForPeriod($salesInternalId, $startDate, $endDate)
     {
         $query = DB::table('activity_plans as ap')
-            ->leftJoin('master_customer as mc', 'ap.customer_id', '=', 'mc.id')
+            ->leftJoin('master_customer as mc', function ($join) {
+                $join->on(
+                    DB::raw('ap.customer_id COLLATE utf8mb4_unicode_ci'),
+                    '=',
+                    DB::raw('mc.id COLLATE utf8mb4_unicode_ci')
+                );
+            })
             ->select(
                 DB::raw('COALESCE(ap.state, mc.state, "unknown") as state'),
                 'ap.status',
