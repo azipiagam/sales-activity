@@ -54,6 +54,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [nameTooltipOpenId, setNameTooltipOpenId] = useState(null);
 
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
+  const safeMenuAnchor = menuAnchor?.isConnected ? menuAnchor : null;
   
   const dateToUse = selectedDate || new Date();
   const dateStr = format(dateToUse, 'yyyy-MM-dd');
@@ -339,6 +340,13 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       window.removeEventListener('activityPlanCreated', handlePlanCreated);
     };
   }, [fetchActiveTask]);
+
+  useEffect(() => {
+    if (menuTaskId && !activeTasks.some((task) => task.id === menuTaskId)) {
+      setMenuAnchor(null);
+      setMenuTaskId(null);
+    }
+  }, [activeTasks, menuTaskId]);
 
   const handleOpenModal = (taskId) => {
     setCurrentTaskId(taskId);
@@ -1113,8 +1121,8 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
       {/* Menu */}
       <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
+        anchorEl={safeMenuAnchor}
+        open={Boolean(safeMenuAnchor)}
         onClose={handleCloseMenu}
         anchorOrigin={{
           vertical: 'bottom',

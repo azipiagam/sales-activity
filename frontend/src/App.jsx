@@ -64,10 +64,19 @@ function AppContent() {
     // navValue = 1 → Plan (My Activity Plan)
     if (location.pathname === '/plan') {
       setNavValue(1);
-    } else {
-      // Default ke Dashboard (navValue = 0) untuk route '/' atau route lainnya
-      setNavValue(0);
+      return;
     }
+
+    if (location.pathname === '/') {
+      setNavValue(0);
+      return;
+    }
+
+    navigate('/', { replace: true });
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    setCalendarAnchorEl(null);
   }, [location.pathname]);
 
   const handleNavChange = (newValue) => {
@@ -247,22 +256,6 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <AppContent />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/plan"
-                    element={
-                      <ProtectedRoute>
-                        <AppContent />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
                     path="/customers/:id"
                     element={
                       <ProtectedRoute>
@@ -270,7 +263,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <AppContent />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Routes>
               </ActivityPlanProvider>
             </GoogleMapsProvider>

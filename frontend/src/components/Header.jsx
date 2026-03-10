@@ -45,7 +45,6 @@ export default function Header({
   const location = useLocation();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const isLogoutMenuOpen = Boolean(logoutMenuAnchorEl);
   const [periodAnchorEl, setPeriodAnchorEl] = useState(null);
   const [provinceAnchorEl, setProvinceAnchorEl] = useState(null);
 
@@ -56,6 +55,11 @@ export default function Header({
 
   const isPlanPage = location.pathname === '/plan';
   const isDashboardPage = location.pathname === '/';
+  const safeLogoutMenuAnchorEl = logoutMenuAnchorEl?.isConnected ? logoutMenuAnchorEl : null;
+  const safePeriodAnchorEl = periodAnchorEl?.isConnected ? periodAnchorEl : null;
+  const safeProvinceAnchorEl = provinceAnchorEl?.isConnected ? provinceAnchorEl : null;
+  const safeCalendarAnchorEl = calendarAnchorEl?.isConnected ? calendarAnchorEl : null;
+  const isLogoutMenuOpen = Boolean(safeLogoutMenuAnchorEl);
 
   const periodValue = dashboardPeriod || 'Bulan ini';
   const provinceValue = dashboardProvince || 'Semua Provinsi';
@@ -80,6 +84,12 @@ export default function Header({
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setLogoutMenuAnchorEl(null);
+    setPeriodAnchorEl(null);
+    setProvinceAnchorEl(null);
+  }, [location.pathname]);
 
   const handleLogoutMenuClick = (event) => {
     if (event && event.currentTarget) {
@@ -507,7 +517,7 @@ export default function Header({
                       <ExpandMoreIcon
                         sx={{
                           transition: 'transform 200ms ease',
-                          transform: periodAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transform: safePeriodAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
                         }}
                       />
                     }
@@ -552,7 +562,7 @@ export default function Header({
                       <ExpandMoreIcon
                         sx={{
                           transition: 'transform 200ms ease',
-                          transform: provinceAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transform: safeProvinceAnchorEl ? 'rotate(180deg)' : 'rotate(0deg)',
                         }}
                       />
                     }
@@ -596,9 +606,9 @@ export default function Header({
       </Box>
 
       {/* LOGOUT MENU DROPDOWN */}
-      {logoutMenuAnchorEl && (
+      {safeLogoutMenuAnchorEl && (
         <Menu
-          anchorEl={logoutMenuAnchorEl}
+          anchorEl={safeLogoutMenuAnchorEl}
           open={isLogoutMenuOpen}
           onClose={handleLogoutMenuClose}
           anchorOrigin={{
@@ -658,8 +668,8 @@ export default function Header({
       {isDashboardPage && (
         <>
           <Menu
-            anchorEl={periodAnchorEl}
-            open={Boolean(periodAnchorEl)}
+            anchorEl={safePeriodAnchorEl}
+            open={Boolean(safePeriodAnchorEl)}
             onClose={handlePeriodClose}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             transformOrigin={{ vertical: 'top', horizontal: 'left' }}
@@ -686,8 +696,8 @@ export default function Header({
           </Menu>
 
           <Menu
-            anchorEl={provinceAnchorEl}
-            open={Boolean(provinceAnchorEl)}
+            anchorEl={safeProvinceAnchorEl}
+            open={Boolean(safeProvinceAnchorEl)}
             onClose={handleProvinceClose}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             transformOrigin={{ vertical: 'top', horizontal: 'left' }}
@@ -718,8 +728,8 @@ export default function Header({
 
       {/* DATE PICKER */}
       <Popover
-        open={Boolean(calendarAnchorEl)}
-        anchorEl={calendarAnchorEl}
+        open={Boolean(safeCalendarAnchorEl)}
+        anchorEl={safeCalendarAnchorEl}
         onClose={onCalendarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
