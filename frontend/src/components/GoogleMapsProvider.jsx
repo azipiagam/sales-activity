@@ -6,6 +6,8 @@ const GoogleMapsContext = createContext({
   loadError: null,
 });
 
+const GOOGLE_MAPS_CALLBACK = '__salesActivityGoogleMapsInit';
+
 // Custom hook untuk menggunakan Google Maps
 export const useGoogleMaps = () => {
   const context = useContext(GoogleMapsContext);
@@ -21,10 +23,19 @@ export default function GoogleMapsProvider({ children }) {
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
+    let isActive = true;
+    let checkIfLoadedTimer = null;
+
+    const markLoaded = () => {
+      if (isActive) {
+        setIsLoaded(true);
+      }
+    };
+
     // Cek apakah Google Maps sudah dimuat
     if (window.google && window.google.maps) {
-      setIsLoaded(true);
-      return;
+      markLoaded();
+      return undefined;
     }
 
     // Cek apakah script sudah ada di DOM
@@ -33,29 +44,42 @@ export default function GoogleMapsProvider({ children }) {
       // Script sudah ada, tunggu sampai loaded
       const checkIfLoaded = () => {
         if (window.google && window.google.maps) {
-          setIsLoaded(true);
-        } else {
-          setTimeout(checkIfLoaded, 100);
+          markLoaded();
+        } else if (isActive) {
+          checkIfLoadedTimer = window.setTimeout(checkIfLoaded, 100);
         }
       };
       checkIfLoaded();
-      return;
+      return () => {
+        isActive = false;
+        if (checkIfLoadedTimer) {
+          window.clearTimeout(checkIfLoadedTimer);
+        }
+      };
     }
 
     // Load Google Maps script
     const apiKey = "AIzaSyCOtWjb76olbxd98XsfqhdnDpv-BTi7wxg";
+    const previousCallback = window[GOOGLE_MAPS_CALLBACK];
+    const handleCallback = () => {
+      if (typeof previousCallback === 'function') {
+        previousCallback();
+      }
+      markLoaded();
+    };
+
+    window[GOOGLE_MAPS_CALLBACK] = handleCallback;
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async&callback=${GOOGLE_MAPS_CALLBACK}`;
     script.async = true;
     script.defer = true;
 
-    script.onload = () => {
-      setIsLoaded(true);
-    };
-
     script.onerror = (error) => {
       console.error('Failed to load Google Maps script:', error);
-      setLoadError(error);
+      if (isActive) {
+        setLoadError(error);
+      }
     };
 
     // Tambahkan script ke head
@@ -63,8 +87,14 @@ export default function GoogleMapsProvider({ children }) {
 
     // Cleanup function
     return () => {
-      // Jangan remove script karena bisa digunakan di tempat lain
-      // Hanya cleanup jika diperlukan
+      isActive = false;
+      if (window[GOOGLE_MAPS_CALLBACK] === handleCallback) {
+        if (typeof previousCallback === 'function') {
+          window[GOOGLE_MAPS_CALLBACK] = previousCallback;
+        } else {
+          delete window[GOOGLE_MAPS_CALLBACK];
+        }
+      }
     };
   }, []);
 

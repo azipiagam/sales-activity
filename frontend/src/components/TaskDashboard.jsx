@@ -873,6 +873,7 @@ export default function TaskDashboard({
                 }}
               >
                 <Box
+                  component="span"
                   sx={{
                     width: 10,
                     height: 10,

@@ -37,6 +37,39 @@ import { getSales } from '../utils/auth';
 import LoadingManager from './loading/LoadingManager';
 import ModalResult from './ModalResult';
 
+const getTaskStatusPriority = (status, selectedFilter) => {
+  if (selectedFilter === 'plan') {
+    return {
+      'in progress': 1,
+      'rescheduled': 2,
+      'missed': 3,
+      'done': 4,
+      'deleted': 5,
+    }[status] || 99;
+  }
+
+  return {
+    'deleted': 1,
+    'done': 2,
+    'missed': 3,
+    'rescheduled': 4,
+    'in progress': 5,
+  }[status] || 99;
+};
+
+const sortTasksByStatusAndDate = (tasks, selectedFilter) => {
+  tasks.sort((a, b) => {
+    const aPriority = getTaskStatusPriority(a.status, selectedFilter);
+    const bPriority = getTaskStatusPriority(b.status, selectedFilter);
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    return b.visitDate - a.visitDate;
+  });
+};
+
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
@@ -186,23 +219,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           );
         }
         
-        filteredTasks.sort((a, b) => {
-          const statusPriority = {
-            'deleted': 1,
-            'done': 2,
-            'missed': 3,
-            'rescheduled': 4,
-            'in progress': 5
-          };
-          const aPriority = statusPriority[a.status] || 99;
-          const bPriority = statusPriority[b.status] || 99;
-          
-          if (aPriority !== bPriority) {
-            return aPriority - bPriority;
-          }
-          
-          return b.visitDate - a.visitDate;
-        });
+        sortTasksByStatusAndDate(filteredTasks, selectedFilter);
         
         console.log('[ActiveTask] Final processedTasks (fetchActiveTask):', {
           count: filteredTasks.length,
@@ -304,23 +321,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         );
       }
 
-      filteredTasks.sort((a, b) => {
-        const statusPriority = {
-          'deleted': 1,
-          'done': 2,
-          'missed': 3,
-          'rescheduled': 4,
-          'in progress': 5
-        };
-        const aPriority = statusPriority[a.status] || 99;
-        const bPriority = statusPriority[b.status] || 99;
-
-        if (aPriority !== bPriority) {
-          return aPriority - bPriority;
-        }
-
-        return b.visitDate - a.visitDate;
-      });
+      sortTasksByStatusAndDate(filteredTasks, selectedFilter);
 
       setActiveTasks(filteredTasks);
     } else {
@@ -703,6 +704,18 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           stripe: 'rgba(107, 163, 208, 0.12)',
           border: 'rgba(107, 163, 208, 0.25)',
           iconTint: 'rgba(107, 163, 208, 0.12)',
+          chipBackground: 'rgba(107, 163, 208, 0.15)',
+          chipText: '#5a8fb8',
+        };
+        const progressStatusTone = {
+          accent: '#7A8EA3',
+          text: '#617486',
+          tint: 'rgba(122, 142, 163, 0.10)',
+          stripe: 'rgba(122, 142, 163, 0.14)',
+          border: 'rgba(122, 142, 163, 0.26)',
+          iconTint: 'rgba(122, 142, 163, 0.14)',
+          chipBackground: 'rgba(122, 142, 163, 0.18)',
+          chipText: '#5d7184',
         };
         const statusToneMap = {
           done: {
@@ -722,7 +735,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             icon: CancelIcon,
           },
           'in progress': {
-            ...blueStatusTone,
+            ...progressStatusTone,
             icon: PlayCircleIcon,
           },
         };
@@ -965,8 +978,8 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               label={statusChipMap[activeTask.status] || 'In Progress'}
               size="small"
               sx={{
-                backgroundColor: 'rgba(107, 163, 208, 0.15)',
-                color: '#5a8fb8',
+                backgroundColor: tone.chipBackground,
+                color: tone.chipText,
                 fontWeight: 500,
                 fontSize: { xs: '0.75rem', sm: '0.8125rem' },
                 height: '24px',
