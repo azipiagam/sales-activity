@@ -10,48 +10,20 @@ use Illuminate\Support\Facades\DB;
 class DashboardService
 {
     /**
-     * Get status statistics (daily, weekly, monthly)
+     * Get status statistics for dashboard periods
      */
     public function getStatusStats($salesInternalId)
     {
         $today = Carbon::today()->toDateString();
-        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
-        $startOfMonth = Carbon::today()->day(1)->toDateString();
-        
-        // Daily stats
-        $dailyStats = DB::table('activity_plans')
-            ->select('status', DB::raw('COUNT(*) as count'))
-            ->where('sales_internal_id', $salesInternalId)
-            ->where('status', '!=', 'deleted')
-            ->whereNull('deleted_at')
-            ->whereDate('plan_date', $today)
-            ->groupBy('status')
-            ->get();
-        
-        // Weekly stats
-        $weeklyStats = DB::table('activity_plans')
-            ->select('status', DB::raw('COUNT(*) as count'))
-            ->where('sales_internal_id', $salesInternalId)
-            ->where('status', '!=', 'deleted')
-            ->whereNull('deleted_at')
-            ->whereBetween('plan_date', [$startOfWeek, $today])
-            ->groupBy('status')
-            ->get();
-        
-        // Monthly stats
-        $monthlyStats = DB::table('activity_plans')
-            ->select('status', DB::raw('COUNT(*) as count'))
-            ->where('sales_internal_id', $salesInternalId)
-            ->where('status', '!=', 'deleted')
-            ->whereNull('deleted_at')
-            ->whereBetween('plan_date', [$startOfMonth, $today])
-            ->groupBy('status')
-            ->get();
-        
+        $periodRanges = $this->buildPeriodRanges();
+
         return [
-            'daily' => $this->formatStats($dailyStats),
-            'weekly' => $this->formatStats($weeklyStats),
-            'monthly' => $this->formatStats($monthlyStats),
+            'daily' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['daily'])),
+            'weekly' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['weekly'])),
+            'monthly' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['monthly'])),
+            'last_30_days' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['last_30_days'])),
+            'previous_month' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['previous_month'])),
+            'all_time' => $this->formatStats($this->getStatusStatsForPeriod($salesInternalId, ...$periodRanges['all_time'])),
             'summary' => [
                 'date' => $today,
                 'last_updated' => Carbon::now()->toDateTimeString(),
@@ -64,27 +36,15 @@ class DashboardService
      */
     public function getStateStats($salesInternalId)
     {
-        $today = Carbon::today()->toDateString();
-        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
-        $startOfMonth = Carbon::today()->day(1)->toDateString();
-        
-        // Daily stats by state
-        $dailyStats = $this->getStateStatsForPeriod($salesInternalId, $today, $today);
-        
-        // Weekly stats by state
-        $weeklyStats = $this->getStateStatsForPeriod($salesInternalId, $startOfWeek, $today);
-        
-        // Monthly stats by state
-        $monthlyStats = $this->getStateStatsForPeriod($salesInternalId, $startOfMonth, $today);
-        
-        // All time stats by state
-        $allTimeStats = $this->getStateStatsForPeriod($salesInternalId, null, null);
-        
+        $periodRanges = $this->buildPeriodRanges();
+
         return [
-            'daily' => $this->formatStateStats($dailyStats),
-            'weekly' => $this->formatStateStats($weeklyStats),
-            'monthly' => $this->formatStateStats($monthlyStats),
-            'all_time' => $this->formatStateStats($allTimeStats),
+            'daily' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['daily'])),
+            'weekly' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['weekly'])),
+            'monthly' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['monthly'])),
+            'last_30_days' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['last_30_days'])),
+            'previous_month' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['previous_month'])),
+            'all_time' => $this->formatStateStats($this->getStateStatsForPeriod($salesInternalId, ...$periodRanges['all_time'])),
         ];
     }
 
@@ -122,28 +82,49 @@ class DashboardService
      */
     public function getCustomerVisitStats($salesInternalId)
     {
-        $today = Carbon::today()->toDateString();
-        $startOfWeek = Carbon::today()->subDays(6)->toDateString();
-        $startOfMonth = Carbon::today()->day(1)->toDateString();
-        
-        // Daily visits
-        $dailyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $today, $today);
-        
-        // Weekly visits
-        $weeklyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $startOfWeek, $today);
-        
-        // Monthly visits
-        $monthlyVisits = $this->getCustomerVisitsForPeriod($salesInternalId, $startOfMonth, $today);
-        
-        // All time visits
-        $allTimeVisits = $this->getCustomerVisitsForPeriod($salesInternalId, null, null);
-        
+        $periodRanges = $this->buildPeriodRanges();
+
         return [
-            'daily' => $this->formatCustomerVisits($dailyVisits),
-            'weekly' => $this->formatCustomerVisits($weeklyVisits),
-            'monthly' => $this->formatCustomerVisits($monthlyVisits),
-            'all_time' => $this->formatCustomerVisits($allTimeVisits),
+            'daily' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['daily'])),
+            'weekly' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['weekly'])),
+            'monthly' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['monthly'])),
+            'last_30_days' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['last_30_days'])),
+            'previous_month' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['previous_month'])),
+            'all_time' => $this->formatCustomerVisits($this->getCustomerVisitsForPeriod($salesInternalId, ...$periodRanges['all_time'])),
         ];
+    }
+
+    private function buildPeriodRanges()
+    {
+        $today = Carbon::today();
+        $todayString = $today->toDateString();
+
+        return [
+            'daily' => [$todayString, $todayString],
+            'weekly' => [$today->copy()->subDays(6)->toDateString(), $todayString],
+            'monthly' => [$today->copy()->startOfMonth()->toDateString(), $todayString],
+            'last_30_days' => [$today->copy()->subDays(30)->toDateString(), $today->copy()->subDay()->toDateString()],
+            'previous_month' => [
+                $today->copy()->subMonth()->startOfMonth()->toDateString(),
+                $today->copy()->subMonth()->endOfMonth()->toDateString(),
+            ],
+            'all_time' => [null, null],
+        ];
+    }
+
+    private function getStatusStatsForPeriod($salesInternalId, $startDate, $endDate)
+    {
+        $query = DB::table('activity_plans')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->where('sales_internal_id', $salesInternalId)
+            ->where('status', '!=', 'deleted')
+            ->whereNull('deleted_at');
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('plan_date', [$startDate, $endDate]);
+        }
+
+        return $query->groupBy('status')->get();
     }
 
     /**

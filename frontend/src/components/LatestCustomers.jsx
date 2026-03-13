@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -10,15 +10,19 @@ import PeopleIcon from '@mui/icons-material/People';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
+import {
+  DEFAULT_DASHBOARD_PERIOD,
+  getDashboardPeriodKey,
+} from '../constants/dashboardPeriods';
 
 // Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI (same pattern as chart).
 const latestCustomersCache = new Map(); // key -> { data, timestamp }
 const pendingLatestCustomersRequests = new Map(); // key -> Promise
 const LATEST_CUSTOMERS_STALE_TIME = 30 * 1000; // 30s
 
-const mapWeeklyCustomers = (payload) => {
-  const periodKey = 'weekly';
-  const rows = Array.isArray(payload?.data?.[periodKey]) ? payload.data[periodKey] : [];
+const mapCustomersByPeriod = (customerVisitsByPeriod, periodLabel) => {
+  const periodKey = getDashboardPeriodKey(periodLabel);
+  const rows = Array.isArray(customerVisitsByPeriod?.[periodKey]) ? customerVisitsByPeriod[periodKey] : [];
   return rows.map((row) => ({
     id: row.customer_id ?? null,
     customer_name: row.customer_name,
@@ -26,19 +30,20 @@ const mapWeeklyCustomers = (payload) => {
   }));
 };
 
-export default function LatestCustomers({ refreshKey }) {
+export default function LatestCustomers({ refreshKey, periodFilter }) {
   const salesInternalId = getSales()?.internal_id;
   const customersCacheKey = salesInternalId ? `latest-customers:${salesInternalId}` : null;
   const lastRefreshKeyRef = useRef(refreshKey);
+  const effectivePeriodFilter = periodFilter || DEFAULT_DASHBOARD_PERIOD;
 
-  const [customers, setCustomers] = useState(() => {
-    if (!customersCacheKey) return [];
+  const [customerVisitsByPeriod, setCustomerVisitsByPeriod] = useState(() => {
+    if (!customersCacheKey) return null;
     return latestCustomersCache.get(customersCacheKey)?.data ?? [];
   });
 
   const [loading, setLoading] = useState(() => {
     if (!customersCacheKey) return false;
-    return !(latestCustomersCache.get(customersCacheKey));
+    return !(latestCustomersCache.get(customersCacheKey)?.data);
   });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,7 +55,7 @@ export default function LatestCustomers({ refreshKey }) {
       try {
         if (!salesInternalId || !customersCacheKey) {
           if (isMounted) {
-            setCustomers([]);
+            setCustomerVisitsByPeriod(null);
             setLoading(false);
           }
           return;
@@ -65,10 +70,10 @@ export default function LatestCustomers({ refreshKey }) {
         }
 
         const cached = isManualRefresh ? null : latestCustomersCache.get(customersCacheKey);
-        const hasCachedData = Boolean(cached && Array.isArray(cached.data));
+        const hasCachedData = Boolean(cached?.data);
 
         if (hasCachedData && isMounted) {
-          setCustomers(cached.data);
+          setCustomerVisitsByPeriod(cached.data);
           setLoading(false);
         } else if (isMounted) {
           setLoading(true);
@@ -95,7 +100,7 @@ export default function LatestCustomers({ refreshKey }) {
             }
 
             const payload = await response.json();
-            return mapWeeklyCustomers(payload);
+            return payload?.data ?? null;
           })();
 
           const trackedPromise = requestPromise;
@@ -118,13 +123,13 @@ export default function LatestCustomers({ refreshKey }) {
           timestamp: Date.now(),
         });
 
-        setCustomers(mappedCustomers);
+        setCustomerVisitsByPeriod(mappedCustomers);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching latest customers:', err);
         if (isMounted) {
           const cached = customersCacheKey ? latestCustomersCache.get(customersCacheKey) : null;
-          setCustomers(cached?.data ?? []);
+          setCustomerVisitsByPeriod(cached?.data ?? null);
           setLoading(false);
         }
       }
@@ -136,6 +141,11 @@ export default function LatestCustomers({ refreshKey }) {
       isMounted = false;
     };
   }, [salesInternalId, customersCacheKey, refreshKey]);
+
+  const customers = useMemo(
+    () => mapCustomersByPeriod(customerVisitsByPeriod, effectivePeriodFilter),
+    [customerVisitsByPeriod, effectivePeriodFilter]
+  );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredCustomers = normalizedQuery
@@ -156,23 +166,52 @@ export default function LatestCustomers({ refreshKey }) {
       <Card
         elevation={0}
         sx={{
-          background: '#FFFFFF',
+          background:
+            'linear-gradient(135deg, rgba(107, 163, 208, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           padding: { xs: '16px', sm: '20px', md: '24px' },
           boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-          border: 'none',
+          border: '1px solid rgba(107, 163, 208, 0.18)',
           width: '100%',
+          position: 'relative',
+          isolation: 'isolate',
+          overflow: 'hidden',
         }}
       >
-        {/* Header */}
+        <PeopleIcon
+          sx={{
+            position: 'absolute',
+            right: { xs: -18, sm: -10, md: -4 },
+            top: { xs: 12, sm: 16, md: 18 },
+            fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
+            color: 'rgba(107, 163, 208, 0.12)',
+            transform: 'rotate(-10deg)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 2,
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(90deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
+            pointerEvents: 'none',
+            zIndex: 0,
           }}
-        >
+        />
+
+        <Box sx={{ position: 'relative', zIndex: 1 }}>
+          {/* Header */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
           <Typography
             variant="h6"
             sx={{
@@ -370,6 +409,7 @@ export default function LatestCustomers({ refreshKey }) {
             ))}
           </Box>
         )}
+        </Box>
       </Card>
     </Box>
   );

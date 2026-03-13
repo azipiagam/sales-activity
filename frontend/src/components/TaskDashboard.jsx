@@ -18,6 +18,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../config/api';
 import { getSales } from '../utils/auth';
+import {
+  DASHBOARD_PERIOD_OPTIONS,
+  DEFAULT_DASHBOARD_PERIOD,
+  getDashboardPeriodKey,
+} from '../constants/dashboardPeriods';
 
 // Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI.
 const stateStatsCache = new Map(); // key -> { data, timestamp }
@@ -25,14 +30,6 @@ const pendingStateStatsRequests = new Map(); // key -> Promise
 const STATE_STATS_STALE_TIME = 30 * 1000; // 30s
 
 const computeTaskDataFromStats = (stats, periodLabel, provinsiLabel) => {
-  const filterKeyByLabel = {
-    'Hari Ini': 'daily',
-    '7 Hari Terakhir': 'weekly',
-    'Mingguan': 'weekly',
-    'Bulanan': 'monthly',
-    'Bulan ini': 'monthly',
-  };
-
   const toNumber = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -42,7 +39,7 @@ const computeTaskDataFromStats = (stats, periodLabel, provinsiLabel) => {
     return null;
   }
 
-  const periodKey = filterKeyByLabel[periodLabel] || 'monthly';
+  const periodKey = getDashboardPeriodKey(periodLabel);
   const periodData = stats?.[periodKey];
 
   if (!periodData || typeof periodData !== 'object') {
@@ -90,7 +87,7 @@ export default function TaskDashboard({
   onProvinceOptionsChange,
   hideFilters = false,
 }) {
-  const [bulananFilter, setBulananFilter] = useState('Bulan ini');
+  const [bulananFilter, setBulananFilter] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [provinsiFilter, setProvinsiFilter] = useState('Semua Provinsi');
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
   const [provinsiAnchorEl, setProvinsiAnchorEl] = useState(null);
@@ -122,7 +119,7 @@ export default function TaskDashboard({
     return !(stateStatsCache.get(stateStatsCacheKey)?.data);
   });
 
-  const bulananOptions = ['Hari Ini', '7 Hari Terakhir', 'Bulan ini'];
+  const bulananOptions = DASHBOARD_PERIOD_OPTIONS;
   const provinsiOptions = useMemo(() => {
     const baseOptions = ['Semua Provinsi'];
     if (!stateStats) {
@@ -357,15 +354,44 @@ export default function TaskDashboard({
     <Card
       elevation={0}
       sx={{
-        background: '#FFFFFF',
+        background:
+          'linear-gradient(135deg, rgba(107, 163, 208, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
         borderRadius: { xs: '16px', sm: '20px' },
         padding: { xs: '20px', sm: '24px' },
         boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)',
-        border: 'none',
+        border: '1px solid rgba(107, 163, 208, 0.18)',
         mb: 3,
         mt: -1,
+        position: 'relative',
+        isolation: 'isolate',
+        overflow: 'hidden',
       }}
     >
+      <DashboardIcon
+        sx={{
+          position: 'absolute',
+          right: { xs: -18, sm: -12, md: -6 },
+          top: { xs: 14, sm: 18, md: 20 },
+          fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
+          color: 'rgba(107, 163, 208, 0.12)',
+          transform: 'rotate(-10deg)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(90deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 1 }}>
         <Typography
@@ -791,10 +817,12 @@ export default function TaskDashboard({
               <Box
                 key={`status-skeleton-${idx}`}
                 sx={{
-                  borderRadius: '12px',
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  backgroundColor: '#FFFFFF',
+                  borderRadius: '5px',
+                  border: '1px solid rgba(107, 163, 208, 0.12)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.6)',
                   padding: { xs: '10px', sm: '12px' },
+                  boxShadow: '0 6px 16px rgba(38, 47, 68, 0.04)',
+                  backdropFilter: 'blur(10px)',
                 }}
               >
                 <Skeleton
@@ -818,10 +846,11 @@ export default function TaskDashboard({
               key={item.id}
               sx={{
                 borderRadius: '12px',
-                border: '1px solid rgba(0, 0, 0, 0.06)',
-                backgroundColor: '#FFFFFF',
+                border: '1px solid rgba(107, 163, 208, 0.12)',
+                backgroundColor: 'rgba(255, 255, 255, 0.6)',
                 padding: { xs: '10px', sm: '12px' },
-                boxShadow: '0 6px 16px rgba(15, 23, 42, 0.05)',
+                boxShadow: '0 6px 16px rgba(15, 23, 42, 0.04)',
+                backdropFilter: 'blur(10px)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -869,6 +898,7 @@ export default function TaskDashboard({
             </Box>
           ))
         )}
+      </Box>
       </Box>
     </Card>
   );

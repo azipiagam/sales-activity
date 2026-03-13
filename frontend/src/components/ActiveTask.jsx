@@ -16,6 +16,7 @@ import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
+import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 import Chip from '@mui/material/Chip';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Menu from '@mui/material/Menu';
@@ -34,8 +35,6 @@ import { apiRequest } from '../config/api';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import { getSales } from '../utils/auth';
 import LoadingManager from './loading/LoadingManager';
-import Lottie from 'lottie-react';
-import emptyBoxAnimation from '../media/Empty Box (3).json';
 import ModalResult from './ModalResult';
 
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
@@ -611,10 +610,17 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
   // Show no active task state
   if (activeTasks.length === 0) {
+    const emptyTaskLabel =
+      selectedFilter === 'done'
+        ? 'Belum ada task selesai'
+        : selectedFilter === 'more'
+        ? 'Belum ada task yang perlu dikerjakan'
+        : 'Task kosong';
+
     return (
-      <Container 
-        maxWidth="md" 
-        sx={{ 
+      <Container
+        maxWidth="md"
+        sx={{
           mt: 2,
           mb: 2,
           px: { xs: 2, sm: 3 },
@@ -626,42 +632,49 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       >
         <Box
           sx={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
-            padding: { xs: 3, sm: 4, md: 5 },
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 2,
-            minHeight: { xs: '200px', sm: '250px', md: '300px' },
+            minHeight: { xs: '200px', sm: '240px', md: '260px' },
+            transform: {
+              xs: 'translateY(24px)',
+              sm: 'translateY(30px)',
+              md: 'translateY(36px)',
+            },
           }}
         >
           <Box
             sx={{
-              width: { xs: '200px', sm: '250px', md: '300px' },
-              height: { xs: '200px', sm: '250px', md: '300px' },
-              mb: 2,
+              width: { xs: 96, sm: 112, md: 124 },
+              height: { xs: 96, sm: 112, md: 124 },
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background:
+                'radial-gradient(circle at 30% 30%, rgba(107, 163, 208, 0.22), rgba(107, 163, 208, 0.08) 68%, rgba(107, 163, 208, 0.03) 100%)',
+              border: '1px solid rgba(107, 163, 208, 0.18)',
+              boxShadow: '0 16px 34px rgba(107, 163, 208, 0.12)',
             }}
           >
-            <Lottie
-              animationData={emptyBoxAnimation}
-              loop={true}
+            <TaskOutlinedIcon
+              sx={{
+                fontSize: { xs: '3.25rem', sm: '3.75rem', md: '4rem' },
+                color: '#6BA3D0',
+              }}
             />
           </Box>
-          <Typography 
-            color="text.secondary"
+          <Typography
             sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
+              fontSize: { xs: '0.95rem', sm: '1rem', md: '1.05rem' },
+              fontWeight: 600,
+              color: '#5a8fb8',
             }}
           >
-            {selectedFilter === 'done' 
-              ? 'Tidak ada task yang sudah selesai' 
-              : selectedFilter === 'more' 
-              ? 'Tidak ada task yang perlu dikerjakan' 
-              : 'Tidak ada active task saat ini'}
+            {emptyTaskLabel}
           </Typography>
         </Box>
       </Container>
@@ -679,221 +692,263 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     >
       {activeTasks.map((activeTask, index) => {
         const isExpanded = Boolean(expandedTaskById?.[activeTask.id]);
+        const isDoneTask = activeTask.status === 'done';
+        const isDeletedTask = activeTask.status === 'deleted';
+        const summaryLabel = isExpanded ? 'Plan No' : 'Keterangan Tambahan';
+        const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
+        const blueStatusTone = {
+          accent: '#6BA3D0',
+          text: '#4f86b1',
+          tint: 'rgba(107, 163, 208, 0.08)',
+          stripe: 'rgba(107, 163, 208, 0.12)',
+          border: 'rgba(107, 163, 208, 0.25)',
+          iconTint: 'rgba(107, 163, 208, 0.12)',
+        };
         const statusToneMap = {
           done: {
-            accent: '#4caf50',
-            tint: 'rgba(76, 175, 80, 0.08)',
-            border: 'rgba(76, 175, 80, 0.25)',
+            ...blueStatusTone,
+            icon: TaskAltIcon,
           },
           missed: {
-            accent: '#d32f2f',
-            tint: 'rgba(211, 47, 47, 0.08)',
-            border: 'rgba(211, 47, 47, 0.25)',
+            ...blueStatusTone,
+            icon: WarningIcon,
           },
           rescheduled: {
-            accent: '#f57c00',
-            tint: 'rgba(245, 124, 0, 0.08)',
-            border: 'rgba(245, 124, 0, 0.25)',
+            ...blueStatusTone,
+            icon: EventIcon,
           },
           deleted: {
-            accent: '#757575',
-            tint: 'rgba(117, 117, 117, 0.08)',
-            border: 'rgba(117, 117, 117, 0.25)',
+            ...blueStatusTone,
+            icon: CancelIcon,
           },
           'in progress': {
-            accent: '#6BA3D0',
-            tint: 'rgba(107, 163, 208, 0.08)',
-            border: 'rgba(107, 163, 208, 0.25)',
+            ...blueStatusTone,
+            icon: PlayCircleIcon,
           },
         };
         const tone = statusToneMap[activeTask.status] || statusToneMap['in progress'];
+        const StatusBackgroundIcon = tone.icon;
+        const statusChipMap = {
+          done: 'Done',
+          deleted: 'Cancel',
+          missed: 'Missed',
+          rescheduled: 'Rescheduled',
+          'in progress': 'In Progress',
+        };
 
         return (
         <Box
           key={`task-${activeTask.id}-${activeTask.status}-${activeTask.visitDate.getTime()}`}
           sx={{
-            backgroundColor: '#FFFFFF',
+            background: `linear-gradient(135deg, ${tone.tint} 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)`,
             borderRadius: { xs: '10px', sm: '12px', md: '14px' },
             padding: { xs: 1.75, sm: 2.25, md: 2.75 },
-            border: '1px solid transparent',
+            border: `1px solid ${tone.border}`,
             boxShadow: '0 8px 20px rgba(17, 24, 39, 0.10)',
             position: 'relative',
+            isolation: 'isolate',
             overflow: 'hidden',
             mb: index < activeTasks.length - 1 ? 2 : 0,
-            opacity: activeTask.status === 'done' || activeTask.status === 'deleted' ? 0.7 : 1,
+            opacity: isDeletedTask ? 0.7 : 1,
             transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              background: `linear-gradient(90deg, ${tone.stripe} 0%, rgba(255, 255, 255, 0) 42%)`,
+              pointerEvents: 'none',
+            },
             '&:hover': {
               boxShadow: '0 10px 22px rgba(17, 24, 39, 0.12)',
               transform: 'translateY(-2px)',
             },
           }}
         >
-          {/* Header */}
-          <Box
+          <StatusBackgroundIcon
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 0.5,
-              mb: isExpanded ? 2 : 1,
+              position: 'absolute',
+              right: { xs: -6, sm: -4, md: 0 },
+              top: { xs: 6, sm: 8, md: 10 },
+              fontSize: { xs: '4.5rem', sm: '5rem', md: '5.5rem' },
+              color: tone.iconTint,
+              transform: 'rotate(-10deg)',
+              pointerEvents: 'none',
+              zIndex: 0,
             }}
-          >
+          />
+
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            {/* Header */}
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
-                width: '100%',
-                gap: 1,
-                borderBottom: '1px dashed rgba(0, 0, 0, 0.18)',
-                pb: 0.75,
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 0.5,
+                mb: isExpanded ? 2 : 1,
               }}
             >
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  width: '100%',
                   gap: 1,
-                  minWidth: 0,
-                  flex: 1,
-                  pr: { xs: 1, sm: 2 },
+                  borderBottom: '1px dashed rgba(0, 0, 0, 0.18)',
+                  pb: 0.75,
                 }}
               >
-                {activeTask.namaCustomer === 'CheckIn' ? (
-                  <LocationOnIcon
-                    sx={{
-                      fontSize: { xs: '1rem', sm: '1rem', md: '1rem' },
-                      color: '#6BA3D0',
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <PersonIcon
-                    sx={{
-                      fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
-                      color: '#6BA3D0',
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <ClickAwayListener onClickAway={() => setNameTooltipOpenId(null)}>
-                  <Tooltip
-                    title={activeTask.namaCustomer || ''}
-                    placement="top"
-                    arrow
-                    open={nameTooltipOpenId === activeTask.id}
-                    onClose={() => setNameTooltipOpenId(null)}
-                    disableHoverListener
-                    disableFocusListener
-                    disableTouchListener
-                  >
-                    <Typography
-                      variant="h6"
-                      onClick={() => {
-                        setNameTooltipOpenId((prev) => (prev === activeTask.id ? null : activeTask.id));
-                      }}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    minWidth: 0,
+                    flex: 1,
+                    pr: { xs: 1, sm: 2 },
+                  }}
+                >
+                  {activeTask.namaCustomer === 'CheckIn' ? (
+                    <LocationOnIcon
                       sx={{
-                        fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
-                        fontWeight: 700,
-                        color: '#6BA3D0',
-                        lineHeight: 1.4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%',
-                        cursor: 'pointer',
+                        fontSize: { xs: '1rem', sm: '1rem', md: '1rem' },
+                        color: tone.accent,
+                        flexShrink: 0,
                       }}
+                    />
+                  ) : (
+                    <PersonIcon
+                      sx={{
+                        fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                        color: tone.accent,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  <ClickAwayListener onClickAway={() => setNameTooltipOpenId(null)}>
+                    <Tooltip
+                      title={activeTask.namaCustomer || ''}
+                      placement="top"
+                      arrow
+                      open={nameTooltipOpenId === activeTask.id}
+                      onClose={() => setNameTooltipOpenId(null)}
+                      disableHoverListener
+                      disableFocusListener
+                      disableTouchListener
                     >
-                      {activeTask.namaCustomer}
-                    </Typography>
-                  </Tooltip>
-                </ClickAwayListener>
+                      <Typography
+                        variant="h6"
+                        onClick={() => {
+                          setNameTooltipOpenId((prev) => (prev === activeTask.id ? null : activeTask.id));
+                        }}
+                        sx={{
+                          fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
+                          fontWeight: 700,
+                          color: tone.text,
+                          lineHeight: 1.4,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '100%',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {activeTask.namaCustomer}
+                      </Typography>
+                    </Tooltip>
+                  </ClickAwayListener>
+                </Box>
+
+                {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
+                  <IconButton
+                    onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                    size="small"
+                    sx={{
+                      color: '#666',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                        color: '#333',
+                      },
+                    }}
+                    aria-label="Menu task"
+                  >
+                    <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+                  </IconButton>
+                )}
               </Box>
 
-              {isExpanded && activeTask.status !== 'done' && activeTask.status !== 'deleted' && (
-                <IconButton
-                  onClick={(e) => handleOpenMenu(e, activeTask.id)}
-                  size="small"
-                  sx={{
-                    color: '#666',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+              <Box
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ minWidth: 0, flex: 1, pr: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                      color: '#999',
+                      mb: 0.25,
+                    }}
+                  >
+                    {summaryLabel}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
                       color: '#333',
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: !isExpanded ? '-webkit-box' : 'block',
+                      WebkitLineClamp: !isExpanded ? 2 : 'unset',
+                      WebkitBoxOrient: !isExpanded ? 'vertical' : 'initial',
+                    }}
+                  >
+                    {summaryValue}
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={() => toggleTaskDetails(activeTask.id)}
+                  variant="text"
+                  size="small"
+                  endIcon={
+                    isExpanded ? (
+                      <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    ) : (
+                      <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    )
+                  }
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                    color: tone.text,
+                    px: 0,
+                    minWidth: 'auto',
+                    alignSelf: 'flex-end',
+                    justifyContent: 'flex-end',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      textDecoration: 'underline',
                     },
                   }}
-                  aria-label="Menu task"
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
                 >
-                  <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                </IconButton>
-              )}
-            </Box>
-
-            <Box
-              sx={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-              }}
-            >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                    color: '#999',
-                    mb: 0.25,
-                  }}
-                >
-                  Plan No
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                    color: '#333',
-                    fontWeight: 600,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {activeTask.idPlan}
-                </Typography>
+                  {isExpanded ? 'Hide Detail' : 'View Detail'}
+                </Button>
               </Box>
-              <Button
-                onClick={() => toggleTaskDetails(activeTask.id)}
-                variant="text"
-                size="small"
-                endIcon={
-                  isExpanded ? (
-                    <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                  ) : (
-                    <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                  )
-                }
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  color: '#6BA3D0',
-                  px: 0,
-                  minWidth: 'auto',
-                  alignSelf: 'flex-end',
-                  justifyContent: 'flex-end',
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    textDecoration: 'underline',
-                  },
-                }}
-                aria-expanded={isExpanded}
-                aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
-              >
-                {isExpanded ? 'Hide Detail' : 'View Detail'}
-              </Button>
             </Box>
-          </Box>
 
-          {isExpanded && (
-            <>
+            {isExpanded && (
+              <>
           {/* Status Badge */}
           <Box sx={{ mb: 2 }}>
             <Typography
@@ -906,92 +961,17 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             >
               Status
             </Typography>
-            {activeTask.status === 'done' ? (
-              <Chip
-                icon={<CheckCircleIcon sx={{ fontSize: '0.875rem !important' }} />}
-                label="Done"
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(129, 199, 132, 0.15)',
-                  color: '#4caf50',
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  height: '24px',
-                  '& .MuiChip-icon': {
-                    color: '#4caf50',
-                    fontSize: '0.875rem',
-                  },
-                }}
-              />
-            ) : activeTask.status === 'deleted' ? (
-              <Chip
-                icon={<CancelIcon sx={{ fontSize: '0.875rem !important' }} />}
-                label="Cancel"
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(158, 158, 158, 0.15)',
-                  color: '#757575',
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  height: '24px',
-                  '& .MuiChip-icon': {
-                    color: '#757575',
-                    fontSize: '0.875rem',
-                  },
-                }}
-              />
-            ) : activeTask.status === 'missed' ? (
-              <Chip
-                icon={<WarningIcon sx={{ fontSize: '0.875rem !important' }} />}
-                label="Missed"
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
-                  color: '#d32f2f',
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  height: '24px',
-                  '& .MuiChip-icon': {
-                    color: '#d32f2f',
-                    fontSize: '0.875rem',
-                  },
-                }}
-              />
-            ) : activeTask.status === 'rescheduled' ? (
-              <Chip
-                icon={<EventIcon sx={{ fontSize: '0.875rem !important' }} />}
-                label="Rescheduled"
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                  color: '#f57c00',
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  height: '24px',
-                  '& .MuiChip-icon': {
-                    color: '#f57c00',
-                    fontSize: '0.875rem',
-                  },
-                }}
-              />
-            ) : (
-              <Chip
-                icon={<PlayCircleIcon sx={{ fontSize: '0.875rem !important' }} />}
-                label="In Progress"
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(107, 163, 208, 0.15)',
-                  color: '#5a8fb8',
-                  fontWeight: 500,
-                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                  height: '24px',
-                  '& .MuiChip-icon': {
-                    color: '#5a8fb8',
-                    fontSize: '0.875rem',
-                  },
-                }}
-              />
-            )}
+            <Chip
+              label={statusChipMap[activeTask.status] || 'In Progress'}
+              size="small"
+              sx={{
+                backgroundColor: 'rgba(107, 163, 208, 0.15)',
+                color: '#5a8fb8',
+                fontWeight: 500,
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                height: '24px',
+              }}
+            />
           </Box>
 
           {/* Tujuan */}
@@ -1114,7 +1094,8 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             </Box>
           )}
             </>
-          )}
+            )}
+          </Box>
         </Box>
         );
       })}

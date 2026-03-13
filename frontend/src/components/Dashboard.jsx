@@ -206,7 +206,7 @@ export default function Dashboard({
       />
 
       {/* Latest Customers */}
-      <LatestCustomers refreshKey={refreshKey} />
+      <LatestCustomers refreshKey={refreshKey} periodFilter={periodFilter} />
 
       {shouldShowError && (
         <Box sx={{ mb: 2 }}>

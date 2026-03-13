@@ -24,6 +24,10 @@ import { format } from 'date-fns';
 import { logout, getSales } from '../utils/auth';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import backgroundHeader from '../media/bgh1.svg';
+import {
+  DASHBOARD_PERIOD_OPTIONS,
+  DEFAULT_DASHBOARD_PERIOD,
+} from '../constants/dashboardPeriods';
 
 export default function Header({
   calendarAnchorEl,
@@ -61,9 +65,9 @@ export default function Header({
   const safeCalendarAnchorEl = calendarAnchorEl?.isConnected ? calendarAnchorEl : null;
   const isLogoutMenuOpen = Boolean(safeLogoutMenuAnchorEl);
 
-  const periodValue = dashboardPeriod || 'Bulan ini';
+  const periodValue = dashboardPeriod || DEFAULT_DASHBOARD_PERIOD;
   const provinceValue = dashboardProvince || 'Semua Provinsi';
-  const periodOptions = ['Hari Ini', '7 Hari Terakhir', 'Bulan ini'];
+  const periodOptions = DASHBOARD_PERIOD_OPTIONS;
   const provinceOptions = Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0
     ? dashboardProvinceOptions
     : ['Semua Provinsi'];

@@ -21,6 +21,7 @@ import CustomerDetailPage from './pages/CustomerDetailPage';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
+import { DEFAULT_DASHBOARD_PERIOD } from './constants/dashboardPeriods';
 
 const theme = createTheme({
   palette: {
@@ -52,7 +53,7 @@ function AppContent() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [dashboardPeriod, setDashboardPeriod] = useState('Bulan ini');
+  const [dashboardPeriod, setDashboardPeriod] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [dashboardProvince, setDashboardProvince] = useState('Semua Provinsi');
   const [dashboardProvinceOptions, setDashboardProvinceOptions] = useState(['Semua Provinsi']);
 
