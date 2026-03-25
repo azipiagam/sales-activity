@@ -42,6 +42,8 @@ export default function Login() {
     }
 
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
     try {
       const response = await fetch(getApiUrl('login'), {
@@ -50,16 +52,25 @@ export default function Login() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           username,
           password,
         }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : { message: await response.text() };
 
       if (!response.ok) {
-        throw new Error(data.message || 'Username atau password salah');
+        throw new Error(
+          data.message ||
+          (response.status === 503
+            ? 'Layanan login sedang bermasalah. Koneksi database gagal.'
+            : 'Username atau password salah')
+        );
       }
 
       localStorage.setItem('token', data.token);
@@ -68,8 +79,13 @@ export default function Login() {
       // Pastikan user selalu diarahkan ke Dashboard setelah login pertama kali
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err.message || 'Terjadi kesalahan saat login');
+      if (err.name === 'AbortError') {
+        setError('Request login timeout. Periksa koneksi backend atau database.');
+      } else {
+        setError(err.message || 'Terjadi kesalahan saat login');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   };
@@ -174,7 +190,6 @@ export default function Login() {
           pt: { xs: 5, sm: 6, md: 7 },
           pb: { xs: 5, sm: 6 },
           background: 'linear-gradient(to bottom, #FFFFFF 0%, #FAFBFC 100%)',
-          flex: 1,
         }}
       >
         <motion.div

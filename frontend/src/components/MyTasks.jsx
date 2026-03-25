@@ -3,9 +3,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Skeleton from '@mui/material/Skeleton';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
-import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
@@ -195,16 +192,39 @@ export default function MyTasks({ selectedDate }) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
+  const sharedCardShadow = 'rgba(107, 163, 208, 0.12)';
 
   const blueCardTone = {
     accent: '#6BA3D0',
     textColor: '#3f6f94',
     borderColor: 'rgba(107, 163, 208, 0.26)',
-    iconTint: 'rgba(107, 163, 208, 0.12)',
+    shadowColor: sharedCardShadow,
     selectedBackground:
       'linear-gradient(145deg, rgba(107, 163, 208, 0.22) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
     background:
       'linear-gradient(145deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
+  };
+
+  const greenCardTone = {
+    accent: '#2e7d32',
+    textColor: '#2e7d32',
+    borderColor: 'rgba(46, 125, 50, 0.28)',
+    shadowColor: sharedCardShadow,
+    selectedBackground:
+      'linear-gradient(145deg, rgba(46, 125, 50, 0.22) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
+    background:
+      'linear-gradient(145deg, rgba(46, 125, 50, 0.10) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
+  };
+
+  const yellowCardTone = {
+    accent: '#b7791f',
+    textColor: '#b7791f',
+    borderColor: 'rgba(255, 193, 7, 0.34)',
+    shadowColor: sharedCardShadow,
+    selectedBackground:
+      'linear-gradient(145deg, rgba(255, 193, 7, 0.24) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
+    background:
+      'linear-gradient(145deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
   };
 
   const taskCards = [
@@ -213,21 +233,18 @@ export default function MyTasks({ selectedDate }) {
       label: 'Plan',
       value: stats.plan,
       ...blueCardTone,
-      icon: AssignmentOutlinedIcon,
     },
     {
       key: 'done',
       label: 'Done',
       value: stats.done,
-      ...blueCardTone,
-      icon: TaskAltIcon,
+      ...greenCardTone,
     },
     {
       key: 'more',
       label: 'To Do',
       value: stats.more,
-      ...blueCardTone,
-      icon: AccessTimeIcon,
+      ...yellowCardTone,
     },
   ];
 
@@ -250,7 +267,6 @@ export default function MyTasks({ selectedDate }) {
       >
         {taskCards.map((card) => {
           const isSelected = selectedFilter === card.key;
-          const Icon = card.icon;
 
           return (
             <Box
@@ -263,35 +279,21 @@ export default function MyTasks({ selectedDate }) {
                 minHeight: { xs: '88px', sm: '96px', md: '104px' },
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'flex-end',
+                justifyContent: 'center',
                 alignItems: 'flex-start',
-                position: 'relative',
-                overflow: 'hidden',
                 border: isSelected ? `2px solid ${card.accent}` : `1px solid ${card.borderColor}`,
                 boxShadow: isSelected
-                  ? `0 10px 22px ${card.iconTint}`
-                  : `0 6px 18px ${card.iconTint}`,
+                  ? `0 10px 22px ${card.shadowColor}`
+                  : `0 6px 18px ${card.shadowColor}`,
                 cursor: 'pointer',
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: `0 12px 24px ${card.iconTint}`,
+                  boxShadow: `0 12px 24px ${card.shadowColor}`,
                 },
               }}
             >
-              <Icon
-                sx={{
-                  position: 'absolute',
-                  right: { xs: -6, sm: -2 },
-                  top: { xs: 8, sm: 10 },
-                  fontSize: { xs: '3.75rem', sm: '4.25rem', md: '4.5rem' },
-                  color: card.iconTint,
-                  transform: 'rotate(-10deg)',
-                  pointerEvents: 'none',
-                }}
-              />
-
-              <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Box>
                 <Typography
                   variant="body2"
                   sx={{

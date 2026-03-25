@@ -10,9 +10,8 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
-import Tooltip from '@mui/material/Tooltip';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
-import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
@@ -83,7 +82,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
-  const [nameTooltipOpenId, setNameTooltipOpenId] = useState(null);
+  const [expandedCustomerNameId, setExpandedCustomerNameId] = useState(null);
 
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
   const safeMenuAnchor = menuAnchor?.isConnected ? menuAnchor : null;
@@ -695,52 +694,40 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const isExpanded = Boolean(expandedTaskById?.[activeTask.id]);
         const isDoneTask = activeTask.status === 'done';
         const isDeletedTask = activeTask.status === 'deleted';
+        const isCustomerNameExpanded = expandedCustomerNameId === activeTask.id;
         const summaryLabel = isExpanded ? 'Plan No' : 'Keterangan Tambahan';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
-        const blueStatusTone = {
+        const cardTone = {
           accent: '#6BA3D0',
           text: '#4f86b1',
           tint: 'rgba(107, 163, 208, 0.08)',
           stripe: 'rgba(107, 163, 208, 0.12)',
           border: 'rgba(107, 163, 208, 0.25)',
-          iconTint: 'rgba(107, 163, 208, 0.12)',
-          chipBackground: 'rgba(107, 163, 208, 0.15)',
-          chipText: '#5a8fb8',
-        };
-        const progressStatusTone = {
-          accent: '#7A8EA3',
-          text: '#617486',
-          tint: 'rgba(122, 142, 163, 0.10)',
-          stripe: 'rgba(122, 142, 163, 0.14)',
-          border: 'rgba(122, 142, 163, 0.26)',
-          iconTint: 'rgba(122, 142, 163, 0.14)',
-          chipBackground: 'rgba(122, 142, 163, 0.18)',
-          chipText: '#5d7184',
         };
         const statusToneMap = {
           done: {
-            ...blueStatusTone,
+            ...cardTone,
             icon: TaskAltIcon,
           },
           missed: {
-            ...blueStatusTone,
+            ...cardTone,
             icon: WarningIcon,
           },
           rescheduled: {
-            ...blueStatusTone,
+            ...cardTone,
             icon: EventIcon,
           },
           deleted: {
-            ...blueStatusTone,
+            ...cardTone,
             icon: CancelIcon,
           },
           'in progress': {
-            ...progressStatusTone,
-            icon: PlayCircleIcon,
+            ...cardTone,
+            icon: AutorenewIcon,
           },
         };
         const tone = statusToneMap[activeTask.status] || statusToneMap['in progress'];
-        const StatusBackgroundIcon = tone.icon;
+        const StatusIcon = tone.icon;
         const statusChipMap = {
           done: 'Done',
           deleted: 'Cancel',
@@ -748,6 +735,34 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           rescheduled: 'Rescheduled',
           'in progress': 'In Progress',
         };
+        const statusChipToneMap = {
+          done: {
+            backgroundColor: 'rgba(46, 125, 50, 0.14)',
+            color: '#2e7d32',
+            border: '1px solid rgba(46, 125, 50, 0.28)',
+          },
+          missed: {
+            backgroundColor: 'rgba(239, 83, 80, 0.14)',
+            color: '#d6524f',
+            border: '1px solid rgba(239, 83, 80, 0.28)',
+          },
+          rescheduled: {
+            backgroundColor: 'rgba(255, 167, 38, 0.16)',
+            color: '#d2871e',
+            border: '1px solid rgba(255, 167, 38, 0.3)',
+          },
+          deleted: {
+            backgroundColor: 'rgba(120, 144, 156, 0.16)',
+            color: '#607d8b',
+            border: '1px solid rgba(120, 144, 156, 0.28)',
+          },
+          'in progress': {
+            backgroundColor: 'rgba(255, 193, 7, 0.18)',
+            color: '#b7791f',
+            border: '1px solid rgba(255, 193, 7, 0.34)',
+          },
+        };
+        const statusChipTone = statusChipToneMap[activeTask.status] || statusChipToneMap['in progress'];
 
         return (
         <Box
@@ -777,35 +792,23 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             },
           }}
         >
-          <StatusBackgroundIcon
-            sx={{
-              position: 'absolute',
-              right: { xs: -6, sm: -4, md: 0 },
-              top: { xs: 6, sm: 8, md: 10 },
-              fontSize: { xs: '4.5rem', sm: '5rem', md: '5.5rem' },
-              color: tone.iconTint,
-              transform: 'rotate(-10deg)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }}
-          />
-
           <Box sx={{ position: 'relative', zIndex: 1 }}>
             {/* Header */}
             <Box
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'flex-start',
+                alignItems: 'stretch',
                 gap: 0.5,
                 mb: isExpanded ? 2 : 1,
               }}
             >
               <Box
                 sx={{
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  width: '100%',
+                  justifyContent: 'space-between',
                   gap: 1,
                   borderBottom: '1px dashed rgba(0, 0, 0, 0.18)',
                   pb: 0.75,
@@ -838,56 +841,90 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                       }}
                     />
                   )}
-                  <ClickAwayListener onClickAway={() => setNameTooltipOpenId(null)}>
-                    <Tooltip
-                      title={activeTask.namaCustomer || ''}
-                      placement="top"
-                      arrow
-                      open={nameTooltipOpenId === activeTask.id}
-                      onClose={() => setNameTooltipOpenId(null)}
-                      disableHoverListener
-                      disableFocusListener
-                      disableTouchListener
-                    >
+                  <ClickAwayListener
+                    onClickAway={() => {
+                      if (expandedCustomerNameId === activeTask.id) {
+                        setExpandedCustomerNameId(null);
+                      }
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography
                         variant="h6"
                         onClick={() => {
-                          setNameTooltipOpenId((prev) => (prev === activeTask.id ? null : activeTask.id));
+                          setExpandedCustomerNameId((prev) => (prev === activeTask.id ? null : activeTask.id));
                         }}
+                        title={activeTask.namaCustomer || ''}
                         sx={{
                           fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
                           fontWeight: 700,
                           color: tone.text,
                           lineHeight: 1.4,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          overflow: isCustomerNameExpanded ? 'visible' : 'hidden',
+                          textOverflow: isCustomerNameExpanded ? 'clip' : 'ellipsis',
+                          whiteSpace: isCustomerNameExpanded ? 'normal' : 'nowrap',
+                          wordBreak: 'break-word',
                           maxWidth: '100%',
                           cursor: 'pointer',
                         }}
+                        aria-expanded={isCustomerNameExpanded}
                       >
                         {activeTask.namaCustomer}
                       </Typography>
-                    </Tooltip>
+                    </Box>
                   </ClickAwayListener>
                 </Box>
 
-                {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
-                  <IconButton
-                    onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 0.5,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Chip
+                    icon={<StatusIcon />}
+                    label={statusChipMap[activeTask.status] || 'In Progress'}
                     size="small"
                     sx={{
-                      color: '#666',
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                        color: '#333',
+                      backgroundColor: statusChipTone.backgroundColor,
+                      color: statusChipTone.color,
+                      border: statusChipTone.border,
+                      fontWeight: 600,
+                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                      height: '28px',
+                      px: 0.25,
+                      '& .MuiChip-label': {
+                        px: 0.5,
+                      },
+                      '& .MuiChip-icon': {
+                        color: 'inherit',
+                        fontSize: '1rem',
+                        ml: 0.75,
+                        mr: -0.25,
                       },
                     }}
-                    aria-label="Menu task"
-                  >
-                    <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                  </IconButton>
-                )}
+                  />
+
+                  {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
+                    <IconButton
+                      onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                      size="small"
+                      sx={{
+                        color: '#666',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                          color: '#333',
+                        },
+                      }}
+                      aria-label="Menu task"
+                    >
+                      <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
 
               <Box
@@ -962,31 +999,6 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
             {isExpanded && (
               <>
-          {/* Status Badge */}
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-                color: '#999',
-                mb: 0.5,
-              }}
-            >
-              Status
-            </Typography>
-            <Chip
-              label={statusChipMap[activeTask.status] || 'In Progress'}
-              size="small"
-              sx={{
-                backgroundColor: tone.chipBackground,
-                color: tone.chipText,
-                fontWeight: 500,
-                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                height: '24px',
-              }}
-            />
-          </Box>
-
           {/* Tujuan */}
           <Box sx={{ mb: 2 }}>
             <Typography
