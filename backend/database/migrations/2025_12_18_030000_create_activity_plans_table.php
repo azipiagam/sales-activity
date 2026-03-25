@@ -33,11 +33,11 @@ return new class extends Migration
             $table->integer('result_location_distance')->nullable();
             $table->string('city')->nullable();
             $table->string('state')->nullable();
-            $table->bigInteger('result_location_timestamp')->nullable();
-            $table->bigInteger('result_saved_at')->nullable();
-            $table->bigInteger('created_at')->nullable();
-            $table->bigInteger('updated_at')->nullable();
-            $table->bigInteger('deleted_at')->nullable();
+            $table->timestamp('result_location_timestamp')->nullable();
+            $table->timestamp('result_saved_at')->nullable();
+            $table->timestamp('created_at')->nullable();
+            $table->timestamp('updated_at')->nullable();
+            $table->timestamp('deleted_at')->nullable();
         });
     }
 
