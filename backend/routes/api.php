@@ -7,6 +7,7 @@ use App\Http\Controllers\ActivityPlanController;
 use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -40,4 +41,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);
+
+    // Profile
+    Route::put('/auth/change-profile', [ProfileController::class, 'changeProfile']);
     });
