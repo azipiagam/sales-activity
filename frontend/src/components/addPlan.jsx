@@ -48,6 +48,8 @@ const DEFAULT_COORDINATES = {
   TOLERANCE: 0.0001,
 };
 
+const getTodayDateString = () => format(new Date(), 'yyyy-MM-dd');
+
 // Helper Components
 const ActivityTypeButton = ({ type, label, selected, onClick }) => (
   <Button
@@ -77,7 +79,7 @@ const ActivityTypeButton = ({ type, label, selected, onClick }) => (
 // Custom Hooks
 const useFormState = () => {
   const [formData, setFormData] = useState({
-    date: '',
+    date: getTodayDateString(),
     customerId: '',
     customer: null,
     tujuan: '',
@@ -90,7 +92,7 @@ const useFormState = () => {
 
   const resetForm = useCallback(() => {
     setFormData({
-      date: '',
+      date: getTodayDateString(),
       customerId: '',
       customer: null,
       tujuan: '',
@@ -261,6 +263,12 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const minSelectableDate = new Date();
   minSelectableDate.setHours(0, 0, 0, 0);
+
+  useEffect(() => {
+    if (open) {
+      updateField('date', getTodayDateString());
+    }
+  }, [open, updateField]);
 
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);

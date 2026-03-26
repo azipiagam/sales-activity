@@ -17,6 +17,7 @@ import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import GoogleMapsProvider from './components/GoogleMapsProvider';
 import CustomerDetailPage from './pages/CustomerDetailPage';
+import ChangePasswordPage from './login/ChangePasswordPage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -252,6 +253,7 @@ function App() {
               <ActivityPlanProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
+                  <Route path="/change-password" element={<ChangePasswordPage />} />
                   <Route
                     path="/customers/:id"
                     element={

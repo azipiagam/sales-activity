@@ -13,6 +13,7 @@ import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LogoutIcon from '@mui/icons-material/Logout';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -21,7 +22,8 @@ import { motion } from 'framer-motion';
 import DateCarousel from './DateCarousel';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
-import { logout, getSales } from '../utils/auth';
+import { getSales } from '../utils/auth';
+import { performLogout } from '../login/logout';
 import { useActivityPlans } from '../contexts/ActivityPlanContext';
 import backgroundHeader from '../media/bgh1.svg';
 import {
@@ -107,8 +109,12 @@ export default function Header({
 
   const handleLogout = () => {
     handleLogoutMenuClose();
-    logout();
-    navigate('/login');
+    performLogout({ navigate, replace: true });
+  };
+
+  const handleChangePassword = () => {
+    handleLogoutMenuClose();
+    navigate('/change-password', { state: { from: location.pathname } });
   };
 
   const handlePeriodClick = (event) => {
@@ -639,6 +645,32 @@ export default function Header({
             },
           }}
         >
+          <MenuItem
+            onClick={handleChangePassword}
+            sx={{
+              py: 1.25,
+              px: 2,
+              gap: 1.5,
+              borderRadius: '10px',
+              mx: 0.5,
+              my: 0.25,
+              '&:hover': {
+                backgroundColor: 'rgba(107, 163, 208, 0.10)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <LockResetIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Ganti Password"
+              primaryTypographyProps={{
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                color: 'text.primary',
+              }}
+            />
+          </MenuItem>
           <MenuItem
             onClick={handleLogout}
             sx={{

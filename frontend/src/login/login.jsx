@@ -95,7 +95,7 @@ export default function Login() {
   };
 
   const handleChangePassword = () => {
-    navigate('/change-password');
+    navigate('/change-password', { state: { from: '/login' } });
   };
 
   // Warna biru dari backgroundHeader.svg
@@ -383,27 +383,6 @@ export default function Login() {
                 }}
               />
             </motion.div>
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
-              <Button
-                variant="text"
-                onClick={handleChangePassword}
-                disabled={loading}
-                sx={{
-                  p: 0,
-                  minWidth: 'auto',
-                  textTransform: 'none',
-                  fontSize: '0.8125rem',
-                  color: '#6ba3d0',
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                Ganti Password?
-              </Button>
-            </Box>
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
