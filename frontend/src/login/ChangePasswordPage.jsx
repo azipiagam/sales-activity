@@ -124,13 +124,13 @@ export default function ChangePasswordPage() {
 
       const response = await apiRequest('auth/change-profile', {
           method: 'PUT',
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
       });
 
       const contentType = response.headers.get('content-type') || '';
       const payload = contentType.includes('application/json')
-        ? await response.json()
-        : { message: await response.text() };
+          ? await response.json()
+          : { message: await response.text() };
 
       if (!response.ok) {
         throw new Error(getApiErrorMessage(payload));
