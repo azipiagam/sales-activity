@@ -11,6 +11,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
@@ -247,9 +248,9 @@ export default function ChangePasswordPage() {
               <ArrowBackIcon />
             </IconButton>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-              <LockResetIcon sx={{ fontSize: 30 }} />
+              <ManageAccountsIcon sx={{ fontSize: 30 }} />
               <Typography sx={{ fontSize: { xs: '1.4rem', sm: '1.6rem' }, fontWeight: 700 }}>
-                Ubah Profil
+                Edit Profil
               </Typography>
             </Box>
             <Typography sx={{ color: 'rgba(255,255,255,0.88)', fontSize: { xs: '0.9rem', sm: '0.95rem' } }}>
@@ -344,7 +345,7 @@ export default function ChangePasswordPage() {
             type="submit"
             variant="contained"
             disabled={loading}
-            startIcon={loading ? null : <LockResetIcon />}
+            startIcon={loading ? null : <ManageAccountsIcon />}
             sx={{
               mt: 1,
               py: 1.4,

@@ -13,7 +13,7 @@ import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LogoutIcon from '@mui/icons-material/Logout';
-import LockResetIcon from '@mui/icons-material/LockReset';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -660,10 +660,10 @@ export default function Header({
             }}
           >
             <ListItemIcon sx={{ minWidth: 40 }}>
-              <LockResetIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
+              <ManageAccountsIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
             </ListItemIcon>
             <ListItemText
-              primary="Ganti Password"
+              primary="Edit Profile"
               primaryTypographyProps={{
                 fontSize: '0.95rem',
                 fontWeight: 500,
