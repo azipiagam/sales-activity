@@ -119,7 +119,7 @@ const buildWeeklyTotals = (rows, months) => {
   return totals;
 };
 
-export const downloadDashboardXls = ({ exportData, periodLabel, provinceLabel }) => {
+export const downloadDashboardXls = ({ exportData, periodLabel, provinceLabel, userName = '' }) => {
   const generatedAt = formatExportTimestamp();
   const months = getExportMonths(exportData);
   const rows = getExportRows(exportData);
@@ -252,12 +252,20 @@ export const downloadDashboardXls = ({ exportData, periodLabel, provinceLabel })
   });
   const downloadUrl = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
+  const userSegment = sanitizeFileNameSegment(userName);
   const timestamp = sanitizeFileNameSegment(generatedAt.replace(',', ''));
   const periodSegment = sanitizeFileNameSegment(periodLabel);
   const provinceSegment = sanitizeFileNameSegment(provinceLabel);
+  const fileNameSegments = [
+    userSegment,
+    'dashboard-weekly',
+    periodSegment,
+    provinceSegment,
+    timestamp,
+  ].filter(Boolean);
 
   link.href = downloadUrl;
-  link.download = `dashboard-weekly_${periodSegment}_${provinceSegment}_${timestamp}.xls`;
+  link.download = `${fileNameSegments.join('_')}.xls`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

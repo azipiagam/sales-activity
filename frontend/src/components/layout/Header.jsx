@@ -196,6 +196,7 @@ export default function Header({
         exportData: payload?.data ?? null,
         periodLabel,
         provinceLabel: provinceValue,
+        userName: sales?.name || sales?.username || '',
       });
 
       return { ok: true };
