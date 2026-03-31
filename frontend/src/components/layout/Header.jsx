@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -23,12 +24,16 @@ import { DateCarousel } from '../plan';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
+import { apiRequest } from '../../config/api';
 import { performLogout } from '../../login/logout';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import backgroundHeader from '../../media/bgh1.svg';
+import { downloadDashboardXls } from '../../utils/dashboardExport';
+import DashboardDownloadDialog from './DashboardDownloadDialog';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
+  getDashboardPeriodKey,
 } from '../../constants/dashboardPeriods';
 
 export default function Header({
@@ -53,6 +58,8 @@ export default function Header({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [periodAnchorEl, setPeriodAnchorEl] = useState(null);
   const [provinceAnchorEl, setProvinceAnchorEl] = useState(null);
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  const [isDownloadingDashboard, setIsDownloadingDashboard] = useState(false);
 
   const { invalidateCache, fetchAllPlans, fetchPlansByDate } = useActivityPlans();
 
@@ -95,6 +102,7 @@ export default function Header({
     setLogoutMenuAnchorEl(null);
     setPeriodAnchorEl(null);
     setProvinceAnchorEl(null);
+    setIsDownloadDialogOpen(false);
   }, [location.pathname]);
 
   const handleLogoutMenuClick = (event) => {
@@ -145,6 +153,76 @@ export default function Header({
       onDashboardProvinceChange(value);
     }
     handleProvinceClose(); 
+  };
+
+  const handleDownloadDialogOpen = () => {
+    setIsDownloadDialogOpen(true);
+  };
+
+  const handleDownloadDialogClose = () => {
+    if (isDownloadingDashboard) {
+      return;
+    }
+
+    setIsDownloadDialogOpen(false);
+  };
+
+  const handleDashboardDownload = async (periodLabel) => {
+    if (!sales?.internal_id) {
+      return {
+        ok: false,
+        message: 'Data user tidak ditemukan. Silakan login ulang.',
+      };
+    }
+
+    try {
+      setIsDownloadingDashboard(true);
+
+      const exportPeriodKey = getDashboardPeriodKey(periodLabel);
+      const query = new URLSearchParams({
+        sales_internal_id: sales.internal_id,
+        period: exportPeriodKey,
+        province: provinceValue,
+      }).toString();
+      const response = await apiRequest(`dashboard/customer-visits-weekly-export?${query}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch weekly export data (${response.status})`);
+      }
+
+      const payload = await response.json();
+
+      downloadDashboardXls({
+        exportData: payload?.data ?? null,
+        periodLabel,
+        provinceLabel: provinceValue,
+      });
+
+      return { ok: true };
+    } catch (error) {
+      console.error('Error downloading dashboard XLS:', error);
+      return {
+        ok: false,
+        message: 'File gagal disiapkan. Coba lagi dalam beberapa saat.',
+      };
+    } finally {
+      setIsDownloadingDashboard(false);
+    }
+  };
+
+  const handleHeaderActionClick = (event) => {
+    if (!isDashboardPage) {
+      if (typeof onCalendarClick === 'function') {
+        onCalendarClick(event);
+      }
+      return;
+    }
+
+    if (isDownloadingDashboard || !sales?.internal_id) {
+      return;
+    }
+
+    handleDownloadDialogOpen();
   };
 
   const handleReset = async () => {
@@ -348,7 +426,7 @@ export default function Header({
             </Box>
           </Box>
 
-          {/* RIGHT SIDE - Time and Calendar Icon */}
+          {/* RIGHT SIDE - Time and Action Icon */}
           <Box
             component={motion.div}
             initial={{ opacity: 0, x: 20 }}
@@ -393,9 +471,11 @@ export default function Header({
               </Typography>
             </Box>
 
-            {/* Calendar Icon Button */}
+            {/* Calendar for Plan / Download for Dashboard */}
             <IconButton
-              onClick={onCalendarClick}
+              onClick={handleHeaderActionClick}
+              disabled={isDashboardPage && (isDownloadingDashboard || !sales?.internal_id)}
+              aria-label={isDashboardPage ? 'download dashboard xls' : 'open calendar'}
               sx={{
                 width: { xs: 40, sm: 44, md: 48 },
                 height: { xs: 40, sm: 44, md: 48 },
@@ -412,14 +492,27 @@ export default function Header({
                 '&:active': {
                   transform: 'scale(0.95)',
                 },
+                '&.Mui-disabled': {
+                  backgroundColor: 'rgba(255,255,255,0.12)',
+                  borderColor: 'rgba(255,255,255,0.16)',
+                },
               }}
             >
-              <CalendarTodayIcon
-                sx={{
-                  color: 'white',
-                  fontSize: { xs: '20px', sm: '22px', md: '24px' },
-                }}
-              />
+              {isDashboardPage ? (
+                <FileDownloadOutlinedIcon
+                  sx={{
+                    color: 'white',
+                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                  }}
+                />
+              ) : (
+                <CalendarTodayIcon
+                  sx={{
+                    color: 'white',
+                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                  }}
+                />
+              )}
             </IconButton>
 
             {/* Reset Icon Button */}
@@ -761,6 +854,14 @@ export default function Header({
           </Menu>
         </>
       )}
+
+      <DashboardDownloadDialog
+        open={isDashboardPage && isDownloadDialogOpen}
+        onClose={handleDownloadDialogClose}
+        onConfirm={handleDashboardDownload}
+        provinceLabel={provinceValue}
+        isDownloading={isDownloadingDashboard}
+      />
 
       {/* DATE PICKER */}
       <Popover

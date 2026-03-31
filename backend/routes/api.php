@@ -26,6 +26,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/dashboard/state-stats', [DashboardController::class, 'getStateStats']);
     Route::get('/dashboard/customer-visits', [DashboardController::class, 'getCustomerVisits']);
+    Route::get('/dashboard/customer-visits-weekly-export', [DashboardController::class, 'getCustomerVisitsWeeklyExport']);
 
     // Customer search autocomplete
     Route::get('/customers/search', [CustomerController::class, 'search']);

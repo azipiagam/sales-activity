@@ -95,4 +95,37 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * GET /api/dashboard/customer-visits-weekly-export
+     */
+    public function getCustomerVisitsWeeklyExport(Request $request)
+    {
+        try {
+            $salesInternalId = $request->sales_internal_id;
+            $periodKey = $request->get('period', 'monthly');
+            $province = $request->get('province');
+
+            if (!$salesInternalId) {
+                return response()->json(['message' => 'Sales internal ID not found'], 400);
+            }
+
+            $exportData = $this->dashboardService->getCustomerVisitsWeeklyExport(
+                $salesInternalId,
+                $periodKey,
+                $province
+            );
+
+            return response()->json([
+                'data' => $exportData,
+                'message' => 'Customer weekly export data retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Customer Weekly Export Error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to retrieve customer weekly export data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
