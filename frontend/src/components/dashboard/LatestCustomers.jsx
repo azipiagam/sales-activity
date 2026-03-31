@@ -8,12 +8,12 @@ import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
-import { apiRequest } from '../config/api';
-import { getSales } from '../utils/auth';
+import { apiRequest } from '../../config/api';
+import { getSales } from '../../utils/auth';
 import {
   DEFAULT_DASHBOARD_PERIOD,
   getDashboardPeriodKey,
-} from '../constants/dashboardPeriods';
+} from '../../constants/dashboardPeriods';
 
 // Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI (same pattern as chart).
 const latestCustomersCache = new Map(); // key -> { data, timestamp }

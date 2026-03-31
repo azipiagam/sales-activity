@@ -7,8 +7,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { apiRequest } from '../config/api';
-import { getSales } from '../utils/auth';
+import { apiRequest } from '../../config/api';
+import { getSales } from '../../utils/auth';
 
 export default function LatestCustomerDetail() {
   const navigate = useNavigate();

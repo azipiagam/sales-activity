@@ -5,17 +5,19 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion } from 'framer-motion';
 
-import NavBottom from './components/NavBottom';
-import Header from './components/Header';
-import MyTasks from './components/MyTasks';
-import ActiveTask from './components/ActiveTask';
+import {
+  ActiveTask,
+  ErrorBoundary,
+  GoogleMapsProvider,
+  Header,
+  LoadingManager,
+  MyTasks,
+  NavBottom,
+} from './components';
 import Dashboard from './Dashboard';
-import LoadingManager from './components/loading/LoadingManager';
 import Login from './login/login';
-import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
-import GoogleMapsProvider from './components/GoogleMapsProvider';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import ChangePasswordPage from './login/ChangePasswordPage';
 

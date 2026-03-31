@@ -30,11 +30,11 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
-import { apiRequest } from '../config/api';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import { getSales } from '../utils/auth';
-import LoadingManager from './loading/LoadingManager';
-import ModalResult from './ModalResult';
+import { apiRequest } from '../../config/api';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { getSales } from '../../utils/auth';
+import { LoadingManager } from '../loading';
+import { ModalResult } from '../shared';
 
 const getTaskStatusPriority = (status, selectedFilter) => {
   if (selectedFilter === 'plan') {
@@ -396,7 +396,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       setSaving(true);
 
       // Get location automatically without showing location helper
-      const { getAccurateLocation } = await import('../utils/geocoding');
+      const { getAccurateLocation } = await import('../../utils/geocoding');
       const locationData = await getAccurateLocation({
         desiredAccuracy: 100,
         maxRetries: 2,

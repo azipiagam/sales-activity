@@ -16,13 +16,13 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { apiRequest } from '../config/api';
-import { getSales } from '../utils/auth';
+import { apiRequest } from '../../config/api';
+import { getSales } from '../../utils/auth';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
   getDashboardPeriodKey,
-} from '../constants/dashboardPeriods';
+} from '../../constants/dashboardPeriods';
 
 // Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI.
 const stateStatsCache = new Map(); // key -> { data, timestamp }

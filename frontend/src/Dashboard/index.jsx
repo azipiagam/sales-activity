@@ -1,5 +1,5 @@
 import React from 'react';
-import DashboardComponent from '../components/Dashboard';
+import { Dashboard as DashboardComponent } from '../components';
 
 export default function Dashboard({
   refreshKey,

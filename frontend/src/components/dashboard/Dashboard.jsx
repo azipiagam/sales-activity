@@ -4,8 +4,8 @@ import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Alert from '@mui/material/Alert';
 import { parse, format } from 'date-fns';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import { getSales } from '../utils/auth';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { getSales } from '../../utils/auth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 

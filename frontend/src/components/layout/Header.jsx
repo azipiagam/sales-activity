@@ -19,17 +19,17 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
-import DateCarousel from './DateCarousel';
+import { DateCarousel } from '../plan';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
-import { getSales } from '../utils/auth';
-import { performLogout } from '../login/logout';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import backgroundHeader from '../media/bgh1.svg';
+import { getSales } from '../../utils/auth';
+import { performLogout } from '../../login/logout';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import backgroundHeader from '../../media/bgh1.svg';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
-} from '../constants/dashboardPeriods';
+} from '../../constants/dashboardPeriods';
 
 export default function Header({
   calendarAnchorEl,

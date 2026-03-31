@@ -10,9 +10,8 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
-import AddPlan from './addPlan';
-import CheckIn from './checkIn';
 import { Fade } from '@mui/material';
+import { AddPlan, CheckIn } from '../plan';
 
 export default function NavBottom({ value, onChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
