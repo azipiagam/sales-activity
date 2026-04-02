@@ -22,6 +22,10 @@ Route::get('/test', function () {
 // Protected routes (butuh token)
 Route::middleware('auth.sales')->group(function () {
 
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
+
     // Dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/dashboard/state-stats', [DashboardController::class, 'getStateStats']);

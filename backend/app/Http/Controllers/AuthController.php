@@ -1,13 +1,12 @@
 <?php
-// app/Http/Controllers/AuthController.php
-// UPDATED: MySQL Version
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Models\CentralUser;
 
 class AuthController extends Controller
 {
@@ -18,52 +17,58 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Join sales_auth dengan master_sales untuk data lengkap
-        $sales = DB::table('sales_auth as sa')
-            ->leftJoin('master_sales as ms', 'sa.sales_internal_id', '=', 'ms.internal_id')
-            ->select(
-                'sa.id',
-                'sa.sales_internal_id',
-                'sa.sales_name',
-                'sa.username',
-                'sa.password',
-                'ms.email',
-                'ms.job_title',
-                'ms.department',
-                'ms.location'
-            )
-            ->where('sa.username', $request->username)
-            ->where('sa.is_active', true)
+        // Ambil user dari central_users
+        $user = CentralUser::where('username', $request->username)
+            ->where('is_active', 1)
             ->first();
 
-        if (!$sales) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        if (!Hash::check($request->password, $sales->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+        $allowedDepartments = ['Gosave GT', 'IT'];
+        if (!in_array($user->department, $allowedDepartments)) {
+            return response()->json(['message' => 'Access denied for your department'], 403);
         }
 
-        // Update last_login
-        DB::table('sales_auth')
-            ->where('id', $sales->id)
-            ->update([
-                'last_login' => now()->toDateTimeString()
-            ]);
+        // Cek akses touchpoint
+        $userApps = DB::connection('pilargroup')
+            ->table('central_user_apps')
+            ->where('user_id', $user->id)
+            ->first();
 
-        // Generate token
-        $token = base64_encode($sales->sales_internal_id . '|' . time() . '|' . Str::random(40));
+        $apps = $userApps ? json_decode($userApps->apps, true) : [];
+
+        if (!in_array('touchpoint', $apps)) {
+            return response()->json(['message' => 'Access denied for this application'], 403);
+        }
+
+        // Simpan apps ke dalam token via custom claims
+        $token = JWTAuth::claims(['apps' => $apps])->fromUser($user);
 
         return response()->json([
             'token' => $token,
-            'sales' => [
-                'internal_id' => $sales->sales_internal_id,
-                'name' => $sales->sales_name,
-                'username' => $sales->username,
-                'email' => $sales->email,
-                'job_title' => $sales->job_title,
-                'department' => $sales->department,
+            'user'  => [
+                'id'           => $user->id,
+                'internal_id'  => $user->internal_id,
+                'username'     => $user->username,
+                'name'         => $user->name,
+                'department'   => $user->department,
+                'job_position' => $user->job_position,
+                'job_level'    => $user->job_level,
+                'apps'         => $apps,
             ]
         ]);
+    }
+
+    public function me(Request $request)
+    {
+        return response()->json(auth('api')->user());
+    }
+
+    public function logout()
+    {
+        JWTAuth::invalidate(JWTAuth::getToken());
+        return response()->json(['message' => 'Logged out successfully']);
     }
 }
