@@ -1,45 +1,38 @@
 <?php
-// app/Http/Controllers/ProfileController.php
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use App\Services\BigQueryService;
 use Illuminate\Support\Facades\Log;
 
 class ProfileController extends Controller
 {
-    protected $bigQueryService;
-
-    public function __construct(BigQueryService $bigQueryService)
-    {
-        $this->bigQueryService = $bigQueryService;
-    }
-
     public function changeProfile(Request $request)
     {
         $request->validate([
             'current_password' => 'required',
             'new_username'     => 'nullable|string|min:3',
             'new_password'     => 'nullable|string|min:6',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:20',
         ]);
 
-        // Minimal salah satu harus diisi
-        if (!$request->new_username && !$request->new_password) {
+        if (!$request->new_username && !$request->new_password && !$request->email && !$request->phone) {
             return response()->json([
                 'success' => false,
-                'message' => 'Isi minimal new_username atau new_password'
+                'message' => 'Isi minimal new_username atau new_password atau email atau phone'
             ], 422);
         }
 
-        $salesInternalId = $request->sales_internal_id;
+        $userId = $request->user_id; // dari JWT payload (sub)
 
-        // Ambil data user
-        $user = DB::table('sales_auth')
-            ->where('sales_internal_id', $salesInternalId)
-            ->where('is_active', true)
+        // Ambil user dari central_users
+        $user = DB::connection('pilargroup')
+            ->table('central_users')
+            ->where('id', $userId)
+            ->where('is_active', 1)
             ->first();
 
         if (!$user) {
@@ -52,14 +45,14 @@ class ProfileController extends Controller
         }
 
         $updates = ['updated_at' => now()->toDateTimeString()];
-        $bqUpdates = ["updated_at = '" . now()->toDateTimeString() . "'"];
         $changed = [];
 
         // Ganti username
         if ($request->new_username) {
-            $exists = DB::table('sales_auth')
+            $exists = DB::connection('pilargroup')
+                ->table('central_users')
                 ->where('username', $request->new_username)
-                ->where('sales_internal_id', '!=', $salesInternalId)
+                ->where('id', '!=', $userId)
                 ->exists();
 
             if ($exists) {
@@ -67,37 +60,23 @@ class ProfileController extends Controller
             }
 
             $updates['username'] = $request->new_username;
-            $bqUpdates[] = "username = '{$request->new_username}'";
             $changed[] = 'username';
         }
 
         // Ganti password
         if ($request->new_password) {
-            $newHashedPassword = Hash::make($request->new_password);
-            $updates['password'] = $newHashedPassword;
-            $bqUpdates[] = "password = '{$newHashedPassword}'";
+            $updates['password'] = Hash::make($request->new_password);
             $changed[] = 'password';
         }
 
-        // Update MySQL
-        DB::table('sales_auth')
-            ->where('sales_internal_id', $salesInternalId)
+        if ($request->input('email') !== null) { $updates['email'] = $request->input('email'); $changed[] = 'email'; }
+        if ($request->input('phone') !== null) { $updates['phone'] = $request->input('phone'); $changed[] = 'phone'; }
+
+        // Update ke central_users
+        DB::connection('pilargroup')
+            ->table('central_users')
+            ->where('id', $userId)
             ->update($updates);
-
-        // Sync ke BigQuery
-        try {
-            $dataset = env('BIGQUERY_DATASET');
-            $project = env('BIGQUERY_PROJECT_ID');
-            $setClause = implode(', ', $bqUpdates);
-
-            $this->bigQueryService->runQuery("
-                UPDATE \`{$project}.{$dataset}.sales_auth\`
-                SET {$setClause}
-                WHERE sales_internal_id = '{$salesInternalId}'
-            ");
-        } catch (\Exception $e) {
-            Log::warning('BigQuery profile sync failed: ' . $e->getMessage());
-        }
 
         return response()->json([
             'success' => true,
