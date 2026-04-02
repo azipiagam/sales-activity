@@ -41,7 +41,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
-    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);  // Handle foto di sini
+    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);
