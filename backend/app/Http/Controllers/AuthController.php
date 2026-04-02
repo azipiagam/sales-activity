@@ -32,12 +32,12 @@ class AuthController extends Controller
         }
 
         // Cek akses touchpoint
-        $userApps = DB::connection('pilargroup')
-            ->table('central_user_apps')
-            ->where('user_id', $user->id)
-            ->first();
-
-        $apps = $userApps ? json_decode($userApps->apps, true) : [];
+        $apps = DB::connection('pilargroup')
+            ->table('central_user_projects as cup')
+            ->join('master_projects as mp', 'cup.project_id', '=', 'mp.id')
+            ->where('cup.user_id', $user->id)
+            ->pluck('mp.slug')
+            ->toArray();
 
         if (!in_array('touchpoint', $apps)) {
             return response()->json(['message' => 'Access denied for this application'], 403);
