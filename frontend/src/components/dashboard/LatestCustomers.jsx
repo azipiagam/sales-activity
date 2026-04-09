@@ -8,7 +8,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
-import { apiRequest } from '../../config/api';
+import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
 import {
   DEFAULT_DASHBOARD_PERIOD,

@@ -24,10 +24,10 @@ import { DateCarousel } from '../plan';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
-import { apiRequest } from '../../config/api';
+import { apiRequest } from '../../services/api';
 import { performLogout } from '../../login/logout';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
-import backgroundHeader from '../../media/bgh1.svg';
+import backgroundHeader from '../../assets/media/bgh1.svg';
 import { downloadDashboardXls } from '../../utils/dashboardExport';
 import DashboardDownloadDialog from './DashboardDownloadDialog';
 import {
@@ -66,7 +66,7 @@ export default function Header({
   const sales = getSales();
   const salesName = (sales && sales.name) ? sales.name : 'Sales';
 
-  const isPlanPage = location.pathname === '/plan';
+  const isPlanPage = location.pathname.startsWith('/plan');
   const isDashboardPage = location.pathname === '/';
   const safeLogoutMenuAnchorEl = logoutMenuAnchorEl?.isConnected ? logoutMenuAnchorEl : null;
   const safePeriodAnchorEl = periodAnchorEl?.isConnected ? periodAnchorEl : null;

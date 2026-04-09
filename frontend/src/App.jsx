@@ -20,6 +20,7 @@ import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import ChangePasswordPage from './login/ChangePasswordPage';
+import DonePage from './components/plan/Done/DonePage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -50,7 +51,8 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [navValue, setNavValue] = useState(location.pathname === '/plan' ? 1 : 0);
+  const isDonePage = location.pathname === '/plan/done';
+  const [navValue, setNavValue] = useState(location.pathname.startsWith('/plan') ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -66,7 +68,7 @@ function AppContent() {
     // Pastikan setelah login pertama kali, user selalu melihat Dashboard
     // navValue = 0 → Dashboard
     // navValue = 1 → Plan (My Activity Plan)
-    if (location.pathname === '/plan') {
+    if (location.pathname.startsWith('/plan')) {
       setNavValue(1);
       return;
     }
@@ -137,26 +139,30 @@ function AppContent() {
         overflow: 'hidden',
       }}
     >
-      {/* HEADER - Always visible, fixed at top */}
-      <Header
-        calendarAnchorEl={calendarAnchorEl}
-        onCalendarClick={handleCalendarClick}
-        onCalendarClose={handleCalendarClose}
-        pickerDate={pickerDate}
-        onPickerDateChange={handlePickerDateChange}
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-        onDateCarouselLoadingChange={setIsDateCarouselLoading}
-        onRefresh={handleRefresh}
-        dashboardPeriod={dashboardPeriod}
-        onDashboardPeriodChange={setDashboardPeriod}
-        dashboardProvince={dashboardProvince}
-        onDashboardProvinceChange={setDashboardProvince}
-        dashboardProvinceOptions={dashboardProvinceOptions}
-      />
+      {!isDonePage && (
+        <>
+          {/* HEADER - Always visible, fixed at top */}
+          <Header
+            calendarAnchorEl={calendarAnchorEl}
+            onCalendarClick={handleCalendarClick}
+            onCalendarClose={handleCalendarClose}
+            pickerDate={pickerDate}
+            onPickerDateChange={handlePickerDateChange}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            onDateCarouselLoadingChange={setIsDateCarouselLoading}
+            onRefresh={handleRefresh}
+            dashboardPeriod={dashboardPeriod}
+            onDashboardPeriodChange={setDashboardPeriod}
+            dashboardProvince={dashboardProvince}
+            onDashboardProvinceChange={setDashboardProvince}
+            dashboardProvinceOptions={dashboardProvinceOptions}
+          />
 
-      {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
-      {isDateCarouselLoading && <LoadingManager type="moveDate" />}
+          {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
+          {isDateCarouselLoading && <LoadingManager type="moveDate" />}
+        </>
+      )}
 
       {/* CONTENT - Scrollable area with animation */}
       <Box
@@ -164,7 +170,7 @@ function AppContent() {
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
-          pt: headerHeight,
+          pt: isDonePage ? 0 : headerHeight,
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
@@ -212,14 +218,20 @@ function AppContent() {
             }}
             style={{ width: '100%' }}
           >
-            <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-            <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+            {isDonePage ? (
+              <DonePage />
+            ) : (
+              <>
+                <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+              </>
+            )}
           </motion.div>
         )}
         </Box>
       </Box>
 
-      <NavBottom value={navValue} onChange={handleNavChange} />
+      {!isDonePage && <NavBottom value={navValue} onChange={handleNavChange} />}
     </Box>
   );
 }

@@ -16,7 +16,7 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { apiRequest } from '../../config/api';
+import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
 import {
   buildDashboardTaskData,

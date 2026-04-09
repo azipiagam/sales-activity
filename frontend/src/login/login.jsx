@@ -14,9 +14,9 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import { motion } from 'framer-motion';
-import { getApiUrl } from '../config/api';
-import backgroundHeaderSvg from '../media/bgh1.svg';
-// import backgroundBody from '../media/background.svg';
+import { getApiUrl } from '../services/api';
+import backgroundHeaderSvg from '../assets/media/bgh1.svg';
+// import backgroundBody from '../assets/media/background.svg';
 
 export default function Login() {
   const navigate = useNavigate();

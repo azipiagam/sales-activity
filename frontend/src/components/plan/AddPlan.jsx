@@ -24,10 +24,10 @@ import AddIcon from '@mui/icons-material/Add';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 
 // Custom imports
-import { apiRequest } from '../../config/api';
-import { AlertDialog } from '../feedback';
-import { LoadingPlan } from '../loading';
-import { AddressMap } from '../maps';
+import { apiRequest } from '../../services/api';
+import { AlertDialog } from './feedback';
+import { LoadingPlan } from './loading';
+import { AddressMap } from './maps';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 
 // Utilities

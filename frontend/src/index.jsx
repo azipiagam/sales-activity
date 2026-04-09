@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import backgroundSvg from './media/4.svg';
+import backgroundSvg from './assets/media/4.svg';
 
 import '@fontsource/inter/300.css';
 import '@fontsource/inter/400.css';

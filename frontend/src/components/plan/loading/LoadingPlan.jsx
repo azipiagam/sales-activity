@@ -2,8 +2,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import Lottie from 'lottie-react';
-import blueLoading from '../../media/MoveDate.json';
-import backgroundSvg from '../../media/background.svg';
+import blueLoading from '../../../assets/media/loadingDots.json';
+import backgroundSvg from '../../../assets/media/background.svg';
 
 const LoadingMoveDate = () => {
   return (

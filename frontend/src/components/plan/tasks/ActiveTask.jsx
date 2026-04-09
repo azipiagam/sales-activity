@@ -30,9 +30,10 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { parse, format } from 'date-fns';
-import { apiRequest } from '../../config/api';
-import { useActivityPlans } from '../../contexts/ActivityPlanContext';
-import { getSales } from '../../utils/auth';
+import { useNavigate } from 'react-router-dom';
+import { apiRequest } from '../../../services/api';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
+import { getSales } from '../../../utils/auth';
 import { LoadingManager } from '../loading';
 import { ModalResult } from '../shared';
 
@@ -70,6 +71,7 @@ const sortTasksByStatusAndDate = (tasks, selectedFilter) => {
 };
 
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
+  const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
@@ -347,9 +349,16 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   }, [activeTasks, menuTaskId]);
 
-  const handleOpenModal = (taskId) => {
-    setCurrentTaskId(taskId);
-    setOpenModal(true);
+  const handleOpenModal = (task) => {
+    if (!task?.id) return;
+
+    navigate(`/plan/done?taskId=${task.id}&date=${dateStr}`, {
+      state: {
+        taskId: task.id,
+        date: dateStr,
+        task,
+      },
+    });
   };
 
   const handleCloseModal = () => {
@@ -396,7 +405,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       setSaving(true);
 
       // Get location automatically without showing location helper
-      const { getAccurateLocation } = await import('../../utils/geocoding');
+      const { getAccurateLocation } = await import('../../../utils/geocoding');
       const locationData = await getAccurateLocation({
         desiredAccuracy: 100,
         maxRetries: 2,
@@ -1090,7 +1099,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               {/* Done button - only show if status is not "missed" */}
               {activeTask.status !== 'missed' && (
                 <Button
-                  onClick={() => handleOpenModal(activeTask.id)}
+                  onClick={() => handleOpenModal(activeTask)}
                   disabled={saving}
                   startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{

@@ -19,8 +19,8 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { motion } from 'framer-motion';
 import { getSales, getToken, isAuthenticated } from '../utils/auth';
 import { performLogout } from './logout';
-import backgroundHeaderSvg from '../media/bgh1.svg';
-import backgroundSvg from '../media/background.svg';
+import backgroundHeaderSvg from '../assets/media/bgh1.svg';
+import backgroundSvg from '../assets/media/background.svg';
 
 const CHANGE_PROFILE_URL = 'http://localhost:8000/api/auth/change-profile';
 
