@@ -31,6 +31,8 @@ const mapCustomersByPeriod = (customerVisitsByPeriod, periodLabel) => {
 };
 
 export default function LatestCustomers({ refreshKey, periodFilter }) {
+  const themeBluePrimary = 'var(--theme-blue-primary)';
+  const themeBluePrimaryRgb = '31, 78, 140';
   const salesInternalId = getSales()?.internal_id;
   const customersCacheKey = salesInternalId ? `latest-customers:${salesInternalId}` : null;
   const lastRefreshKeyRef = useRef(refreshKey);
@@ -167,11 +169,11 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
         elevation={0}
         sx={{
           background:
-            'linear-gradient(135deg, rgba(107, 163, 208, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
+            `linear-gradient(135deg, rgba(${themeBluePrimaryRgb}, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)`,
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           padding: { xs: '16px', sm: '20px', md: '24px' },
           boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-          border: '1px solid rgba(107, 163, 208, 0.18)',
+          border: `1px solid rgba(${themeBluePrimaryRgb}, 0.18)`,
           width: '100%',
           position: 'relative',
           isolation: 'isolate',
@@ -184,7 +186,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
             right: { xs: -18, sm: -10, md: -4 },
             top: { xs: 12, sm: 16, md: 18 },
             fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
-            color: 'rgba(107, 163, 208, 0.12)',
+            color: `rgba(${themeBluePrimaryRgb}, 0.12)`,
             transform: 'rotate(-10deg)',
             pointerEvents: 'none',
             zIndex: 0,
@@ -196,7 +198,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
             position: 'absolute',
             inset: 0,
             background:
-              'linear-gradient(90deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
+              `linear-gradient(90deg, rgba(${themeBluePrimaryRgb}, 0.10) 0%, rgba(255, 255, 255, 0) 42%)`,
             pointerEvents: 'none',
             zIndex: 0,
           }}
@@ -217,7 +219,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
             sx={{
               fontSize: { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' },
               fontWeight: 700,
-              color: '#6BA3D0',
+              color: themeBluePrimary,
               display: 'flex',
               alignItems: 'center',
               gap: 1,
@@ -226,7 +228,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
             <PeopleIcon
               sx={{
                 fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
-                color: '#6BA3D0',
+                color: themeBluePrimary,
               }}
             />
             Customers
@@ -239,10 +241,10 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
               }
             }}
             sx={{
-              color: '#6BA3D0',
+              color: themeBluePrimary,
               padding: { xs: '8px', sm: '10px' },
               '&:hover': {
-                backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                backgroundColor: `rgba(${themeBluePrimaryRgb}, 0.1)`,
               },
             }}
           >
@@ -268,13 +270,13 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '12px',
-                  backgroundColor: 'rgba(107, 163, 208, 0.06)',
+                  backgroundColor: `rgba(${themeBluePrimaryRgb}, 0.06)`,
                 },
                 '& .MuiInputBase-input': {
-                  color: '#6BA3D0',
+                  color: themeBluePrimary,
                 },
                 '& .MuiInputBase-input::placeholder': {
-                  color: '#6BA3D0',
+                  color: themeBluePrimary,
                   opacity: 1,
                 },
               }}
@@ -295,7 +297,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
             <Typography
               variant="body2"
               sx={{
-                color: '#6BA3D0',
+                color: themeBluePrimary,
                 fontSize: '0.875rem',
               }}
             >
@@ -387,7 +389,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
                     sx={{
                       fontSize: { xs: '0.9375rem', sm: '1rem' },
                       fontWeight: 500,
-                      color: '#6BA3D0',
+                      color: themeBluePrimary,
                     }}
                   >
                     {customer.customer_name || 'N/A'}
@@ -397,7 +399,7 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
                   variant="body2"
                   sx={{
                     fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                    color: '#6BA3D0',
+                    color: themeBluePrimary,
                     fontWeight: 600,
                     ml: 2,
                     whiteSpace: 'nowrap',

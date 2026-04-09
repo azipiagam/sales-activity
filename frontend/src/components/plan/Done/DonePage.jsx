@@ -203,7 +203,14 @@ export default function DonePage() {
   }
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box
+      sx={{
+        width: '100%',
+        minHeight: '100dvh',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
       <HeaderDone
         onBack={handleBackToPlan}
         taskName={taskName}
@@ -227,72 +234,101 @@ export default function DonePage() {
         />
       )}
 
-      <Box
-        sx={{
-          px: { xs: 2, sm: 3 },
-          pb: { xs: 2.5, sm: 3.5 },
-          mt: { xs: -1.5, sm: -2 },
-          position: 'relative',
-          zIndex: 2,
-        }}
-      >
-        <Paper
+      {!cameraActive ? (
+        <Box
           sx={{
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: { xs: '20px', sm: '22px' },
-            border: '1px solid rgba(0, 0, 0, 0.08)',
-            backgroundColor: '#f6f6f6',
-            boxShadow: '0 12px 26px rgba(11, 30, 56, 0.12)',
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1200,
+            px: { xs: 0, md: 3 },
+            pointerEvents: 'none',
           }}
         >
-          {!currentLocation ? (
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                color: '#d32f2f',
-                fontWeight: 600,
-                mb: 1.5,
-              }}
-            >
-              Lokasi belum tersedia. Gunakan tombol refresh di header atau Ambil Lokasi Saat Ini pada area map.
-            </Typography>
-          ) : null}
-
-          <CardDone
-            result={result}
-            onResultChange={setResult}
-            capturedImage={capturedImage}
-            onOpenCamera={handleOpenCamera}
-            onRemoveImage={() => setCapturedImage(null)}
-            disabled={saving}
-          />
-
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleSaveResult}
-            disabled={saving || !currentLocation}
+          <Paper
             sx={{
-              mt: 2.25,
-              minHeight: 52,
-              textTransform: 'none',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: { xs: '1rem', sm: '1.05rem' },
-              color: '#fff',
-              background:
-                'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
-              '&:hover': {
-                background:
-                  'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
-              },
+              pointerEvents: 'auto',
+              mx: 'auto',
+              width: '100%',
+              maxWidth: 920,
+              minHeight: { xs: '35dvh', sm: '36dvh', md: 340 },
+              maxHeight: { xs: '54dvh', sm: '55dvh', md: 460 },
+              pt: { xs: 1.75, sm: 2.25 },
+              px: { xs: 2, sm: 2.5 },
+              pb: 'calc(env(safe-area-inset-bottom, 0px) + 14px)',
+              borderRadius: { xs: '24px 24px 0 0', sm: '26px 26px 0 0' },
+              border: '1px solid rgba(0, 0, 0, 0.08)',
+              borderBottom: 'none',
+              backgroundColor: '#f6f6f6',
+              boxShadow: '0 -14px 34px rgba(11, 30, 56, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
             }}
           >
-            {saving ? <CircularProgress size={20} color="inherit" /> : 'Done'}
-          </Button>
-        </Paper>
-      </Box>
+            <Box
+              sx={{
+                width: 56,
+                height: 5,
+                borderRadius: '999px',
+                backgroundColor: 'rgba(0, 0, 0, 0.18)',
+                mx: 'auto',
+                mb: 1.5,
+                flexShrink: 0,
+              }}
+            />
+
+            {!currentLocation ? (
+              <Typography
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  color: '#d32f2f',
+                  fontWeight: 600,
+                  mb: 1.5,
+                }}
+              >
+                Lokasi belum tersedia. Gunakan tombol refresh di header atau Ambil Lokasi Saat Ini pada area map.
+              </Typography>
+            ) : null}
+
+            <CardDone
+              result={result}
+              onResultChange={setResult}
+              capturedImage={capturedImage}
+              onOpenCamera={handleOpenCamera}
+              onRemoveImage={() => setCapturedImage(null)}
+              disabled={saving}
+            />
+
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleSaveResult}
+              disabled={saving || !currentLocation}
+              sx={{
+                mt: 'auto',
+                pt: 2,
+                minHeight: 52,
+                textTransform: 'none',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: { xs: '1rem', sm: '1.05rem' },
+                color: '#fff',
+                background:
+                  'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
+                '&:hover': {
+                  background:
+                    'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
+                },
+              }}
+            >
+              {saving ? <CircularProgress size={20} color="inherit" /> : 'Done'}
+            </Button>
+          </Paper>
+        </Box>
+      ) : null}
     </Box>
   );
 }

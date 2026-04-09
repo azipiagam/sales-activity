@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Skeleton from '@mui/material/Skeleton';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
@@ -192,39 +193,39 @@ export default function MyTasks({ selectedDate }) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-  const sharedCardShadow = 'rgba(107, 163, 208, 0.12)';
+  const sharedCardShadow = 'rgba(13, 37, 69, 0.28)';
 
   const blueCardTone = {
-    accent: '#6BA3D0',
-    textColor: '#3f6f94',
-    borderColor: 'rgba(107, 163, 208, 0.26)',
+    accent: '#86B7DE',
+    textColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.26)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(145deg, rgba(107, 163, 208, 0.22) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
+      'linear-gradient(135deg, var(--theme-blue-medium) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-overlay) 100%)',
     background:
-      'linear-gradient(145deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
+      'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-medium) 100%)',
   };
 
   const greenCardTone = {
-    accent: '#2e7d32',
-    textColor: '#2e7d32',
-    borderColor: 'rgba(46, 125, 50, 0.28)',
+    accent: 'rgba(104, 192, 122, 0.84)',
+    textColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(145deg, rgba(46, 125, 50, 0.22) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
+      'linear-gradient(135deg, #BFE8CA 0%, #8FD5A2 52%, #6FBE86 100%)',
     background:
-      'linear-gradient(145deg, rgba(46, 125, 50, 0.10) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
+      'linear-gradient(135deg, #7BC894 0%, #9EDCB0 52%, #C7ECD1 100%)',
   };
 
   const yellowCardTone = {
-    accent: '#b7791f',
-    textColor: '#b7791f',
-    borderColor: 'rgba(255, 193, 7, 0.34)',
+    accent: 'rgba(244, 169, 64, 0.82)',
+    textColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(145deg, rgba(255, 193, 7, 0.24) 0%, rgba(255, 255, 255, 0.96) 68%, #FFFFFF 100%)',
+      'linear-gradient(135deg, #FBE8BD 0%, #F5CF87 50%, #EAB86A 100%)',
     background:
-      'linear-gradient(145deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 255, 255, 0.98) 70%, #FFFFFF 100%)',
+      'linear-gradient(135deg, #EFC37A 0%, #F7D897 50%, #FCECC6 100%)',
   };
 
   const taskCards = [
@@ -281,26 +282,76 @@ export default function MyTasks({ selectedDate }) {
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'flex-start',
+                position: 'relative',
+                overflow: 'hidden',
                 border: isSelected ? `2px solid ${card.accent}` : `1px solid ${card.borderColor}`,
                 boxShadow: isSelected
-                  ? `0 10px 22px ${card.shadowColor}`
-                  : `0 6px 18px ${card.shadowColor}`,
+                  ? `0 18px 34px ${card.shadowColor}, 0 0 0 3px rgba(255, 255, 255, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.22)`
+                  : `0 8px 20px ${card.shadowColor}`,
                 cursor: 'pointer',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                transform: isSelected ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+                transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 52%)',
+                  opacity: isSelected ? 1 : 0.72,
+                  transition: 'opacity 0.22s ease',
+                  pointerEvents: 'none',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  right: '-16%',
+                  bottom: '-38%',
+                  width: '74%',
+                  height: '74%',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  pointerEvents: 'none',
+                },
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: `0 12px 24px ${card.shadowColor}`,
+                  transform: isSelected ? 'translateY(-5px) scale(1.03)' : 'translateY(-4px) scale(1.01)',
+                  boxShadow: `0 16px 30px ${card.shadowColor}`,
+                },
+                '&:hover::before': {
+                  opacity: 1,
                 },
               }}
             >
-              <Box>
+              {isSelected && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#163A6B',
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.22)',
+                    zIndex: 2,
+                  }}
+                >
+                  <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+                </Box>
+              )}
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
                 <Typography
                   variant="body2"
                   sx={{
-                    color: '#666',
+                    color: '#FFFFFF',
                     fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    fontWeight: 700,
                     mb: 1,
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.22)',
                   }}
                 >
                   {card.label}
@@ -310,7 +361,14 @@ export default function MyTasks({ selectedDate }) {
                     variant="text"
                     width="60%"
                     height={40}
-                    sx={{ transform: 'none' }}
+                    sx={{
+                      transform: 'none',
+                      bgcolor: 'rgba(255, 255, 255, 0.28)',
+                      '&::after': {
+                        background:
+                          'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent)',
+                      },
+                    }}
                   />
                 ) : (
                   <Typography
@@ -318,8 +376,9 @@ export default function MyTasks({ selectedDate }) {
                     sx={{
                       color: card.textColor,
                       fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                      fontWeight: 700,
+                      fontWeight: 800,
                       lineHeight: 1,
+                      textShadow: '0 2px 4px rgba(0, 0, 0, 0.24)',
                     }}
                   >
                     {card.value}

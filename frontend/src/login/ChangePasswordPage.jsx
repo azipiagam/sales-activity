@@ -20,9 +20,9 @@ import { motion } from 'framer-motion';
 import { getSales, getToken, isAuthenticated } from '../utils/auth';
 import { performLogout } from './logout';
 import backgroundHeaderSvg from '../assets/media/bgh1.svg';
-import BackgroundMain from '../assets/media/Background';
+import backgroundSvg from '../assets/media/background.svg';
+import { apiRequest } from '../services/api';
 
-const CHANGE_PROFILE_URL = 'http://localhost:8000/api/auth/change-profile';
 
 const getApiErrorMessage = (payload) => {
   if (payload?.message) {
@@ -123,20 +123,15 @@ export default function ChangePasswordPage() {
         body.new_password = newPassword;
       }
 
-      const response = await fetch(CHANGE_PROFILE_URL, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+      const response = await apiRequest('auth/change-profile', {
+          method: 'PUT',
+          body: JSON.stringify(body),
       });
 
       const contentType = response.headers.get('content-type') || '';
       const payload = contentType.includes('application/json')
-        ? await response.json()
-        : { message: await response.text() };
+          ? await response.json()
+          : { message: await response.text() };
 
       if (!response.ok) {
         throw new Error(getApiErrorMessage(payload));
@@ -181,13 +176,15 @@ export default function ChangePasswordPage() {
         justifyContent: 'center',
         px: { xs: 2, sm: 3 },
         py: { xs: 4, sm: 5 },
+        backgroundImage: `url(${backgroundSvg})`,
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         backgroundColor: '#F5F7FA',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      <BackgroundMain />
-
       <Box
         sx={{
           position: 'absolute',

@@ -269,7 +269,7 @@ export default function TaskDashboard({
       return [];
     }
     return [
-      { id: 1, value: taskData.plan, label: 'Plan', color: '#6BA3D0' }, // Soft blue
+      { id: 1, value: taskData.plan, label: 'Plan', color: 'var(--theme-blue-primary)' }, // Soft blue
       { id: 2, value: taskData.missed, label: 'Missed', color: '#F87171' }, // Soft red
       { id: 3, value: taskData.done, label: 'Done', color: '#34D399' }, // Soft green
     ].filter(item => item.value > 0);
@@ -278,7 +278,7 @@ export default function TaskDashboard({
   const statusCards = useMemo(() => {
     const safeTaskData = taskData ?? { plan: 0, done: 0, missed: 0 };
     return [
-      { id: 1, label: 'Plan', value: safeTaskData.plan, color: '#6BA3D0' },
+      { id: 1, label: 'Plan', value: safeTaskData.plan, color: 'var(--theme-blue-primary)' },
       { id: 2, label: 'Done', value: safeTaskData.done, color: '#34D399' },
       { id: 3, label: 'Missed', value: safeTaskData.missed, color: '#F87171' },
     ];
@@ -309,11 +309,11 @@ export default function TaskDashboard({
       elevation={0}
       sx={{
         background:
-          'linear-gradient(135deg, rgba(107, 163, 208, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
+          'linear-gradient(135deg, rgba(31, 78, 140, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
         borderRadius: { xs: '16px', sm: '20px' },
         padding: { xs: '20px', sm: '24px' },
         boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)',
-        border: '1px solid rgba(107, 163, 208, 0.18)',
+        border: '1px solid rgba(31, 78, 140, 0.18)',
         mb: 3,
         mt: -1,
         position: 'relative',
@@ -327,7 +327,7 @@ export default function TaskDashboard({
           right: { xs: -18, sm: -12, md: -6 },
           top: { xs: 14, sm: 18, md: 20 },
           fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
-          color: 'rgba(107, 163, 208, 0.12)',
+          color: 'rgba(31, 78, 140, 0.12)',
           transform: 'rotate(-10deg)',
           pointerEvents: 'none',
           zIndex: 0,
@@ -339,7 +339,7 @@ export default function TaskDashboard({
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(90deg, rgba(107, 163, 208, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
+            'linear-gradient(90deg, rgba(31, 78, 140, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
@@ -353,7 +353,7 @@ export default function TaskDashboard({
           sx={{
             fontSize: { xs: '1.125rem', sm: '1.25rem', md: '1.375rem' },
             fontWeight: 700,
-            color: '#6BA3D0',
+            color: 'var(--theme-blue-primary)',
             display: 'flex',
             alignItems: 'center',
             gap: 1,
@@ -364,7 +364,7 @@ export default function TaskDashboard({
           <DashboardIcon
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.375rem', md: '1.5rem' },
-              color: '#6BA3D0',
+              color: 'var(--theme-blue-primary)',
             }}
           />
           Dashboard
@@ -382,15 +382,15 @@ export default function TaskDashboard({
                   height: 40,
                   borderRadius: '12px',
                   border: '1px solid rgba(17, 24, 39, 0.08)',
-                  backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
+                  backgroundColor: filtersOpen ? 'rgba(31, 78, 140, 0.12)' : '#FFFFFF',
                   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
                   '&:hover': {
-                    backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
+                    backgroundColor: filtersOpen ? 'rgba(31, 78, 140, 0.16)' : '#F9FAFB',
                     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
                   },
                 }}
               >
-                <FilterListIcon sx={{ color: '#6BA3D0' }} />
+                <FilterListIcon sx={{ color: 'var(--theme-blue-primary)' }} />
               </IconButton>
             </Tooltip>
           </Box>
@@ -452,7 +452,7 @@ export default function TaskDashboard({
                 <CalendarTodayIcon
                   sx={{
                     fontSize: { xs: '1rem', sm: '1.125rem' },
-                    color: '#6BA3D0',
+                    color: 'var(--theme-blue-primary)',
                     flexShrink: 0,
                   }}
                 />
@@ -513,7 +513,7 @@ export default function TaskDashboard({
                   fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                   padding: { xs: '10px 16px', sm: '12px 20px' },
                   '&.Mui-selected': {
-                    backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.1)',
                   },
                 }}
               >
@@ -562,7 +562,7 @@ export default function TaskDashboard({
                 <LocationOnIcon
                   sx={{
                     fontSize: { xs: '1rem', sm: '1.125rem' },
-                    color: '#6BA3D0',
+                    color: 'var(--theme-blue-primary)',
                     flexShrink: 0,
                   }}
                 />
@@ -623,7 +623,7 @@ export default function TaskDashboard({
                   fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                   padding: { xs: '10px 16px', sm: '12px 20px' },
                   '&.Mui-selected': {
-                    backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.1)',
                   },
                 }}
               >
@@ -775,7 +775,7 @@ export default function TaskDashboard({
                 key={`status-skeleton-${idx}`}
                 sx={{
                   borderRadius: '5px',
-                  border: '1px solid rgba(107, 163, 208, 0.12)',
+                  border: '1px solid rgba(31, 78, 140, 0.12)',
                   backgroundColor: 'rgba(255, 255, 255, 0.6)',
                   padding: { xs: '10px', sm: '12px' },
                   boxShadow: '0 6px 16px rgba(38, 47, 68, 0.04)',
@@ -803,7 +803,7 @@ export default function TaskDashboard({
               key={item.id}
               sx={{
                 borderRadius: '12px',
-                border: '1px solid rgba(107, 163, 208, 0.12)',
+                border: '1px solid rgba(31, 78, 140, 0.12)',
                 backgroundColor: 'rgba(255, 255, 255, 0.6)',
                 padding: { xs: '10px', sm: '12px' },
                 boxShadow: '0 6px 16px rgba(15, 23, 42, 0.04)',

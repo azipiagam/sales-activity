@@ -88,7 +88,7 @@ export default function LatestCustomerDetail() {
 
         const chartData = [
           { id: 1, value: dailyCount, label: 'Hari Ini', color: '#34D399' },
-          { id: 2, value: remainingWeek, label: 'Sisa Minggu', color: '#6BA3D0' },
+          { id: 2, value: remainingWeek, label: 'Sisa Minggu', color: 'var(--theme-blue-primary)' },
           { id: 3, value: remainingMonth, label: 'Sisa Bulan', color: '#FBBF24' },
           { id: 4, value: olderVisits, label: 'Sebelumnya', color: '#F87171' },
         ];
@@ -149,12 +149,12 @@ export default function LatestCustomerDetail() {
           onClick={handleBack}
           startIcon={<ArrowBackIcon />}
           sx={{
-            color: '#6BA3D0',
+            color: 'var(--theme-blue-primary)',
             textTransform: 'none',
             minWidth: 'auto',
             px: 1.5,
             '&:hover': {
-              backgroundColor: 'rgba(107, 163, 208, 0.1)',
+              backgroundColor: 'rgba(31, 78, 140, 0.1)',
             },
           }}
         >

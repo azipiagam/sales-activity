@@ -53,7 +53,7 @@ const styles = {
     height: '58%',
     borderRadius: '50%',
     border: '30px solid rgba(31, 78, 140, 0.18)',
-  },
+},
   topGlow: {
     position: 'absolute',
     top: '4%',

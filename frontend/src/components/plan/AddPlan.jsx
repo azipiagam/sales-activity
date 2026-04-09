@@ -60,15 +60,15 @@ const ActivityTypeButton = ({ type, label, selected, onClick }) => (
       py: { xs: 1.25, sm: 1.5 },
       fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
       fontWeight: 600,
-      backgroundColor: selected ? '#6BA3D0' : 'transparent',
-      color: selected ? 'white' : '#6BA3D0',
-      borderColor: '#6BA3D0',
+      backgroundColor: selected ? 'var(--theme-blue-primary)' : 'transparent',
+      color: selected ? 'white' : 'var(--theme-blue-primary)',
+      borderColor: 'var(--theme-blue-primary)',
       borderRadius: { xs: '8px', sm: '10px' },
       textTransform: 'none',
       '&:hover': {
-        backgroundColor: selected ? '#5a8fb8' : 'rgba(107, 163, 208, 0.08)',
-        borderColor: '#6BA3D0',
-        color: selected ? 'white' : '#6BA3D0',
+        backgroundColor: selected ? 'var(--theme-blue-overlay)' : 'rgba(31, 78, 140, 0.08)',
+        borderColor: 'var(--theme-blue-primary)',
+        color: selected ? 'white' : 'var(--theme-blue-primary)',
       },
     }}
   >
@@ -567,7 +567,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
             alignItems: 'center',
             mb: 3,
             pb: 2,
-            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
+            borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
           }}
         >
           <Typography
@@ -575,13 +575,13 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#6BA3D0',
+              color: 'var(--theme-blue-primary)',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
             }}
           >
-            <AssignmentIcon sx={{ color: '#6BA3D0' }} />
+            <AssignmentIcon sx={{ color: 'var(--theme-blue-primary)' }} />
             Create Activity Plan
           </Typography>
           <IconButton
@@ -604,8 +604,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               gap: 1,
               p: 0.5,
               borderRadius: '999px',
-              backgroundColor: 'rgba(107, 163, 208, 0.12)',
-              border: '1px solid rgba(107, 163, 208, 0.2)',
+              backgroundColor: 'rgba(31, 78, 140, 0.12)',
+              border: '1px solid rgba(31, 78, 140, 0.2)',
             }}
           >
             <Button
@@ -616,8 +616,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                backgroundColor: '#6BA3D0',
-                '&:hover': { backgroundColor: '#5a8fb8' },
+                backgroundColor: 'var(--theme-blue-primary)',
+                '&:hover': { backgroundColor: 'var(--theme-blue-overlay)' },
               }}
               disabled
             >
@@ -632,7 +632,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                color: '#4e8ec2',
+                color: 'var(--theme-blue-overlay)',
               }}
             >
               Check In
@@ -684,10 +684,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                   },
                 },
@@ -748,10 +748,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                   },
                 }}
@@ -852,10 +852,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               '& .MuiOutlinedInput-root': {
                 borderRadius: { xs: '8px', sm: '10px' },
                 '&:hover fieldset': {
-                  borderColor: '#6BA3D0',
+                  borderColor: 'var(--theme-blue-primary)',
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#6BA3D0',
+                  borderColor: 'var(--theme-blue-primary)',
                 },
               },
             }}
@@ -882,7 +882,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                 zIndex: 10,
               }}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress sx={{ color: '#6BA3D0', mb: 1 }} />
+                  <CircularProgress sx={{ color: 'var(--theme-blue-primary)', mb: 1 }} />
                   <Typography variant="body2" sx={{ color: '#666' }}>
                     Mencari lokasi customer...
                   </Typography>
@@ -995,7 +995,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               transition: 'border-color 0.2s',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#6BA3D0';
+              e.target.style.borderColor = 'var(--theme-blue-primary)';
             }}
             onBlur={(e) => {
               e.target.style.borderColor = 'rgba(0, 0, 0, 0.23)';
@@ -1022,13 +1022,13 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               py: { xs: 1.25, sm: 1.5 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
               fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
+              borderColor: 'var(--theme-blue-primary)',
+              color: 'var(--theme-blue-primary)',
               borderRadius: { xs: '8px', sm: '10px' },
               textTransform: 'none',
               '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                borderColor: 'var(--theme-blue-overlay)',
+                backgroundColor: 'rgba(31, 78, 140, 0.08)',
               },
             }}
           >
@@ -1043,16 +1043,16 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               py: { xs: 1.25, sm: 1.5 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
               fontWeight: 600,
-              backgroundColor: '#6BA3D0',
+              backgroundColor: 'var(--theme-blue-primary)',
               color: 'white',
               borderRadius: { xs: '8px', sm: '10px' },
               textTransform: 'none',
               '&:hover': {
-                backgroundColor: '#5a8fb8',
+                backgroundColor: 'var(--theme-blue-overlay)',
                 color: 'white',
               },
               '&:disabled': {
-                backgroundColor: '#6BA3D0',
+                backgroundColor: 'var(--theme-blue-primary)',
                 opacity: 0.6,
               },
             }}
@@ -1073,4 +1073,5 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     </Dialog>
   );
 }
+
 

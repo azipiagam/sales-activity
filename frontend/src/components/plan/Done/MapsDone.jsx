@@ -17,7 +17,13 @@ export default function MapsDone({
       sx={{
         width: '100%',
         position: 'relative',
-        height: { xs: 360, sm: 460, md: 520 },
+        mt: 0,
+        height: {
+          xs: 'calc(100dvh - 206px)',
+          sm: 'calc(100dvh - 230px)',
+          md: 'calc(100dvh - 248px)',
+        },
+        minHeight: { xs: 320, sm: 380, md: 430 },
         overflow: 'hidden',
         borderBottom: '1px solid rgba(22, 58, 107, 0.14)',
         background:

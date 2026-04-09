@@ -20,6 +20,9 @@ export default function DashboardDownloadDialog({
   provinceLabel = 'Semua Provinsi',
   isDownloading = false,
 }) {
+  const themeBlueOverlay = 'var(--theme-blue-overlay)';
+  const themeBluePrimary = 'var(--theme-blue-primary)';
+  const themeBluePrimaryRgb = '31, 78, 140';
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -101,12 +104,12 @@ export default function DashboardDownloadDialog({
               alignItems: 'center',
               justifyContent: 'center',
               background:
-                'linear-gradient(135deg, rgba(107, 163, 208, 0.18) 0%, rgba(107, 163, 208, 0.08) 100%)',
-              border: '1px solid rgba(107, 163, 208, 0.18)',
+                `linear-gradient(135deg, rgba(${themeBluePrimaryRgb}, 0.18) 0%, rgba(${themeBluePrimaryRgb}, 0.08) 100%)`,
+              border: `1px solid rgba(${themeBluePrimaryRgb}, 0.18)`,
               flexShrink: 0,
             }}
           >
-            <FileDownloadOutlinedIcon sx={{ color: '#6BA3D0', fontSize: 24 }} />
+            <FileDownloadOutlinedIcon sx={{ color: themeBluePrimary, fontSize: 24 }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography
@@ -139,8 +142,8 @@ export default function DashboardDownloadDialog({
             mb: 1.75,
             p: 1.4,
             borderRadius: '18px',
-            backgroundColor: 'rgba(107, 163, 208, 0.08)',
-            border: '1px solid rgba(107, 163, 208, 0.16)',
+            backgroundColor: `rgba(${themeBluePrimaryRgb}, 0.08)`,
+            border: `1px solid rgba(${themeBluePrimaryRgb}, 0.16)`,
           }}
         >
           <Typography
@@ -178,16 +181,16 @@ export default function DashboardDownloadDialog({
                   mb: 1,
                   borderRadius: '18px',
                   border: isSelected
-                    ? '1px solid rgba(107, 163, 208, 0.45)'
+                    ? `1px solid rgba(${themeBluePrimaryRgb}, 0.45)`
                     : '1px solid rgba(17, 24, 39, 0.08)',
-                  backgroundColor: isSelected ? 'rgba(107, 163, 208, 0.08)' : '#FFFFFF',
+                  backgroundColor: isSelected ? `rgba(${themeBluePrimaryRgb}, 0.08)` : '#FFFFFF',
                   boxShadow: isSelected
-                    ? '0 10px 24px rgba(107, 163, 208, 0.14)'
+                    ? `0 10px 24px rgba(${themeBluePrimaryRgb}, 0.14)`
                     : '0 4px 14px rgba(15, 23, 42, 0.04)',
                   transition: 'all 180ms ease',
                   '&:hover': {
-                    borderColor: 'rgba(107, 163, 208, 0.28)',
-                    boxShadow: '0 10px 24px rgba(107, 163, 208, 0.10)',
+                    borderColor: `rgba(${themeBluePrimaryRgb}, 0.28)`,
+                    boxShadow: `0 10px 24px rgba(${themeBluePrimaryRgb}, 0.10)`,
                   },
                 }}
               >
@@ -198,9 +201,9 @@ export default function DashboardDownloadDialog({
                       disableRipple
                       sx={{
                         mt: 0.15,
-                        color: 'rgba(107, 163, 208, 0.5)',
+                        color: `rgba(${themeBluePrimaryRgb}, 0.5)`,
                         '&.Mui-checked': {
-                          color: '#6BA3D0',
+                          color: themeBluePrimary,
                         },
                       }}
                     />
@@ -298,9 +301,9 @@ export default function DashboardDownloadDialog({
             borderRadius: '14px',
             textTransform: 'none',
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #6BA3D0 0%, #4E8FC2 100%)',
+            background: `linear-gradient(135deg, ${themeBluePrimary} 0%, ${themeBlueOverlay} 100%)`,
             '&:hover': {
-              background: 'linear-gradient(135deg, #5C97C7 0%, #437EAF 100%)',
+              background: `linear-gradient(135deg, ${themeBlueOverlay} 0%, ${themeBluePrimary} 100%)`,
             },
           }}
         >
