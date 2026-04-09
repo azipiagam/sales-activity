@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion } from 'framer-motion';
+import BackgroundMain from './assets/media/Background';
 
 import {
   ActiveTask,
@@ -137,101 +138,114 @@ function AppContent() {
         flexDirection: 'column',
         backgroundColor: 'transparent',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
-      {!isDonePage && (
-        <>
-          {/* HEADER - Always visible, fixed at top */}
-          <Header
-            calendarAnchorEl={calendarAnchorEl}
-            onCalendarClick={handleCalendarClick}
-            onCalendarClose={handleCalendarClose}
-            pickerDate={pickerDate}
-            onPickerDateChange={handlePickerDateChange}
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-            onDateCarouselLoadingChange={setIsDateCarouselLoading}
-            onRefresh={handleRefresh}
-            dashboardPeriod={dashboardPeriod}
-            onDashboardPeriodChange={setDashboardPeriod}
-            dashboardProvince={dashboardProvince}
-            onDashboardProvinceChange={setDashboardProvince}
-            dashboardProvinceOptions={dashboardProvinceOptions}
-          />
+      <BackgroundMain />
 
-          {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
-          {isDateCarouselLoading && <LoadingManager type="moveDate" />}
-        </>
-      )}
-
-      {/* CONTENT - Scrollable area with animation */}
       <Box
         sx={{
-          flex: 1,
-          minHeight: 0,
-          overflow: 'hidden',
-          pt: isDonePage ? 0 : headerHeight,
           position: 'relative',
+          zIndex: 1,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
+        {!isDonePage && (
+          <>
+            {/* HEADER - Always visible, fixed at top */}
+            <Header
+              calendarAnchorEl={calendarAnchorEl}
+              onCalendarClick={handleCalendarClick}
+              onCalendarClose={handleCalendarClose}
+              pickerDate={pickerDate}
+              onPickerDateChange={handlePickerDateChange}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              onDateCarouselLoadingChange={setIsDateCarouselLoading}
+              onRefresh={handleRefresh}
+              dashboardPeriod={dashboardPeriod}
+              onDashboardPeriodChange={setDashboardPeriod}
+              dashboardProvince={dashboardProvince}
+              onDashboardProvinceChange={setDashboardProvince}
+              dashboardProvinceOptions={dashboardProvinceOptions}
+            />
+
+            {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
+            {isDateCarouselLoading && <LoadingManager type="moveDate" />}
+          </>
+        )}
+
+        {/* CONTENT - Scrollable area with animation */}
         <Box
           sx={{
             flex: 1,
             minHeight: 0,
-            overflowY: 'auto',
-            overscrollBehaviorY: 'contain',
-            WebkitOverflowScrolling: 'touch',
-            pb: 10,
+            overflow: 'hidden',
+            pt: isDonePage ? 0 : headerHeight,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-        {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
-        {navValue === 0 ? (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overscrollBehaviorY: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              pb: 10,
             }}
-            style={{ width: '100%' }}
           >
-            <Dashboard
-              refreshKey={refreshKey}
-              periodFilter={dashboardPeriod}
-              onPeriodFilterChange={setDashboardPeriod}
-              provinceFilter={dashboardProvince}
-              onProvinceFilterChange={setDashboardProvince}
-              onProvinceOptionsChange={setDashboardProvinceOptions}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="plan"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-            }}
-            style={{ width: '100%' }}
-          >
-            {isDonePage ? (
-              <DonePage />
-            ) : (
-              <>
-                <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-              </>
-            )}
-          </motion.div>
-        )}
+          {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
+          {navValue === 0 ? (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
+              <Dashboard
+                refreshKey={refreshKey}
+                periodFilter={dashboardPeriod}
+                onPeriodFilterChange={setDashboardPeriod}
+                provinceFilter={dashboardProvince}
+                onProvinceFilterChange={setDashboardProvince}
+                onProvinceOptionsChange={setDashboardProvinceOptions}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="plan"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
+              {isDonePage ? (
+                <DonePage />
+              ) : (
+                <>
+                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                </>
+              )}
+            </motion.div>
+          )}
+          </Box>
         </Box>
-      </Box>
 
-      {!isDonePage && <NavBottom value={navValue} onChange={handleNavChange} />}
+        {!isDonePage && <NavBottom value={navValue} onChange={handleNavChange} />}
+      </Box>
     </Box>
   );
 }

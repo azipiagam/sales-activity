@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -15,7 +14,9 @@ export default function DateCarousel({
   onLoadingChange,
   height,
 }) {
-  const primaryColor = '#6BA3D0'; 
+  const textOnLightAccent = 'var(--text-on-light-accent)';
+  const textOnBluePrimary = 'var(--text-on-blue-primary)';
+  const selectedDateText = 'var(--theme-blue-overlay)';
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const [isLoading, setIsLoading] = useState(false);
   const userClickTimeRef = useRef(0);
@@ -207,7 +208,7 @@ export default function DateCarousel({
 
   return (
     <Paper
-        elevation={2}
+        elevation={0}
         sx={{
           width: '100%',
           ...(height ? { height } : {}),
@@ -218,11 +219,12 @@ export default function DateCarousel({
           gap: { xs: 0.5, sm: 1 },
           mb: 0,
           mt: 0,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'transparent',
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           px: { xs: 0.5, sm: 1, md: 1.5 },
           py: 1,
-          overflow: 'visible', 
+          overflow: 'visible',
+          boxShadow: 'none',
           opacity: isLoading ? 0.65 : 1,
           pointerEvents: isLoading ? 'none' : 'auto',
         }}
@@ -232,13 +234,16 @@ export default function DateCarousel({
           onClick={handlePreviousWeek}
           disabled={isLoading}
           sx={{
-            color: primaryColor,
-            backgroundColor: '#FFFFFF',
+            color: textOnBluePrimary,
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            border: '2px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
             cursor: 'pointer',
             pointerEvents: 'auto',
             zIndex: 1,
             '&:hover': {
-              backgroundColor: alpha(primaryColor, 0.1),
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              borderColor: 'rgba(255,255,255,0.3)',
             },
             '&:disabled': {
               opacity: 0.5,
@@ -257,7 +262,7 @@ export default function DateCarousel({
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'transparent',
             py: 0.5,
             minWidth: 0, 
           }}
@@ -283,19 +288,28 @@ export default function DateCarousel({
                 justifyContent: 'center',
                 padding: { xs: '6px 2px', sm: '8px 3px', md: '10px 4px' },
                 cursor: 'pointer',
-                backgroundColor: selected ? primaryColor : '#FFFFFF',
-                color: selected ? 'white' : primaryColor,
+                background: selected
+                  ? 'linear-gradient(145deg, var(--theme-accent-primary), var(--theme-accent-highlight))'
+                  : 'rgba(255,255,255,0.15)',
+                color: textOnBluePrimary,
                 borderRadius: { xs: '8px', sm: '10px', md: '12px' },
+                border: selected
+                  ? '1.5px solid rgba(255, 255, 255, 0.55)'
+                  : '1.5px solid rgba(255,255,255,0.2)',
+                backdropFilter: selected ? 'none' : 'blur(10px)',
                 boxShadow: selected
-                  ? `0 2px 8px ${alpha(primaryColor, 0.4)}`
+                  ? '0 5px 14px rgba(244, 169, 64, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.2)'
                   : '0 1px 4px rgba(0, 0, 0, 0.1)',
                 transition: 'all 0.2s ease',
-                border: today && !selected ? `1.5px solid ${primaryColor}` : 'none',
+                outline: today && !selected ? `1.5px solid ${textOnLightAccent}` : 'none',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  backgroundColor: selected ? primaryColor : alpha(primaryColor, 0.1),
+                  background: selected
+                    ? 'linear-gradient(145deg, var(--theme-accent-highlight), var(--theme-accent-primary))'
+                    : 'rgba(255,255,255,0.25)',
+                  borderColor: selected ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255,255,255,0.3)',
                   boxShadow: selected
-                    ? `0 4px 12px ${alpha(primaryColor, 0.5)}`
+                    ? '0 8px 18px rgba(244, 169, 64, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.25)'
                     : '0 3px 8px rgba(0, 0, 0, 0.15)',
                 },
               }}
@@ -306,7 +320,7 @@ export default function DateCarousel({
                   fontSize: { xs: '0.55rem', sm: '0.6rem', md: '0.65rem' },
                   fontWeight: 600,
                   mb: { xs: 0.15, sm: 0.25 },
-                  color: selected ? 'white' : primaryColor,
+                  color: selected ? selectedDateText : textOnBluePrimary,
                   lineHeight: 1.1,
                 }}
               >
@@ -317,7 +331,7 @@ export default function DateCarousel({
                 sx={{
                   fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1.05rem' },
                   fontWeight: 700,
-                  color: selected ? 'white' : primaryColor,
+                  color: selected ? selectedDateText : textOnBluePrimary,
                   lineHeight: 1.1,
                 }}
               >
@@ -333,13 +347,16 @@ export default function DateCarousel({
           onClick={handleNextWeek}
           disabled={isLoading}
           sx={{
-            color: primaryColor,
-            backgroundColor: '#FFFFFF',
+            color: textOnBluePrimary,
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            border: '2px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
             cursor: 'pointer',
             pointerEvents: 'auto',
             zIndex: 1,
             '&:hover': {
-              backgroundColor: alpha(primaryColor, 0.1),
+              backgroundColor: 'rgba(255,255,255,0.25)',
+              borderColor: 'rgba(255,255,255,0.3)',
             },
             '&:disabled': {
               opacity: 0.5,

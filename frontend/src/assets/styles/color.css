@@ -53,4 +53,12 @@
   --summary-warning-background: rgba(244, 169, 64, 0.2);
   --summary-negative-text: #fff4da;
   --summary-negative-background: rgba(255, 200, 97, 0.18);
+
+  /* Text roles */
+  --text-on-blue-primary: var(--theme-white);
+  --text-on-blue-secondary: var(--theme-white-soft);
+  --text-on-blue-accent: var(--theme-accent-highlight);
+  --text-on-light-primary: var(--theme-blue-overlay);
+  --text-on-light-secondary: var(--theme-blue-medium);
+  --text-on-light-accent: var(--theme-accent-primary);
 }

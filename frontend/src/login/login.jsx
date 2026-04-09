@@ -154,8 +154,10 @@ export default function Login() {
             src="/logo-pilar.png"
             alt="Logo Pilar"
             sx={{
-              width: { xs: 100, sm: 120, md: 140 },
-              height: 'auto',
+              width: { xs: 170, sm: 220, md: 260 },
+              height: { xs: 82, sm: 96, md: 110 },
+              objectFit: 'cover',
+              objectPosition: 'center',
               display: 'block',
               filter: 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.28))',
             }}
