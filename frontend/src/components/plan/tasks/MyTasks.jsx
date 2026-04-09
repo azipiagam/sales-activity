@@ -5,8 +5,8 @@ import Container from '@mui/material/Container';
 import Skeleton from '@mui/material/Skeleton';
 import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import { getSales } from '../utils/auth';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
+import { getSales } from '../../../utils/auth';
 
 const fadeOut = keyframes`
   from {

@@ -16,66 +16,20 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
-import { apiRequest } from '../config/api';
-import { getSales } from '../utils/auth';
+import { apiRequest } from '../../services/api';
+import { getSales } from '../../utils/auth';
+import {
+  buildDashboardTaskData,
+} from '../../utils/dashboardExport';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
-  getDashboardPeriodKey,
-} from '../constants/dashboardPeriods';
+} from '../../constants/dashboardPeriods';
 
 // Simple in-memory cache so navigating back to Dashboard doesn't re-trigger loading UI.
 const stateStatsCache = new Map(); // key -> { data, timestamp }
 const pendingStateStatsRequests = new Map(); // key -> Promise
 const STATE_STATS_STALE_TIME = 30 * 1000; // 30s
-
-const computeTaskDataFromStats = (stats, periodLabel, provinsiLabel) => {
-  const toNumber = (value) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  if (!stats) {
-    return null;
-  }
-
-  const periodKey = getDashboardPeriodKey(periodLabel);
-  const periodData = stats?.[periodKey];
-
-  if (!periodData || typeof periodData !== 'object') {
-    return null;
-  }
-
-  const isAllStates = provinsiLabel === 'Semua Provinsi' || provinsiLabel === 'Provinsi';
-
-  if (isAllStates) {
-    const aggregated = Object.values(periodData).reduce(
-      (acc, stateValue) => ({
-        in_progress: acc.in_progress + toNumber(stateValue?.in_progress),
-        missed: acc.missed + toNumber(stateValue?.missed),
-        done: acc.done + toNumber(stateValue?.done),
-      }),
-      { in_progress: 0, missed: 0, done: 0 }
-    );
-
-    return {
-      plan: aggregated.in_progress,
-      missed: aggregated.missed,
-      done: aggregated.done,
-    };
-  }
-
-  const selectedStateData = periodData?.[provinsiLabel];
-  if (!selectedStateData) {
-    return null;
-  }
-
-  return {
-    plan: toNumber(selectedStateData.in_progress),
-    missed: toNumber(selectedStateData.missed),
-    done: toNumber(selectedStateData.done),
-  };
-};
 
 export default function TaskDashboard({
   selectedDate,
@@ -299,7 +253,7 @@ export default function TaskDashboard({
   }, [provinsiOptions, onProvinceOptionsChange]);
 
   const taskData = useMemo(
-    () => computeTaskDataFromStats(stateStats, effectivePeriodFilter, effectiveProvinceFilter),
+    () => buildDashboardTaskData(stateStats, effectivePeriodFilter, effectiveProvinceFilter),
     [stateStats, effectivePeriodFilter, effectiveProvinceFilter]
   );
 
@@ -404,6 +358,7 @@ export default function TaskDashboard({
             alignItems: 'center',
             gap: 1,
             userSelect: 'none',
+            minWidth: 0,
           }}
         >
           <DashboardIcon
@@ -415,28 +370,30 @@ export default function TaskDashboard({
           Dashboard
         </Typography>
         {!hideFilters && (
-          <Tooltip title={filtersOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'} arrow>
-            <IconButton
-              onClick={handleToggleFilters}
-              aria-label="toggle filters"
-              aria-expanded={filtersOpen}
-              size="small"
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '12px',
-                border: '1px solid rgba(17, 24, 39, 0.08)',
-                backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
-                boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-                '&:hover': {
-                  backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
-                  boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
-                },
-              }}
-            >
-              <FilterListIcon sx={{ color: '#6BA3D0' }} />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            <Tooltip title={filtersOpen ? 'Sembunyikan Filter' : 'Tampilkan Filter'} arrow>
+              <IconButton
+                onClick={handleToggleFilters}
+                aria-label="toggle filters"
+                aria-expanded={filtersOpen}
+                size="small"
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '12px',
+                  border: '1px solid rgba(17, 24, 39, 0.08)',
+                  backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.12)' : '#FFFFFF',
+                  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+                  '&:hover': {
+                    backgroundColor: filtersOpen ? 'rgba(107, 163, 208, 0.16)' : '#F9FAFB',
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                  },
+                }}
+              >
+                <FilterListIcon sx={{ color: '#6BA3D0' }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
         )}
       </Box>
 

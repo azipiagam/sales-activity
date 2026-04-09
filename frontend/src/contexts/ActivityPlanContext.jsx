@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { apiRequest } from '../config/api';
+import { apiRequest } from '../services/api';
 import { format } from 'date-fns';
 
 const ActivityPlanContext = createContext(null);

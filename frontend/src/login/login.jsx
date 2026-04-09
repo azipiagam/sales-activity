@@ -14,9 +14,9 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import { motion } from 'framer-motion';
-import { getApiUrl } from '../config/api';
-import backgroundHeaderSvg from '../media/bgh1.svg';
-// import backgroundBody from '../media/background.svg';
+import { getApiUrl } from '../services/api';
+import backgroundHeaderSvg from '../assets/media/bgh1.svg';
+// import backgroundBody from '../assets/media/background.svg';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -154,8 +154,10 @@ export default function Login() {
             src="/logo-pilar.png"
             alt="Logo Pilar"
             sx={{
-              width: { xs: 100, sm: 120, md: 140 },
-              height: 'auto',
+              width: { xs: 170, sm: 220, md: 260 },
+              height: { xs: 82, sm: 96, md: 110 },
+              objectFit: 'cover',
+              objectPosition: 'center',
               display: 'block',
               filter: 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.28))',
             }}

@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -19,17 +20,22 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { motion } from 'framer-motion';
-import DateCarousel from './DateCarousel';
+import { DateCarousel } from '../plan';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
-import { getSales } from '../utils/auth';
-import { performLogout } from '../login/logout';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
-import backgroundHeader from '../media/bgh1.svg';
+import { getSales } from '../../utils/auth';
+import { apiRequest } from '../../services/api';
+import { performLogout } from '../../login/logout';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import logoPiagam from '../../assets/media/logo-piagam2.png';
+// import backgroundHeader from '../../assets/media/bgh1.svg';
+import { downloadDashboardXls } from '../../utils/dashboardExport';
+import DashboardDownloadDialog from './DashboardDownloadDialog';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
-} from '../constants/dashboardPeriods';
+  getDashboardPeriodKey,
+} from '../../constants/dashboardPeriods';
 
 export default function Header({
   calendarAnchorEl,
@@ -47,19 +53,29 @@ export default function Header({
   onDashboardProvinceChange,
   dashboardProvinceOptions,
 }) {
+  const headerGradient =
+    'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-medium) 100%)';
+  const textOnBluePrimary = 'var(--text-on-blue-primary)';
+  const textOnBlueAccent = 'var(--text-on-blue-accent)';
+  const textOnLightPrimary = 'var(--text-on-light-primary)';
+  const textOnLightSecondary = 'var(--text-on-light-secondary)';
+  const textOnLightAccent = 'var(--text-on-light-accent)';
+
   const navigate = useNavigate();
   const location = useLocation();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [periodAnchorEl, setPeriodAnchorEl] = useState(null);
   const [provinceAnchorEl, setProvinceAnchorEl] = useState(null);
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+  const [isDownloadingDashboard, setIsDownloadingDashboard] = useState(false);
 
   const { invalidateCache, fetchAllPlans, fetchPlansByDate } = useActivityPlans();
 
   const sales = getSales();
   const salesName = (sales && sales.name) ? sales.name : 'Sales';
 
-  const isPlanPage = location.pathname === '/plan';
+  const isPlanPage = location.pathname.startsWith('/plan');
   const isDashboardPage = location.pathname === '/';
   const safeLogoutMenuAnchorEl = logoutMenuAnchorEl?.isConnected ? logoutMenuAnchorEl : null;
   const safePeriodAnchorEl = periodAnchorEl?.isConnected ? periodAnchorEl : null;
@@ -95,6 +111,7 @@ export default function Header({
     setLogoutMenuAnchorEl(null);
     setPeriodAnchorEl(null);
     setProvinceAnchorEl(null);
+    setIsDownloadDialogOpen(false);
   }, [location.pathname]);
 
   const handleLogoutMenuClick = (event) => {
@@ -147,6 +164,77 @@ export default function Header({
     handleProvinceClose(); 
   };
 
+  const handleDownloadDialogOpen = () => {
+    setIsDownloadDialogOpen(true);
+  };
+
+  const handleDownloadDialogClose = () => {
+    if (isDownloadingDashboard) {
+      return;
+    }
+
+    setIsDownloadDialogOpen(false);
+  };
+
+  const handleDashboardDownload = async (periodLabel) => {
+    if (!sales?.internal_id) {
+      return {
+        ok: false,
+        message: 'Data user tidak ditemukan. Silakan login ulang.',
+      };
+    }
+
+    try {
+      setIsDownloadingDashboard(true);
+
+      const exportPeriodKey = getDashboardPeriodKey(periodLabel);
+      const query = new URLSearchParams({
+        sales_internal_id: sales.internal_id,
+        period: exportPeriodKey,
+        province: provinceValue,
+      }).toString();
+      const response = await apiRequest(`dashboard/customer-visits-weekly-export?${query}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch weekly export data (${response.status})`);
+      }
+
+      const payload = await response.json();
+
+      downloadDashboardXls({
+        exportData: payload?.data ?? null,
+        periodLabel,
+        provinceLabel: provinceValue,
+        userName: sales?.name || sales?.username || '',
+      });
+
+      return { ok: true };
+    } catch (error) {
+      console.error('Error downloading dashboard XLS:', error);
+      return {
+        ok: false,
+        message: 'File gagal disiapkan. Coba lagi dalam beberapa saat.',
+      };
+    } finally {
+      setIsDownloadingDashboard(false);
+    }
+  };
+
+  const handleHeaderActionClick = (event) => {
+    if (!isDashboardPage) {
+      if (typeof onCalendarClick === 'function') {
+        onCalendarClick(event);
+      }
+      return;
+    }
+
+    if (isDownloadingDashboard || !sales?.internal_id) {
+      return;
+    }
+
+    handleDownloadDialogOpen();
+  };
+
   const handleReset = async () => {
     try {
       // Trigger shared refresh key for any page that listens to it.
@@ -177,7 +265,7 @@ export default function Header({
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: 'primary.main',
+          background: headerGradient,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)',
           borderBottomLeftRadius: { xs: '28px', sm: '32px', md: '36px' },
           borderBottomRightRadius: { xs: '28px', sm: '32px', md: '36px' },
@@ -186,7 +274,7 @@ export default function Header({
             content: '""',
             position: 'absolute',
             inset: 0,
-            backgroundImage: `url(${backgroundHeader})`,
+            // backgroundImage: `url(${backgroundHeader})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
@@ -204,6 +292,24 @@ export default function Header({
           },
         }}
       >
+        <Box
+          component="img"
+          src={logoPiagam}
+          alt=""
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            top: { xs: -22, sm: -30, md: -36 },
+            left: { xs: -16, sm: -8, md: 6 },
+            width: { xs: 110, sm: 142, md: 176 },
+            height: 'auto',
+            opacity: 0.2,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 0,
+          }}
+        />
+
         <Box
           sx={{
             position: 'relative',
@@ -254,34 +360,6 @@ export default function Header({
                 gap: { xs: 1.25, sm: 1.5, md: 1.75 },
               }}
             >
-              {/* Logo/Icon */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: { xs: 44, sm: 48, md: 52 },
-                  height: { xs: 44, sm: 48, md: 52 },
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  flexShrink: 0,
-                }}
-              >
-                <Box
-                  component="img"
-                  src="/logo-pilar.png"
-                  alt="Logo Pilar"
-                  sx={{
-                    width: { xs: 35, sm: 26, md: 30 },
-                    height: { xs: 35, sm: 26, md: 30 },
-                    objectFit: 'contain',
-                  }}
-                />
-              </Box>
-              
               {/* Greeting and User Info */}
               <Box
                 sx={{
@@ -296,7 +374,7 @@ export default function Header({
                     fontFamily: '"Inter", sans-serif',
                     fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
                     fontWeight: 400,
-                    color: 'rgba(255,255,255,0.85)',
+                    color: textOnBlueAccent,
                     lineHeight: 1.2,
                   }}
                 >
@@ -310,45 +388,24 @@ export default function Header({
                   }}
                 >
                   <Typography
+                    onClick={handleLogoutMenuClick}
                     sx={{
                       fontFamily: '"Inter", sans-serif',
                       fontSize: { xs: '0.80rem', sm: '0.90rem', md: '1.0rem' },
                       fontWeight: 700,
-                      color: 'white',
+                      color: textOnBluePrimary,
                       lineHeight: 1.2,
+                      cursor: 'pointer',
                     }}
                   >
                     {salesName}
                   </Typography>
-                  <Box
-                    onClick={handleLogoutMenuClick}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      padding: '2px',
-                      borderRadius: '4px',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255,255,255,0.15)',
-                      },
-                    }}
-                  >
-                    <ExpandMoreIcon
-                      sx={{
-                        color: 'white',
-                        fontSize: { xs: '16px', sm: '18px', md: '20px' },
-                        transition: 'transform 0.2s ease',
-                        transform: isLogoutMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      }}
-                    />
-                  </Box>
                 </Box>
               </Box>
             </Box>
           </Box>
 
-          {/* RIGHT SIDE - Time and Calendar Icon */}
+          {/* RIGHT SIDE - Time and Action Icon */}
           <Box
             component={motion.div}
             initial={{ opacity: 0, x: 20 }}
@@ -376,7 +433,7 @@ export default function Header({
             >
               <AccessTimeIcon
                 sx={{
-                  color: 'rgba(255,255,255,0.9)',
+                  color: textOnBlueAccent,
                   fontSize: { sm: '16px', md: '18px' },
                 }}
               />
@@ -385,7 +442,7 @@ export default function Header({
                   fontFamily: '"Inter", sans-serif',
                   fontSize: { sm: '0.75rem', md: '0.8rem' },
                   fontWeight: 500,
-                  color: 'white',
+                  color: textOnBlueAccent,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -393,9 +450,11 @@ export default function Header({
               </Typography>
             </Box>
 
-            {/* Calendar Icon Button */}
+            {/* Calendar for Plan / Download for Dashboard */}
             <IconButton
-              onClick={onCalendarClick}
+              onClick={handleHeaderActionClick}
+              disabled={isDashboardPage && (isDownloadingDashboard || !sales?.internal_id)}
+              aria-label={isDashboardPage ? 'download dashboard xls' : 'open calendar'}
               sx={{
                 width: { xs: 40, sm: 44, md: 48 },
                 height: { xs: 40, sm: 44, md: 48 },
@@ -412,14 +471,27 @@ export default function Header({
                 '&:active': {
                   transform: 'scale(0.95)',
                 },
+                '&.Mui-disabled': {
+                  backgroundColor: 'rgba(255,255,255,0.12)',
+                  borderColor: 'rgba(255,255,255,0.16)',
+                },
               }}
             >
-              <CalendarTodayIcon
-                sx={{
-                  color: 'white',
-                  fontSize: { xs: '20px', sm: '22px', md: '24px' },
-                }}
-              />
+              {isDashboardPage ? (
+                <FileDownloadOutlinedIcon
+                  sx={{
+                    color: 'white',
+                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                  }}
+                />
+              ) : (
+                <CalendarTodayIcon
+                  sx={{
+                    color: 'white',
+                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                  }}
+                />
+              )}
             </IconButton>
 
             {/* Reset Icon Button */}
@@ -473,7 +545,7 @@ export default function Header({
                 content: '""',
                 position: 'absolute',
                 inset: 0,
-                backgroundImage: `url(${backgroundHeader})`,
+                // backgroundImage: `url(${backgroundHeader})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
@@ -536,24 +608,24 @@ export default function Header({
                       minWidth: 0,
                       justifyContent: 'space-between',
                       backgroundColor: '#FFFFFF',
-                      color: '#1F2937',
+                      color: textOnLightPrimary,
                       borderRadius: { xs: '12px', sm: '14px', md: '16px' },
                       px: 1.5,
                       py: 0.9,
                       border: '1px solid rgba(0,0,0,0.06)',
                       '&:hover': { backgroundColor: '#F9FAFB' },
-                      '& .MuiButton-startIcon': { color: '#6BA3D0' },
+                      '& .MuiButton-startIcon': { color: textOnLightAccent },
                     }}
                   >
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: '#6B7280', lineHeight: 1.15 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnLightSecondary, lineHeight: 1.15 }}>
                         Periode
                       </Typography>
                       <Typography
                         sx={{
                           fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
                           fontWeight: 500,
-                          color: '#111827',
+                          color: textOnLightPrimary,
                           lineHeight: 1.15,
                         }}
                         noWrap
@@ -581,24 +653,24 @@ export default function Header({
                       minWidth: 0,
                       justifyContent: 'space-between',
                       backgroundColor: '#FFFFFF',
-                      color: '#1F2937',
+                      color: textOnLightPrimary,
                       borderRadius: { xs: '12px', sm: '14px', md: '16px' },
                       px: 1.5,
                       py: 0.9,
                       border: '1px solid rgba(0,0,0,0.06)',
                       '&:hover': { backgroundColor: '#F9FAFB' },
-                      '& .MuiButton-startIcon': { color: '#6BA3D0' },
+                      '& .MuiButton-startIcon': { color: textOnLightAccent },
                     }}
                   >
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: '#6B7280', lineHeight: 1.15 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnLightSecondary, lineHeight: 1.15 }}>
                         Provinsi
                       </Typography>
                       <Typography
                         sx={{
                           fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
                           fontWeight: 500,
-                          color: '#111827',
+                          color: textOnLightPrimary,
                           lineHeight: 1.15,
                         }}
                         noWrap
@@ -761,6 +833,14 @@ export default function Header({
           </Menu>
         </>
       )}
+
+      <DashboardDownloadDialog
+        open={isDashboardPage && isDownloadDialogOpen}
+        onClose={handleDownloadDialogClose}
+        onConfirm={handleDashboardDownload}
+        provinceLabel={provinceValue}
+        isDownloading={isDownloadingDashboard}
+      />
 
       {/* DATE PICKER */}
       <Popover

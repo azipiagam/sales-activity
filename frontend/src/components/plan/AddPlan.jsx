@@ -24,15 +24,15 @@ import AddIcon from '@mui/icons-material/Add';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 
 // Custom imports
-import { apiRequest } from '../config/api';
-import AddressMap from './AddressMap';
-import AlertDialog from './AlertDialog';
-import LoadingPlan from './loading/LoadingPlan';
-import { useActivityPlans } from '../contexts/ActivityPlanContext';
+import { apiRequest } from '../../services/api';
+import { AlertDialog } from './feedback';
+import { LoadingPlan } from './loading';
+import { AddressMap } from './maps';
+import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 
 // Utilities
 import { parse, format } from 'date-fns';
-import { getCoordinatesFromAddressEnhanced } from '../utils/geocoding';
+import { getCoordinatesFromAddressEnhanced } from '../../utils/geocoding';
 
 // Constants
 const ACTIVITY_TYPES = {

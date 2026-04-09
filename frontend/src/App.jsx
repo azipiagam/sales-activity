@@ -4,20 +4,24 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { motion } from 'framer-motion';
+import BackgroundMain from './assets/media/Background';
 
-import NavBottom from './components/NavBottom';
-import Header from './components/Header';
-import MyTasks from './components/MyTasks';
-import ActiveTask from './components/ActiveTask';
+import {
+  ActiveTask,
+  ErrorBoundary,
+  GoogleMapsProvider,
+  Header,
+  LoadingManager,
+  MyTasks,
+  NavBottom,
+} from './components';
 import Dashboard from './Dashboard';
-import LoadingManager from './components/loading/LoadingManager';
 import Login from './login/login';
-import ErrorBoundary from './components/ErrorBoundary';
 import { isAuthenticated } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
-import GoogleMapsProvider from './components/GoogleMapsProvider';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import ChangePasswordPage from './login/ChangePasswordPage';
+import DonePage from './components/plan/Done/DonePage';
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -48,7 +52,8 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [navValue, setNavValue] = useState(location.pathname === '/plan' ? 1 : 0);
+  const isDonePage = location.pathname === '/plan/done';
+  const [navValue, setNavValue] = useState(location.pathname.startsWith('/plan') ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -64,7 +69,7 @@ function AppContent() {
     // Pastikan setelah login pertama kali, user selalu melihat Dashboard
     // navValue = 0 → Dashboard
     // navValue = 1 → Plan (My Activity Plan)
-    if (location.pathname === '/plan') {
+    if (location.pathname.startsWith('/plan')) {
       setNavValue(1);
       return;
     }
@@ -133,91 +138,114 @@ function AppContent() {
         flexDirection: 'column',
         backgroundColor: 'transparent',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
-      {/* HEADER - Always visible, fixed at top */}
-      <Header
-        calendarAnchorEl={calendarAnchorEl}
-        onCalendarClick={handleCalendarClick}
-        onCalendarClose={handleCalendarClose}
-        pickerDate={pickerDate}
-        onPickerDateChange={handlePickerDateChange}
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-        onDateCarouselLoadingChange={setIsDateCarouselLoading}
-        onRefresh={handleRefresh}
-        dashboardPeriod={dashboardPeriod}
-        onDashboardPeriodChange={setDashboardPeriod}
-        dashboardProvince={dashboardProvince}
-        onDashboardProvinceChange={setDashboardProvince}
-        dashboardProvinceOptions={dashboardProvinceOptions}
-      />
+      <BackgroundMain />
 
-      {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
-      {isDateCarouselLoading && <LoadingManager type="moveDate" />}
-
-      {/* CONTENT - Scrollable area with animation */}
       <Box
         sx={{
-          flex: 1,
-          minHeight: 0,
-          overflow: 'hidden',
-          pt: headerHeight,
           position: 'relative',
+          zIndex: 1,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
+        {!isDonePage && (
+          <>
+            {/* HEADER - Always visible, fixed at top */}
+            <Header
+              calendarAnchorEl={calendarAnchorEl}
+              onCalendarClick={handleCalendarClick}
+              onCalendarClose={handleCalendarClose}
+              pickerDate={pickerDate}
+              onPickerDateChange={handlePickerDateChange}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              onDateCarouselLoadingChange={setIsDateCarouselLoading}
+              onRefresh={handleRefresh}
+              dashboardPeriod={dashboardPeriod}
+              onDashboardPeriodChange={setDashboardPeriod}
+              dashboardProvince={dashboardProvince}
+              onDashboardProvinceChange={setDashboardProvince}
+              dashboardProvinceOptions={dashboardProvinceOptions}
+            />
+
+            {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
+            {isDateCarouselLoading && <LoadingManager type="moveDate" />}
+          </>
+        )}
+
+        {/* CONTENT - Scrollable area with animation */}
         <Box
           sx={{
             flex: 1,
             minHeight: 0,
-            overflowY: 'auto',
-            overscrollBehaviorY: 'contain',
-            WebkitOverflowScrolling: 'touch',
-            pb: 10,
+            overflow: 'hidden',
+            pt: isDonePage ? 0 : headerHeight,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-        {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
-        {navValue === 0 ? (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overscrollBehaviorY: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              pb: 10,
             }}
-            style={{ width: '100%' }}
           >
-            <Dashboard
-              refreshKey={refreshKey}
-              periodFilter={dashboardPeriod}
-              onPeriodFilterChange={setDashboardPeriod}
-              provinceFilter={dashboardProvince}
-              onProvinceFilterChange={setDashboardProvince}
-              onProvinceOptionsChange={setDashboardProvinceOptions}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="plan"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-            }}
-            style={{ width: '100%' }}
-          >
-            <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-            <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-          </motion.div>
-        )}
+          {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
+          {navValue === 0 ? (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
+              <Dashboard
+                refreshKey={refreshKey}
+                periodFilter={dashboardPeriod}
+                onPeriodFilterChange={setDashboardPeriod}
+                provinceFilter={dashboardProvince}
+                onProvinceFilterChange={setDashboardProvince}
+                onProvinceOptionsChange={setDashboardProvinceOptions}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="plan"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
+              }}
+              style={{ width: '100%' }}
+            >
+              {isDonePage ? (
+                <DonePage />
+              ) : (
+                <>
+                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                </>
+              )}
+            </motion.div>
+          )}
+          </Box>
         </Box>
-      </Box>
 
-      <NavBottom value={navValue} onChange={handleNavChange} />
+        {!isDonePage && <NavBottom value={navValue} onChange={handleNavChange} />}
+      </Box>
     </Box>
   );
 }

@@ -2,8 +2,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import Lottie from 'lottie-react';
-import blueLoading from '../../media/MoveDate.json';
-import backgroundSvg from '../../media/background.svg';
+import blueLoading from '../../../assets/media/loadingDots.json';
+import BackgroundMain from '../../../assets/media/Background';
 
 const LoadingMoveDate = () => {
   return (
@@ -17,10 +17,6 @@ const LoadingMoveDate = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundImage: `url(${backgroundSvg})`,
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
         backgroundColor: '#F5F7FA',
         zIndex: 9999,
         '&::before': {
@@ -33,16 +29,18 @@ const LoadingMoveDate = () => {
           backgroundColor: 'rgba(255, 255, 255, 0.3)', 
           backdropFilter: 'blur(2px)', 
           WebkitBackdropFilter: 'blur(2px)',
-          zIndex: 0,
+          zIndex: 1,
         },
       }}
     >
+      <BackgroundMain />
+
       <Box 
         sx={{ 
           width: 160, 
           height: 160,
           position: 'relative',
-          zIndex: 1,
+          zIndex: 2,
         }}
       >
         <Lottie

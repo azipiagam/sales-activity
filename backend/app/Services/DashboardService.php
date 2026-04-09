@@ -94,6 +94,90 @@ class DashboardService
         ];
     }
 
+    /**
+     * Get customer visit export data aggregated by month and week buckets
+     */
+    public function getCustomerVisitsWeeklyExport($salesInternalId, $periodKey = 'monthly', $provinceFilter = null)
+    {
+        [$startDate, $endDate] = $this->resolveWeeklyExportRange($periodKey);
+        $months = $this->buildWeeklyExportMonths($startDate, $endDate);
+        $emptyWeeks = $this->buildEmptyWeeklyExportBuckets($months);
+
+        $visits = DB::table('activity_plans as ap')
+            ->leftJoin('master_customer as mc', function ($join) {
+                $join->on(
+                    DB::raw('ap.customer_id COLLATE utf8mb4_unicode_ci'),
+                    '=',
+                    DB::raw('mc.id COLLATE utf8mb4_unicode_ci')
+                );
+            })
+            ->select(
+                DB::raw('COALESCE(NULLIF(TRIM(ap.state), ""), NULLIF(TRIM(mc.state), ""), "Unknown") as province'),
+                DB::raw('COALESCE(NULLIF(TRIM(ap.customer_name), ""), "Unknown") as customer_name'),
+                'ap.plan_date'
+            )
+            ->where('ap.sales_internal_id', $salesInternalId)
+            ->where('ap.status', '!=', 'deleted')
+            ->whereNull('ap.deleted_at')
+            ->whereBetween('ap.plan_date', [$startDate, $endDate])
+            ->orderBy('ap.plan_date', 'desc')
+            ->get();
+
+        $rows = [];
+        $shouldFilterProvince = $this->shouldFilterExportProvince($provinceFilter);
+
+        foreach ($visits as $visit) {
+            $province = trim((string) ($visit->province ?? '')) ?: 'Unknown';
+
+            if ($shouldFilterProvince && $province !== $provinceFilter) {
+                continue;
+            }
+
+            $customer = trim((string) ($visit->customer_name ?? '')) ?: 'Unknown';
+            $visitDate = Carbon::parse($visit->plan_date);
+            $monthKey = $visitDate->format('Y-m');
+            $weekKey = $this->resolveWeeklyBucketKey($visitDate);
+            $rowKey = $province . '||' . $customer;
+
+            if (!isset($emptyWeeks[$monthKey])) {
+                continue;
+            }
+
+            if (!isset($rows[$rowKey])) {
+                $rows[$rowKey] = [
+                    'province' => $province,
+                    'customer' => $customer,
+                    'weeks' => $this->buildEmptyWeeklyExportBuckets($months),
+                    'total' => 0,
+                ];
+            }
+
+            $rows[$rowKey]['weeks'][$monthKey][$weekKey] += 1;
+            $rows[$rowKey]['total'] += 1;
+        }
+
+        $rows = array_values($rows);
+
+        usort($rows, function ($left, $right) {
+            $provinceCompare = strcasecmp($left['province'], $right['province']);
+            if ($provinceCompare !== 0) {
+                return $provinceCompare;
+            }
+
+            return strcasecmp($left['customer'], $right['customer']);
+        });
+
+        return [
+            'period_key' => $this->normalizeWeeklyExportPeriodKey($periodKey),
+            'months' => $months,
+            'rows' => $rows,
+            'summary' => [
+                'total_rows' => count($rows),
+                'total_visits' => array_sum(array_column($rows, 'total')),
+            ],
+        ];
+    }
+
     private function buildPeriodRanges()
     {
         $today = Carbon::today();
@@ -151,6 +235,95 @@ class DashboardService
             ->orderByDesc('visit_count')
             ->orderBy('customer_name')
             ->get();
+    }
+
+    private function normalizeWeeklyExportPeriodKey($periodKey)
+    {
+        $normalizedKey = strtolower(trim((string) $periodKey));
+        $allowedPeriods = ['monthly', 'previous_month', 'yearly'];
+
+        return in_array($normalizedKey, $allowedPeriods, true) ? $normalizedKey : 'monthly';
+    }
+
+    private function resolveWeeklyExportRange($periodKey)
+    {
+        $today = Carbon::today();
+        $normalizedPeriodKey = $this->normalizeWeeklyExportPeriodKey($periodKey);
+
+        if ($normalizedPeriodKey === 'previous_month') {
+            $previousMonth = $today->copy()->subMonth();
+
+            return [
+                $previousMonth->copy()->startOfMonth()->toDateString(),
+                $previousMonth->copy()->endOfMonth()->toDateString(),
+            ];
+        }
+
+        if ($normalizedPeriodKey === 'yearly') {
+            return [
+                $today->copy()->subMonths(11)->startOfMonth()->toDateString(),
+                $today->toDateString(),
+            ];
+        }
+
+        return [
+            $today->copy()->startOfMonth()->toDateString(),
+            $today->toDateString(),
+        ];
+    }
+
+    private function buildWeeklyExportMonths($startDate, $endDate)
+    {
+        $start = Carbon::parse($startDate)->startOfMonth();
+        $end = Carbon::parse($endDate)->startOfMonth();
+        $months = [];
+
+        for ($cursor = $end->copy(); $cursor->greaterThanOrEqualTo($start); $cursor->subMonth()) {
+            $months[] = [
+                'key' => $cursor->format('Y-m'),
+                'label' => ucfirst($cursor->locale('id')->translatedFormat('F')),
+                'year' => (int) $cursor->format('Y'),
+            ];
+        }
+
+        return $months;
+    }
+
+    private function buildEmptyWeeklyExportBuckets(array $months)
+    {
+        $buckets = [];
+
+        foreach ($months as $month) {
+            $monthKey = $month['key'];
+            $buckets[$monthKey] = [
+                'week1' => 0,
+                'week2' => 0,
+                'week3' => 0,
+                'week4' => 0,
+            ];
+        }
+
+        return $buckets;
+    }
+
+    private function shouldFilterExportProvince($provinceFilter)
+    {
+        if ($provinceFilter === null) {
+            return false;
+        }
+
+        $normalizedProvince = trim((string) $provinceFilter);
+
+        return $normalizedProvince !== '' &&
+            !in_array($normalizedProvince, ['Semua Provinsi', 'Provinsi'], true);
+    }
+
+    private function resolveWeeklyBucketKey(Carbon $date)
+    {
+        $weekNumber = (int) ceil($date->day / 7);
+        $weekNumber = max(1, min(4, $weekNumber));
+
+        return 'week' . $weekNumber;
     }
 
     /**

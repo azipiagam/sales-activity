@@ -1,6 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import LatestCustomerDetail from '../components/LatestCustomerDetail';
+import { LatestCustomerDetail } from '../components';
 
 export default function CustomerDetailPage() {
   return (
