@@ -48,6 +48,7 @@ Route::middleware('auth.sales')->group(function () {
     // ─── Activity Plans (existing + range) 
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
     Route::get('activity-plans/range', [ActivityPlanController::class, 'getRangePlans']);
+    Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
