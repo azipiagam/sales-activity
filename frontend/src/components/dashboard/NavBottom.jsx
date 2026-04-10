@@ -11,12 +11,14 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { Fade } from '@mui/material';
-import { AddPlan, CheckIn } from '../plan';
+import { AddAddress, AddPlan, CheckIn } from '../plan/add';
 
 export default function NavBottom({ value, onChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [openAddPlan, setOpenAddPlan] = useState(false);
+  const [openAddAddress, setOpenAddAddress] = useState(false);
   const [openCheckIn, setOpenCheckIn] = useState(false);
+  const [addressSelection, setAddressSelection] = useState(null);
 
   const themeBlueDark = 'var(--theme-blue-overlay)';
   const themeBlue = 'var(--theme-blue-primary)';
@@ -28,17 +30,51 @@ export default function NavBottom({ value, onChange }) {
 
   const handleFabClick = () => {
     setIsExpanded(false);
+    setAddressSelection(null);
     setOpenAddPlan(true);
   };
 
   const handleAddPlan = () => {
     setIsExpanded(false);
+    setAddressSelection(null);
     setOpenAddPlan(true);
   };  
 
   const handleCheckIn = () => {
     setIsExpanded(false);
     setOpenCheckIn(true);
+  };
+
+  const handleCloseAddPlan = () => {
+    setOpenAddPlan(false);
+    setAddressSelection(null);
+  };
+
+  const handleOpenAddAddress = (payload) => {
+    setAddressSelection({
+      address: payload?.address || '',
+      originalAddress: payload?.originalAddress || '',
+      latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
+      longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
+    });
+    setOpenAddPlan(false);
+    setOpenAddAddress(true);
+  };
+
+  const handleBackToAddPlanFromAddress = () => {
+    setOpenAddAddress(false);
+    setOpenAddPlan(true);
+  };
+
+  const handleApplyAddress = (payload) => {
+    setAddressSelection({
+      address: payload?.address || '',
+      originalAddress: payload?.originalAddress || addressSelection?.originalAddress || '',
+      latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
+      longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
+    });
+    setOpenAddAddress(false);
+    setOpenAddPlan(true);
   };
 
   const handleOverlayClick = () => {
@@ -351,15 +387,32 @@ export default function NavBottom({ value, onChange }) {
       {/* Add Plan Dialog */}
       <AddPlan
         open={openAddPlan}
-        onClose={() => setOpenAddPlan(false)}
+        onClose={handleCloseAddPlan}
         onOpenCheckIn={() => setOpenCheckIn(true)}
+        onOpenAddAddress={handleOpenAddAddress}
+        addressSelection={addressSelection}
+      />
+
+      {/* Add Address Dialog */}
+      <AddAddress
+        open={openAddAddress}
+        onClose={handleBackToAddPlanFromAddress}
+        onBackToAddPlan={handleBackToAddPlanFromAddress}
+        onApplyAddress={handleApplyAddress}
+        initialAddress={addressSelection?.address || ''}
+        initialOriginalAddress={addressSelection?.originalAddress || ''}
+        initialLatitude={addressSelection?.latitude ?? null}
+        initialLongitude={addressSelection?.longitude ?? null}
       />
 
       {/* Check In Dialog */}
       <CheckIn
         open={openCheckIn}
         onClose={() => setOpenCheckIn(false)}
-        onOpenAddPlan={() => setOpenAddPlan(true)}
+        onOpenAddPlan={() => {
+          setAddressSelection(null);
+          setOpenAddPlan(true);
+        }}
       />
     </Box>
     </>

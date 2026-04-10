@@ -193,39 +193,39 @@ export default function MyTasks({ selectedDate }) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-  const sharedCardShadow = 'rgba(13, 37, 69, 0.28)';
+  const sharedCardShadow = 'rgba(13, 37, 69, 0.16)';
 
   const blueCardTone = {
-    accent: '#86B7DE',
-    textColor: '#FFFFFF',
-    borderColor: 'rgba(255, 255, 255, 0.26)',
+    accent: 'rgba(134, 183, 222, 0.62)',
+    textColor: 'rgba(255, 255, 255, 0.96)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(135deg, var(--theme-blue-medium) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-overlay) 100%)',
+      'linear-gradient(135deg, rgba(47, 111, 178, 0.84) 0%, rgba(31, 78, 140, 0.82) 52%, rgba(22, 58, 107, 0.82) 100%)',
     background:
-      'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-medium) 100%)',
+      'linear-gradient(135deg, rgba(22, 58, 107, 0.72) 0%, rgba(31, 78, 140, 0.68) 52%, rgba(47, 111, 178, 0.66) 100%)',
   };
 
   const greenCardTone = {
-    accent: 'rgba(104, 192, 122, 0.84)',
-    textColor: '#FFFFFF',
-    borderColor: 'rgba(255, 255, 255, 0.24)',
+    accent: 'rgba(104, 192, 122, 0.62)',
+    textColor: 'rgba(255, 255, 255, 0.96)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(135deg, #BFE8CA 0%, #8FD5A2 52%, #6FBE86 100%)',
+      'linear-gradient(135deg, rgba(191, 232, 202, 0.86) 0%, rgba(143, 213, 162, 0.84) 52%, rgba(111, 190, 134, 0.82) 100%)',
     background:
-      'linear-gradient(135deg, #7BC894 0%, #9EDCB0 52%, #C7ECD1 100%)',
+      'linear-gradient(135deg, rgba(123, 200, 148, 0.72) 0%, rgba(158, 220, 176, 0.68) 52%, rgba(199, 236, 209, 0.66) 100%)',
   };
 
   const yellowCardTone = {
-    accent: 'rgba(244, 169, 64, 0.82)',
-    textColor: '#FFFFFF',
-    borderColor: 'rgba(255, 255, 255, 0.24)',
+    accent: 'rgba(244, 169, 64, 0.64)',
+    textColor: 'rgba(255, 255, 255, 0.96)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: sharedCardShadow,
     selectedBackground:
-      'linear-gradient(135deg, #FBE8BD 0%, #F5CF87 50%, #EAB86A 100%)',
+      'linear-gradient(135deg, rgba(251, 232, 189, 0.88) 0%, rgba(245, 207, 135, 0.84) 50%, rgba(234, 184, 106, 0.82) 100%)',
     background:
-      'linear-gradient(135deg, #EFC37A 0%, #F7D897 50%, #FCECC6 100%)',
+      'linear-gradient(135deg, rgba(239, 195, 122, 0.72) 0%, rgba(247, 216, 151, 0.68) 50%, rgba(252, 236, 198, 0.66) 100%)',
   };
 
   const taskCards = [
@@ -286,8 +286,8 @@ export default function MyTasks({ selectedDate }) {
                 overflow: 'hidden',
                 border: isSelected ? `2px solid ${card.accent}` : `1px solid ${card.borderColor}`,
                 boxShadow: isSelected
-                  ? `0 18px 34px ${card.shadowColor}, 0 0 0 3px rgba(255, 255, 255, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.22)`
-                  : `0 8px 20px ${card.shadowColor}`,
+                  ? `0 12px 24px ${card.shadowColor}, 0 0 0 2px rgba(255, 255, 255, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.16)`
+                  : `0 6px 14px ${card.shadowColor}`,
                 cursor: 'pointer',
                 transform: isSelected ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
                 transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
@@ -296,8 +296,8 @@ export default function MyTasks({ selectedDate }) {
                   position: 'absolute',
                   inset: 0,
                   background:
-                    'radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 52%)',
-                  opacity: isSelected ? 1 : 0.72,
+                    'radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 54%)',
+                  opacity: isSelected ? 0.86 : 0.55,
                   transition: 'opacity 0.22s ease',
                   pointerEvents: 'none',
                 },
@@ -309,15 +309,15 @@ export default function MyTasks({ selectedDate }) {
                   width: '74%',
                   height: '74%',
                   borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.12)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   pointerEvents: 'none',
                 },
                 '&:hover': {
                   transform: isSelected ? 'translateY(-5px) scale(1.03)' : 'translateY(-4px) scale(1.01)',
-                  boxShadow: `0 16px 30px ${card.shadowColor}`,
+                  boxShadow: `0 10px 20px ${card.shadowColor}`,
                 },
                 '&:hover::before': {
-                  opacity: 1,
+                  opacity: isSelected ? 0.94 : 0.72,
                 },
               }}
             >
@@ -334,8 +334,8 @@ export default function MyTasks({ selectedDate }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#163A6B',
-                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.22)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.18)',
                     zIndex: 2,
                   }}
                 >

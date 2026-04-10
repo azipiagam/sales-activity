@@ -22,17 +22,17 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AddIcon from '@mui/icons-material/Add';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 // Custom imports
-import { apiRequest } from '../../services/api';
-import { AlertDialog } from './feedback';
-import { LoadingPlan } from './loading';
-import { AddressMap } from './maps';
-import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { apiRequest } from '../../../services/api';
+import { AlertDialog } from '../feedback';
+import { LoadingPlan } from '../loading';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 // Utilities
 import { parse, format } from 'date-fns';
-import { getCoordinatesFromAddressEnhanced } from '../../utils/geocoding';
+import { getCoordinatesFromAddressEnhanced } from '../../../utils/geocoding';
 
 // Constants
 const ACTIVITY_TYPES = {
@@ -224,12 +224,11 @@ const useLocationHandler = () => {
   };
 };
 
-export default function AddPlan({ open, onClose, onOpenCheckIn }) {
+export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress, addressSelection }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showLoadingPlan, setShowLoadingPlan] = useState(false);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
-  const [geocodingConfidence, setGeocodingConfidence] = useState(null);
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
 
@@ -270,6 +269,22 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     }
   }, [open, updateField]);
 
+  useEffect(() => {
+    if (!open || !addressSelection) return;
+
+    const hasAddress = typeof addressSelection.address === 'string';
+    const hasCoordinates =
+      Number.isFinite(addressSelection.latitude) && Number.isFinite(addressSelection.longitude);
+
+    if (hasAddress) {
+      setCustomerAddress(addressSelection.address);
+    }
+
+    if (hasCoordinates) {
+      handleLocationChange(addressSelection.latitude, addressSelection.longitude);
+    }
+  }, [open, addressSelection, handleLocationChange, setCustomerAddress]);
+
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
   }, [updateField]);
@@ -290,7 +305,6 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
         setCustomerAddress('');
         setInputValue('');
         setSearchInput('');
-        setGeocodingConfidence(null);
         // Reset location when customer is cleared
         resetLocation();
         return;
@@ -315,9 +329,6 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
 
           // Update location coordinates
           handleLocationChange(lat, lng);
-
-          // Store confidence level
-          setGeocodingConfidence(confidence);
 
           console.log(`Customer location found: ${lat}, ${lng} for address: "${fullAddress}" (confidence: ${confidence})`);
         } catch (geocodingError) {
@@ -494,39 +505,28 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     setLoading(false);
     setShowLoadingPlan(false);
     setGeocodingLoading(false);
-    setGeocodingConfidence(null);
     setSearchInput('');
     setInputValue('');
     onClose();
   }, [resetForm, resetLocation, onClose]);
 
-  const handleAddressChange = useCallback(async (newAddress) => {
-    setCustomerAddress(newAddress);
-
-    // Geocode immediately if address is valid
-    if (newAddress && newAddress.trim().length >= 5) {
-      setGeocodingLoading(true);
-      try {
-        const geocodingResult = await getCoordinatesFromAddressEnhanced(newAddress.trim());
-        const { lat, lng, confidence } = geocodingResult;
-
-        handleLocationChange(lat, lng);
-        setGeocodingConfidence(confidence);
-        console.log(`Address geocoded: ${lat}, ${lng} for "${newAddress}" (confidence: ${confidence})`);
-      } catch (geocodingError) {
-        console.warn('Failed to geocode address:', geocodingError.message);
-      } finally {
-        setGeocodingLoading(false);
-      }
-    } else {
-      setGeocodingLoading(false);
-    }
-  }, [handleLocationChange]);
-
   const handleSwitchToCheckIn = useCallback(() => {
     handleClose();
     if (onOpenCheckIn) onOpenCheckIn();
   }, [handleClose, onOpenCheckIn]);
+
+  const handleOpenAddressPage = useCallback(() => {
+    if (!onOpenAddAddress) return;
+
+    const originalAddressFromCustomer = formData.customer ? buildFullAddress(formData.customer) : '';
+
+    onOpenAddAddress({
+      address: customerAddress || '',
+      originalAddress: originalAddressFromCustomer || customerAddress || '',
+      latitude: Number.isFinite(latitude) ? latitude : null,
+      longitude: Number.isFinite(longitude) ? longitude : null,
+    });
+  }, [onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, buildFullAddress]);
 
   return (
     <Dialog
@@ -827,7 +827,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
           />
         </Box>
 
-        {/* Alamat dan Lokasi */}
+        {/* Alamat dan Maps */}
         <Box sx={{ mb: 3 }}>
           <Typography
             variant="body2"
@@ -838,97 +838,55 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               fontWeight: 600,
             }}
           >
-            Alamat 
+            Alamat dan Maps
           </Typography>
-          <TextField
+
+          <Button
+            variant="outlined"
             fullWidth
-            multiline
-            rows={4}
-            placeholder="Masukkan alamat lengkap..."
-            value={customerAddress}
-            onChange={(e) => handleAddressChange(e.target.value)}
+            onClick={handleOpenAddressPage}
+            startIcon={geocodingLoading ? <CircularProgress size={18} /> : <LocationOnIcon />}
             sx={{
-              mb: 2,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: { xs: '8px', sm: '10px' },
-                '&:hover fieldset': {
-                  borderColor: 'var(--theme-blue-primary)',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'var(--theme-blue-primary)',
-                },
+              py: { xs: 1.25, sm: 1.5 },
+              borderColor: 'var(--theme-blue-primary)',
+              color: 'var(--theme-blue-primary)',
+              borderRadius: { xs: '8px', sm: '10px' },
+              textTransform: 'none',
+              fontWeight: 700,
+              justifyContent: 'flex-start',
+              '&:hover': {
+                borderColor: 'var(--theme-blue-overlay)',
+                backgroundColor: 'rgba(31, 78, 140, 0.06)',
               },
             }}
-          />
+          >
+            Buka halaman alamat & maps
+          </Button>
 
-          <Box sx={{
-            height: '350px',
-            borderRadius: { xs: '8px', sm: '10px' },
-            overflow: 'hidden',
-            border: '1px solid rgba(0, 0, 0, 0.23)',
-            position: 'relative',
-          }}>
-            {geocodingLoading && (
-              <Box sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                zIndex: 10,
-              }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress sx={{ color: 'var(--theme-blue-primary)', mb: 1 }} />
-                  <Typography variant="body2" sx={{ color: '#666' }}>
-                    Mencari lokasi customer...
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-            <AddressMap
-              address={customerAddress}
-              latitude={latitude}
-              longitude={longitude}
-              onLocationChange={handleLocationChange}
-            />
-          </Box>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 1,
+              color: '#666',
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+            }}
+          >
+            {customerAddress?.trim() ? `Alamat: ${customerAddress}` : 'Alamat belum diatur.'}
+          </Typography>
 
-          {latitude && longitude && (
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#333',
-                mt: 1,
-                backgroundColor: '#f5f5f5',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontFamily: 'monospace',
-              }}
-            >
-              Koordinat: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-              {geocodingConfidence && (
-                <span style={{
-                  marginLeft: '8px',
-                  color: geocodingConfidence === 'exact' ? '#2e7d32' :
-                         geocodingConfidence === 'good' ? '#1976d2' : '#f57c00'
-                }}>
-                  ({geocodingConfidence === 'exact' ? '🎯 Lokasi tepat' :
-                    geocodingConfidence === 'good' ? '📍 Lokasi baik' :
-                    '⚠️ Lokasi perkiraan - geser marker untuk akurasi'})
-                </span>
-              )}
-              {isDefaultLocation(latitude, longitude) && !geocodingConfidence && (
-                <span style={{ color: '#d32f2f', marginLeft: '8px' }}>
-                  (Geser marker untuk mengatur lokasi)
-                </span>
-              )}
-            </Typography>
-          )}
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 0.75,
+              color: latitude && longitude ? '#1f4e8c' : '#d32f2f',
+              fontWeight: 600,
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+            }}
+          >
+            {latitude && longitude
+              ? `Koordinat: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+              : 'Koordinat belum diatur.'}
+          </Typography>
         </Box>
 
         {/* Tujuan */}
@@ -1073,5 +1031,6 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     </Dialog>
   );
 }
+
 
 

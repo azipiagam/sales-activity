@@ -3,7 +3,16 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import { useGoogleMaps } from './GoogleMapsProvider';
 
 
-export default function AddressMap({ address, onLocationChange, latitude, longitude }) {
+export default function AddressMap({
+  address,
+  onLocationChange,
+  latitude,
+  longitude,
+  mapTypeId = 'roadmap',
+  mapTypeControl = true,
+  zoomControl = true,
+  fullscreenControl = true,
+}) {
   const { isLoaded, loadError } = useGoogleMaps();
   const defaultCenter = { lat: -6.2088, lng: 106.8456 };
   const defaultZoom = 15;
@@ -99,10 +108,11 @@ export default function AddressMap({ address, onLocationChange, latitude, longit
       zoom={mapZoom}
       onLoad={onMapLoad}
       options={{
-        zoomControl: true,
+        zoomControl,
         streetViewControl: false,
-        mapTypeControl: true,
-        fullscreenControl: true,
+        mapTypeControl,
+        fullscreenControl,
+        mapTypeId,
       }}
     >
       <Marker

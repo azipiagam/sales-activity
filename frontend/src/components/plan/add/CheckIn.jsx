@@ -27,14 +27,14 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import AddIcon from '@mui/icons-material/Add';
 
 // Google Maps components
-import { AddressMap } from './maps';
+import { AddressMap } from '../maps';
 
 // Webcam component
 import Webcam from 'react-webcam';
 
 // Custom imports
-import { apiRequest } from '../../services/api';
-import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { apiRequest } from '../../../services/api';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 export default function CheckIn({ open, onClose, onOpenAddPlan }) {
   // UI State
