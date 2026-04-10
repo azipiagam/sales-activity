@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Popover from '@mui/material/Popover';
@@ -13,7 +13,6 @@ import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -25,7 +24,6 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
 import { apiRequest } from '../../services/api';
-import { performLogout } from '../../login/logout';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import logoPiagam from '../../assets/media/logo-piagam2.png';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
@@ -61,7 +59,6 @@ export default function Header({
   const textOnBlueAccent = 'var(--text-on-blue-accent)';
   const planDoneAccent = 'var(--plan-done-accent)';
 
-  const navigate = useNavigate();
   const location = useLocation();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -124,14 +121,9 @@ export default function Header({
     setLogoutMenuAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleBackToPilarGroup = () => {
     handleLogoutMenuClose();
-    performLogout({ navigate, replace: true });
-  };
-
-  const handleChangePassword = () => {
-    handleLogoutMenuClose();
-    navigate('/change-password', { state: { from: location.pathname } });
+    window.location.assign('https://pilargroup.id/');
   };
 
   const handlePeriodClick = (event) => {
@@ -787,33 +779,7 @@ export default function Header({
           }}
         >
           <MenuItem
-            onClick={handleChangePassword}
-            sx={{
-              py: 1.25,
-              px: 2,
-              gap: 1.5,
-              borderRadius: '10px',
-              mx: 0.5,
-              my: 0.25,
-              '&:hover': {
-                backgroundColor: 'rgba(31, 78, 140, 0.10)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <ManageAccountsIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
-            </ListItemIcon>
-            <ListItemText
-              primary="Edit Profile"
-              primaryTypographyProps={{
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                color: 'text.primary',
-              }}
-            />
-          </MenuItem>
-          <MenuItem
-            onClick={handleLogout}
+            onClick={handleBackToPilarGroup}
             sx={{
               py: 1.25,
               px: 2,
@@ -830,7 +796,7 @@ export default function Header({
               <LogoutIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
             </ListItemIcon>
             <ListItemText
-              primary="Logout"
+              primary="Back Pilar Group"
               primaryTypographyProps={{
                 fontSize: '0.95rem',
                 fontWeight: 500,

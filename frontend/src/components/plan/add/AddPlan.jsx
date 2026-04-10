@@ -27,7 +27,6 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 // Custom imports
 import { apiRequest } from '../../../services/api';
 import { AlertDialog } from '../feedback';
-import { LoadingPlan } from '../loading';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 // Utilities
@@ -1043,7 +1042,25 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
 
 
       {/* Loading Plan Overlay */}
-      {showLoadingPlan && <LoadingPlan />}
+      {showLoadingPlan && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(10, 18, 34, 0.7)',
+          }}
+        >
+          <CircularProgress
+            size={52}
+            thickness={4.5}
+            sx={{ color: '#FFFFFF' }}
+          />
+        </Box>
+      )}
       </DialogContent>
     </Dialog>
   );
