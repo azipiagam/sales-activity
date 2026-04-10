@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Popover from '@mui/material/Popover';
@@ -10,12 +10,11 @@ import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import Paper from '@mui/material/Paper';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -25,7 +24,6 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
 import { apiRequest } from '../../services/api';
-import { performLogout } from '../../login/logout';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import logoPiagam from '../../assets/media/logo-piagam2.png';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
@@ -53,15 +51,14 @@ export default function Header({
   onDashboardProvinceChange,
   dashboardProvinceOptions,
 }) {
+  const themeBlueOverlay = 'var(--theme-blue-overlay)';
+  const themeBluePrimary = 'var(--theme-blue-primary)';
   const headerGradient =
-    'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 52%, var(--theme-blue-medium) 100%)';
+    `linear-gradient(135deg, ${themeBlueOverlay} 0%, ${themeBluePrimary} 100%)`;
   const textOnBluePrimary = 'var(--text-on-blue-primary)';
   const textOnBlueAccent = 'var(--text-on-blue-accent)';
-  const textOnLightPrimary = 'var(--text-on-light-primary)';
-  const textOnLightSecondary = 'var(--text-on-light-secondary)';
-  const textOnLightAccent = 'var(--text-on-light-accent)';
+  const planDoneAccent = 'var(--plan-done-accent)';
 
-  const navigate = useNavigate();
   const location = useLocation();
   const [logoutMenuAnchorEl, setLogoutMenuAnchorEl] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -124,14 +121,9 @@ export default function Header({
     setLogoutMenuAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleBackToPilarGroup = () => {
     handleLogoutMenuClose();
-    performLogout({ navigate, replace: true });
-  };
-
-  const handleChangePassword = () => {
-    handleLogoutMenuClose();
-    navigate('/change-password', { state: { from: location.pathname } });
+    window.location.assign('https://pilargroup.id/');
   };
 
   const handlePeriodClick = (event) => {
@@ -299,11 +291,11 @@ export default function Header({
           aria-hidden="true"
           sx={{
             position: 'absolute',
-            top: { xs: -22, sm: -30, md: -36 },
-            left: { xs: -16, sm: -8, md: 6 },
-            width: { xs: 110, sm: 142, md: 176 },
+            top: { xs: -58, sm: -82, md: -104 },
+            left: { xs: -54, sm: -44, md: -32 },
+            width: { xs: 188, sm: 248, md: 320 },
             height: 'auto',
-            opacity: 0.2,
+            opacity: 0.24,
             pointerEvents: 'none',
             userSelect: 'none',
             zIndex: 0,
@@ -387,19 +379,81 @@ export default function Header({
                     gap: 0.5,
                   }}
                 >
-                  <Typography
+                  <Box
+                    component="button"
+                    type="button"
                     onClick={handleLogoutMenuClick}
+                    aria-haspopup="menu"
+                    aria-expanded={isLogoutMenuOpen ? 'true' : undefined}
                     sx={{
-                      fontFamily: '"Inter", sans-serif',
-                      fontSize: { xs: '0.80rem', sm: '0.90rem', md: '1.0rem' },
-                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.15,
+                      p: 0,
+                      m: 0,
+                      border: 'none',
+                      background: 'transparent',
                       color: textOnBluePrimary,
-                      lineHeight: 1.2,
                       cursor: 'pointer',
+                      '&:focus-visible': {
+                        outline: '2px solid rgba(255,255,255,0.6)',
+                        outlineOffset: 3,
+                        borderRadius: '6px',
+                      },
                     }}
                   >
-                    {salesName}
-                  </Typography>
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: { xs: 20, sm: 22, md: 24 },
+                        height: { xs: 20, sm: 22, md: 24 },
+                        mr: 0.25,
+                      }}
+                    >
+                      <AccountCircleOutlinedIcon
+                        sx={{
+                          fontSize: { xs: '1.05rem', sm: '1.15rem', md: '1.25rem' },
+                          color: textOnBluePrimary,
+                          opacity: 0.95,
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          right: { xs: -0.5, sm: -0.5, md: -1 },
+                          bottom: { xs: 0, sm: 0.25, md: 0.25 },
+                          width: { xs: 7, sm: 8, md: 8 },
+                          height: { xs: 7, sm: 8, md: 8 },
+                          borderRadius: '50%',
+                          backgroundColor: planDoneAccent,
+                          border: `1.5px solid ${themeBlueOverlay}`,
+                          boxShadow: `0 0 0 1px ${planDoneAccent}55`,
+                        }}
+                      />
+                    </Box>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Inter", sans-serif',
+                        fontSize: { xs: '0.80rem', sm: '0.90rem', md: '1.0rem' },
+                        fontWeight: 700,
+                        color: textOnBluePrimary,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {salesName}
+                    </Typography>
+                    <ExpandMoreIcon
+                      sx={{
+                        fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+                        color: textOnBluePrimary,
+                        transition: 'transform 200ms ease',
+                        transform: isLogoutMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      }}
+                    />
+                  </Box>
                 </Box>
               </Box>
             </Box>
@@ -573,8 +627,7 @@ export default function Header({
                   height={bottomControlHeight}
                 />
               ) : (
-                <Paper
-                  elevation={2}
+                <Box
                   sx={{
                     width: '100%',
                     height: bottomControlHeight,
@@ -583,10 +636,6 @@ export default function Header({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: { xs: 0.75, sm: 1 },
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: { xs: '12px', sm: '14px', md: '16px' },
-                    px: { xs: 0.75, sm: 1, md: 1.5 },
-                    py: 1,
                     overflow: 'visible',
                   }}
                 >
@@ -607,25 +656,31 @@ export default function Header({
                       flex: 1,
                       minWidth: 0,
                       justifyContent: 'space-between',
-                      backgroundColor: '#FFFFFF',
-                      color: textOnLightPrimary,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      color: textOnBluePrimary,
                       borderRadius: { xs: '12px', sm: '14px', md: '16px' },
                       px: 1.5,
                       py: 0.9,
-                      border: '1px solid rgba(0,0,0,0.06)',
-                      '&:hover': { backgroundColor: '#F9FAFB' },
-                      '& .MuiButton-startIcon': { color: textOnLightAccent },
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255,255,255,0.25)',
+                        borderColor: 'rgba(255,255,255,0.3)',
+                      },
+                      '& .MuiButton-startIcon': { color: textOnBlueAccent },
                     }}
                   >
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnLightSecondary, lineHeight: 1.15 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnBlueAccent, lineHeight: 1.15 }}>
                         Periode
                       </Typography>
                       <Typography
                         sx={{
                           fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
                           fontWeight: 500,
-                          color: textOnLightPrimary,
+                          color: textOnBluePrimary,
                           lineHeight: 1.15,
                         }}
                         noWrap
@@ -652,25 +707,31 @@ export default function Header({
                       flex: 1,
                       minWidth: 0,
                       justifyContent: 'space-between',
-                      backgroundColor: '#FFFFFF',
-                      color: textOnLightPrimary,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      color: textOnBluePrimary,
                       borderRadius: { xs: '12px', sm: '14px', md: '16px' },
                       px: 1.5,
                       py: 0.9,
-                      border: '1px solid rgba(0,0,0,0.06)',
-                      '&:hover': { backgroundColor: '#F9FAFB' },
-                      '& .MuiButton-startIcon': { color: textOnLightAccent },
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255,255,255,0.25)',
+                        borderColor: 'rgba(255,255,255,0.3)',
+                      },
+                      '& .MuiButton-startIcon': { color: textOnBlueAccent },
                     }}
                   >
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnLightSecondary, lineHeight: 1.15 }}>
+                      <Typography sx={{ fontSize: { xs: '0.46rem', sm: '0.5rem', md: '0.54rem' }, fontWeight: 500, color: textOnBlueAccent, lineHeight: 1.15 }}>
                         Provinsi
                       </Typography>
                       <Typography
                         sx={{
                           fontSize: { xs: '0.58rem', sm: '0.62rem', md: '0.66rem' },
                           fontWeight: 500,
-                          color: textOnLightPrimary,
+                          color: textOnBluePrimary,
                           lineHeight: 1.15,
                         }}
                         noWrap
@@ -680,7 +741,7 @@ export default function Header({
                       </Typography>
                     </Box>
                   </Button>
-                </Paper>
+                </Box>
               )}
             </Box>
           </Box>
@@ -718,7 +779,7 @@ export default function Header({
           }}
         >
           <MenuItem
-            onClick={handleChangePassword}
+            onClick={handleBackToPilarGroup}
             sx={{
               py: 1.25,
               px: 2,
@@ -727,33 +788,7 @@ export default function Header({
               mx: 0.5,
               my: 0.25,
               '&:hover': {
-                backgroundColor: 'rgba(107, 163, 208, 0.10)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <ManageAccountsIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
-            </ListItemIcon>
-            <ListItemText
-              primary="Edit Profile"
-              primaryTypographyProps={{
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                color: 'text.primary',
-              }}
-            />
-          </MenuItem>
-          <MenuItem
-            onClick={handleLogout}
-            sx={{
-              py: 1.25,
-              px: 2,
-              gap: 1.5,
-              borderRadius: '10px',
-              mx: 0.5,
-              my: 0.25,
-              '&:hover': {
-                backgroundColor: 'rgba(107, 163, 208, 0.10)',
+                backgroundColor: 'rgba(31, 78, 140, 0.10)',
               },
             }}
           >
@@ -761,7 +796,7 @@ export default function Header({
               <LogoutIcon sx={{ color: 'text.secondary', fontSize: 22 }} />
             </ListItemIcon>
             <ListItemText
-              primary="Logout"
+              primary="Back Pilar Group"
               primaryTypographyProps={{
                 fontSize: '0.95rem',
                 fontWeight: 500,

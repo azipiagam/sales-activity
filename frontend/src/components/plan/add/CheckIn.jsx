@@ -27,14 +27,14 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import AddIcon from '@mui/icons-material/Add';
 
 // Google Maps components
-import { AddressMap } from './maps';
+import { AddressMap } from '../maps';
 
 // Webcam component
 import Webcam from 'react-webcam';
 
 // Custom imports
-import { apiRequest } from '../../services/api';
-import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { apiRequest } from '../../../services/api';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 export default function CheckIn({ open, onClose, onOpenAddPlan }) {
   // UI State
@@ -421,7 +421,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
             alignItems: 'center',
             mb: 3,
             pb: 2,
-            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
+            borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
           }}
         >
           <Typography
@@ -429,13 +429,13 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#6BA3D0',
+              color: 'var(--theme-blue-primary)',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
             }}
           >
-            <MyLocationIcon sx={{ color: '#6BA3D0' }} />
+            <MyLocationIcon sx={{ color: 'var(--theme-blue-primary)' }} />
             Check In
           </Typography>
           <IconButton
@@ -458,8 +458,8 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               gap: 1,
               p: 0.5,
               borderRadius: '999px',
-              backgroundColor: 'rgba(107, 163, 208, 0.12)',
-              border: '1px solid rgba(107, 163, 208, 0.2)',
+              backgroundColor: 'rgba(31, 78, 140, 0.12)',
+              border: '1px solid rgba(31, 78, 140, 0.2)',
             }}
           >
             <Button
@@ -471,7 +471,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                color: '#4e8ec2',
+                color: 'var(--theme-blue-overlay)',
               }}
             >
               Add Plan
@@ -484,8 +484,8 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                backgroundColor: '#6BA3D0',
-                '&:hover': { backgroundColor: '#5a8fb8' },
+                backgroundColor: 'var(--theme-blue-primary)',
+                '&:hover': { backgroundColor: 'var(--theme-blue-overlay)' },
               }}
               disabled
             >
@@ -537,14 +537,14 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               py: { xs: 1.5, sm: 1.75 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
               fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
+              borderColor: 'var(--theme-blue-primary)',
+              color: 'var(--theme-blue-primary)',
               borderRadius: { xs: '8px', sm: '10px' },
               textTransform: 'none',
               mb: 2,
               '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                borderColor: 'var(--theme-blue-overlay)',
+                backgroundColor: 'rgba(31, 78, 140, 0.08)',
               },
               '&:disabled': {
                 borderColor: '#ccc',
@@ -563,18 +563,18 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(107, 163, 208, 0.04)',
+                backgroundColor: 'rgba(31, 78, 140, 0.04)',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <LocationOnIcon sx={{ fontSize: '1.25rem', color: '#6BA3D0', mr: 1 }} />
+                <LocationOnIcon sx={{ fontSize: '1.25rem', color: 'var(--theme-blue-primary)', mr: 1 }} />
                 <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>
                   Koordinat: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                 </Typography>
               </Box>
               {addressLoading ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                  <CircularProgress size={14} sx={{ color: '#6BA3D0', mr: 1 }} />
+                  <CircularProgress size={14} sx={{ color: 'var(--theme-blue-primary)', mr: 1 }} />
                   <Typography variant="body2" sx={{ color: '#666' }}>
                     Mengambil alamat...
                   </Typography>
@@ -654,7 +654,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               transition: 'border-color 0.2s',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#6BA3D0';
+              e.target.style.borderColor = 'var(--theme-blue-primary)';
             }}
             onBlur={(e) => {
               e.target.style.borderColor = 'rgba(0, 0, 0, 0.23)';
@@ -685,13 +685,13 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               startIcon={<CameraAltIcon />}
               sx={{
                 mb: 2,
-                borderColor: '#6BA3D0',
-                color: '#6BA3D0',
+                borderColor: 'var(--theme-blue-primary)',
+                color: 'var(--theme-blue-primary)',
                 borderRadius: { xs: '8px', sm: '10px' },
                 textTransform: 'none',
                 '&:hover': {
-                  borderColor: '#5a8fb8',
-                  backgroundColor: 'rgba(107, 163, 208, 0.04)',
+                  borderColor: 'var(--theme-blue-overlay)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.04)',
                 },
               }}
             >
@@ -730,7 +730,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                   maxWidth: '400px',
                   height: 'auto',
                   borderRadius: '8px',
-                  border: '2px solid #6BA3D0',
+                  border: '2px solid var(--theme-blue-primary)',
                 }}
                 onUserMediaError={(error) => {
                   console.error('Webcam error:', error);
@@ -796,7 +796,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                     maxWidth: '100%',
                     maxHeight: '200px',
                     borderRadius: '8px',
-                    border: '2px solid #6BA3D0',
+                    border: '2px solid var(--theme-blue-primary)',
                   }}
                 />
                 <IconButton
@@ -905,13 +905,13 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                   py: { xs: 1.25, sm: 1.5 },
                   fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                   fontWeight: 600,
-                  borderColor: '#6BA3D0',
-                  color: '#6BA3D0',
+                  borderColor: 'var(--theme-blue-primary)',
+                  color: 'var(--theme-blue-primary)',
                   borderRadius: { xs: '8px', sm: '10px' },
                   textTransform: 'none',
                   '&:hover': {
-                    borderColor: '#5a8fb8',
-                    backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                    borderColor: 'var(--theme-blue-overlay)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.08)',
                   },
                 }}
               >
@@ -926,16 +926,16 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
                   py: { xs: 1.25, sm: 1.5 },
                   fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                   fontWeight: 600,
-                  backgroundColor: '#6BA3D0',
+                  backgroundColor: 'var(--theme-blue-primary)',
                   color: 'white',
                   borderRadius: { xs: '8px', sm: '10px' },
                   textTransform: 'none',
                   '&:hover': {
-                    backgroundColor: '#5a8fb8',
+                    backgroundColor: 'var(--theme-blue-overlay)',
                     color: 'white',
                   },
                   '&:disabled': {
-                    backgroundColor: '#6BA3D0',
+                    backgroundColor: 'var(--theme-blue-primary)',
                     opacity: 0.6,
                   },
                 }}
@@ -955,3 +955,4 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
     </Dialog>
   );
 }
+

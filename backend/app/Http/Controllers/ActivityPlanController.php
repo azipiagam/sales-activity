@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\ActivityPlanService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ActivityPlanController extends Controller
@@ -19,7 +20,7 @@ class ActivityPlanController extends Controller
 
     public function index(Request $request)
     {
-        $date = $request->get('date', Carbon::today()->toDateString());
+        $date            = $request->get('date', Carbon::today()->toDateString());
         $salesInternalId = $request->sales_internal_id;
 
         $plans = $this->activityPlanService->getByDateAndSales($salesInternalId, $date);
@@ -33,13 +34,11 @@ class ActivityPlanController extends Controller
      */
     public function store(Request $request)
     {
-        // Ambil semua data dari request
         $data = $request->all();
-        
-        // Check if request is array (batch) or single object
-        $isBatch = is_array($data) && 
-                   !empty($data) && 
-                   isset($data[0]) && 
+
+        $isBatch = is_array($data) &&
+                   !empty($data) &&
+                   isset($data[0]) &&
                    is_array($data[0]);
 
         if ($isBatch) {
@@ -51,6 +50,10 @@ class ActivityPlanController extends Controller
 
     /**
      * Store single activity plan
+     * Supports customer_address_id to resolve lat/lng from customer_addresses table.
+     * If customer_address_id === 'master', lat/lng is taken from master_customer.
+     * If customer_address_id is a UUID, lat/lng is taken from customer_addresses.
+     * If neither is supplied, lat/lng can still be passed directly (legacy support).
      */
     protected function storeSingle(Request $request)
     {
@@ -59,13 +62,15 @@ class ActivityPlanController extends Controller
         ]);
 
         $request->validate([
-            'customer_id' => 'required',
-            'customer_name' => 'required',
-            'plan_date' => 'required|date|after_or_equal:today',
-            'tujuan' => 'required|in:Visit,Follow Up',
-            'keterangan_tambahan' => 'nullable|string',
-            'customer_location_lat' => 'nullable|numeric',
-            'customer_location_lng' => 'nullable|numeric',
+            'customer_id'          => 'required',
+            'customer_name'        => 'required',
+            'plan_date'            => 'required|date|after_or_equal:today',
+            'tujuan'               => 'required|in:Visit,Follow Up',
+            'keterangan_tambahan'  => 'nullable|string',
+            // Address resolution: prefer address_id, fall back to direct lat/lng
+            'customer_address_id'  => 'nullable|string',
+            'customer_location_lat'=> 'nullable|numeric',
+            'customer_location_lng'=> 'nullable|numeric',
         ]);
 
         $data = $request->only([
@@ -74,18 +79,23 @@ class ActivityPlanController extends Controller
             'plan_date',
             'tujuan',
             'keterangan_tambahan',
+            'customer_address_id',
             'customer_location_lat',
             'customer_location_lng',
         ]);
+
         $data['sales_internal_id'] = $request->sales_internal_id;
-        $data['sales_name'] = $request->sales_name;
-        $data['user_photo'] = null;
+        $data['sales_name']        = $request->sales_name;
+        $data['user_photo']        = null;
+
+        // Resolve lat/lng from address if customer_address_id is provided
+        $data = $this->resolveAddressCoordinates($data);
 
         $result = $this->activityPlanService->create($data);
 
         return response()->json([
             'message' => 'Activity plan created',
-            'data' => $result
+            'data'    => $result,
         ], 201);
     }
 
@@ -95,29 +105,25 @@ class ActivityPlanController extends Controller
     protected function storeBatch(Request $request)
     {
         $allData = $request->all();
-        
-        // Filter hanya data yang indexnya numeric (array plans)
-        $plans = array_filter($allData, function($key) {
-            return is_numeric($key);
-        }, ARRAY_FILTER_USE_KEY);
-        
-        // Re-index array
-        $plans = array_values($plans);
 
-        // Validate each plan
+        $plans = array_values(
+            array_filter($allData, fn($key) => is_numeric($key), ARRAY_FILTER_USE_KEY)
+        );
+
         $errors = [];
         foreach ($plans as $index => $plan) {
             if (!is_array($plan)) {
                 $errors["plan_$index"] = ['Invalid data format'];
                 continue;
             }
-            
+
             $validator = Validator::make($plan, [
-                'customer_id' => 'required',
-                'customer_name' => 'required',
-                'plan_date' => 'required|date|after_or_equal:today',
-                'tujuan' => 'required|in:Visit,Follow Up',
+                'customer_id'         => 'required',
+                'customer_name'       => 'required',
+                'plan_date'           => 'required|date|after_or_equal:today',
+                'tujuan'              => 'required|in:Visit,Follow Up',
                 'keterangan_tambahan' => 'nullable|string',
+                'customer_address_id' => 'nullable|string',
             ]);
 
             if ($validator->fails()) {
@@ -128,34 +134,76 @@ class ActivityPlanController extends Controller
         if (!empty($errors)) {
             return response()->json([
                 'message' => 'Validation failed for some plans',
-                'errors' => $errors
+                'errors'  => $errors,
             ], 422);
         }
 
-        // Create all plans
         $results = [];
         foreach ($plans as $plan) {
             $plan['sales_internal_id'] = $request->sales_internal_id;
-            $plan['sales_name'] = $request->sales_name;
-            
+            $plan['sales_name']        = $request->sales_name;
+
+            // Resolve lat/lng from address if customer_address_id is provided
+            $plan = $this->resolveAddressCoordinates($plan);
+
             $results[] = $this->activityPlanService->create($plan);
         }
 
         return response()->json([
             'message' => 'Activity plans created',
-            'count' => count($results),
-            'data' => $results
+            'count'   => count($results),
+            'data'    => $results,
         ], 201);
+    }
+
+    /**
+     * Resolve customer_location_lat/lng from customer_address_id.
+     *
+     * Rules:
+     *  - 'master'  → use lat/lng from master_customer (currently null in schema, so stays null)
+     *  - UUID      → use lat/lng from customer_addresses row
+     *  - null/skip → keep whatever lat/lng was passed directly
+     */
+    private function resolveAddressCoordinates(array $data): array
+    {
+        $addressId = $data['customer_address_id'] ?? null;
+
+        if (!$addressId) {
+            return $data; // no address_id supplied, use direct lat/lng as-is
+        }
+
+        if ($addressId === 'master') {
+            // master_customer has no lat/lng columns, so we leave them null
+            // (or you could add lat/lng to master_customer later and read from there)
+            $data['customer_location_lat'] = null;
+            $data['customer_location_lng'] = null;
+            return $data;
+        }
+
+        // Resolve from customer_addresses table
+        $address = DB::table('customer_addresses')
+            ->where('id', $addressId)
+            ->where('customer_id', $data['customer_id'])
+            ->select('lat', 'lng', 'address')
+            ->first();
+
+        if ($address) {
+            $data['customer_location_lat'] = $address->lat;
+            $data['customer_location_lng'] = $address->lng;
+        }
+        // If address row not found, fall back to whatever lat/lng was passed
+
+        return $data;
     }
 
     public function markAsDone(Request $request, $id)
     {
         $request->validate([
-            'result' => 'nullable|string',
-            'latitude' => 'required|numeric',
+            'result'    => 'nullable|string',
+            'latitude'  => 'required|numeric',
             'longitude' => 'required|numeric',
-            'accuracy' => 'nullable|numeric',
-            'photo' => 'nullable|string', // base64 image
+            'accuracy'  => 'nullable|numeric',
+            'photo'     => 'nullable|string', // base64
         ]);
 
         $this->activityPlanService->markAsDone(
@@ -190,37 +238,29 @@ class ActivityPlanController extends Controller
     }
 
     /**
-     * Get all activity plans (tanpa filter date)
+     * Get all activity plans (without date filter)
      * URL: GET /api/activity-plans/all
      */
     public function getAllPlans(Request $request)
     {
-        $salesInternalId = $request->sales_internal_id;
-        
-        $plans = $this->activityPlanService->getAllBySales($salesInternalId);
-        
+        $plans = $this->activityPlanService->getAllBySales($request->sales_internal_id);
+
         return response()->json($plans);
     }
 
     /**
-     * Get activity plans within a date range (fast range fetch)
-     * URL: GET /api/activity-plans/range?from=YYYY-MM-DD&to=YYYY-MM-DD&sales_internal_id=...
+     * Get activity plans within a date range
+     * URL: GET /api/activity-plans/range?from=YYYY-MM-DD&to=YYYY-MM-DD
      */
     public function getRangePlans(Request $request)
     {
         $salesInternalId = $request->sales_internal_id;
-        $from = $request->get('from');
-        $to = $request->get('to');
-
-        if (!$salesInternalId) {
-            return response()->json([
-                'message' => 'sales_internal_id is required'
-            ], 400);
-        }
+        $from            = $request->get('from');
+        $to              = $request->get('to');
 
         if (!$from || !$to) {
             return response()->json([
-                'message' => 'from and to (YYYY-MM-DD) are required'
+                'message' => 'from and to (YYYY-MM-DD) are required',
             ], 400);
         }
 

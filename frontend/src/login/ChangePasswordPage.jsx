@@ -20,8 +20,8 @@ import { motion } from 'framer-motion';
 import { getSales, getToken, isAuthenticated } from '../utils/auth';
 import { performLogout } from './logout';
 import backgroundHeaderSvg from '../assets/media/bgh1.svg';
-import BackgroundMain from '../assets/media/Background';
-import { apiRequest } from '../config/api';
+import backgroundSvg from '../assets/media/background.svg';
+import { apiRequest } from '../services/api';
 
 
 const getApiErrorMessage = (payload) => {
@@ -176,13 +176,15 @@ export default function ChangePasswordPage() {
         justifyContent: 'center',
         px: { xs: 2, sm: 3 },
         py: { xs: 4, sm: 5 },
+        backgroundImage: `url(${backgroundSvg})`,
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         backgroundColor: '#F5F7FA',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      <BackgroundMain />
-
       <Box
         sx={{
           position: 'absolute',

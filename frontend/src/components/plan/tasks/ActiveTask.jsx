@@ -664,15 +664,15 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               alignItems: 'center',
               justifyContent: 'center',
               background:
-                'radial-gradient(circle at 30% 30%, rgba(107, 163, 208, 0.22), rgba(107, 163, 208, 0.08) 68%, rgba(107, 163, 208, 0.03) 100%)',
-              border: '1px solid rgba(107, 163, 208, 0.18)',
-              boxShadow: '0 16px 34px rgba(107, 163, 208, 0.12)',
+                'radial-gradient(circle at 30% 30%, rgba(31, 78, 140, 0.24), rgba(31, 78, 140, 0.1) 68%, rgba(22, 58, 107, 0.05) 100%)',
+              border: '1px solid rgba(31, 78, 140, 0.2)',
+              boxShadow: '0 16px 34px rgba(22, 58, 107, 0.16)',
             }}
           >
             <TaskOutlinedIcon
               sx={{
                 fontSize: { xs: '3.25rem', sm: '3.75rem', md: '4rem' },
-                color: '#6BA3D0',
+                color: 'var(--theme-blue-primary)',
               }}
             />
           </Box>
@@ -680,7 +680,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             sx={{
               fontSize: { xs: '0.95rem', sm: '1rem', md: '1.05rem' },
               fontWeight: 600,
-              color: '#5a8fb8',
+              color: 'var(--theme-blue-overlay)',
             }}
           >
             {emptyTaskLabel}
@@ -707,11 +707,11 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const summaryLabel = isExpanded ? 'Plan No' : 'Keterangan Tambahan';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
         const cardTone = {
-          accent: '#6BA3D0',
-          text: '#4f86b1',
-          tint: 'rgba(107, 163, 208, 0.08)',
-          stripe: 'rgba(107, 163, 208, 0.12)',
-          border: 'rgba(107, 163, 208, 0.25)',
+          accent: 'var(--theme-blue-primary)',
+          text: 'var(--theme-blue-overlay)',
+          tint: 'rgba(31, 78, 140, 0.08)',
+          stripe: 'rgba(31, 78, 140, 0.14)',
+          border: 'rgba(31, 78, 140, 0.28)',
         };
         const statusToneMap = {
           done: {
@@ -1104,7 +1104,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{
                     color: 'white',
-                    backgroundColor: '#6BA3D0',
+                    backgroundColor: 'var(--theme-blue-primary)',
                     textTransform: 'none',
                     fontWeight: 600,
                     fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
@@ -1113,7 +1113,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     minWidth: { xs: '120px', sm: '140px', md: '160px' },
                     borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover': {
-                      backgroundColor: '#5a8fb8',
+                      backgroundColor: 'var(--theme-blue-overlay)',
                       color: 'white',
                     },
                     '&:disabled': {
@@ -1171,12 +1171,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     px: 2,
                     fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                     '&:hover': {
-                      backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                      backgroundColor: 'rgba(31, 78, 140, 0.08)',
                     },
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 36 }}>
-                    <EventIcon sx={{ fontSize: '1.25rem', color: '#6BA3D0' }} />
+                    <EventIcon sx={{ fontSize: '1.25rem', color: 'var(--theme-blue-primary)' }} />
                   </ListItemIcon>
                   <ListItemText primary="Reschedule" />
                 </MenuItem>
@@ -1336,10 +1336,10 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                           borderColor: '#ddd',
                         },
                         '&:hover fieldset': {
-                          borderColor: '#6BA3D0',
+                          borderColor: 'var(--theme-blue-primary)',
                         },
                         '&.Mui-focused fieldset': {
-                          borderColor: '#6BA3D0',
+                          borderColor: 'var(--theme-blue-primary)',
                         },
                       },
                     },
@@ -1365,13 +1365,13 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 py: { xs: 1.25, sm: 1.5 },
                 fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                 fontWeight: 600,
-                borderColor: '#6BA3D0',
-                color: '#6BA3D0',
+                borderColor: 'var(--theme-blue-primary)',
+                color: 'var(--theme-blue-primary)',
                 borderRadius: { xs: '8px', sm: '10px' },
                 textTransform: 'none',
                 '&:hover': {
-                  borderColor: '#5a8fb8',
-                  backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                  borderColor: 'var(--theme-blue-overlay)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.08)',
                 },
               }}
             >
@@ -1386,12 +1386,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 py: { xs: 1.25, sm: 1.5 },
                 fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                 fontWeight: 600,
-                backgroundColor: '#6BA3D0',
+                backgroundColor: 'var(--theme-blue-primary)',
                 color: 'white',
                 borderRadius: { xs: '8px', sm: '10px' },
                 textTransform: 'none',
                 '&:hover': {
-                  backgroundColor: '#5a8fb8',
+                  backgroundColor: 'var(--theme-blue-overlay)',
                   color: 'white',
                 },
                 '&:disabled': {

@@ -53,6 +53,7 @@
   --summary-warning-background: rgba(244, 169, 64, 0.2);
   --summary-negative-text: #fff4da;
   --summary-negative-background: rgba(255, 200, 97, 0.18);
+  --plan-done-accent: #68c07a;
 
   /* Text roles */
   --text-on-blue-primary: var(--theme-white);

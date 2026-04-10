@@ -26,7 +26,12 @@ export default function CameraDone({ saving = false, onCapture, onCancel }) {
       sx={{
         width: '100%',
         position: 'relative',
-        height: { xs: 360, sm: 460, md: 520 },
+        height: {
+          xs: 'calc(100dvh - 206px)',
+          sm: 'calc(100dvh - 230px)',
+          md: 'calc(100dvh - 248px)',
+        },
+        minHeight: { xs: 320, sm: 380, md: 430 },
         overflow: 'hidden',
         borderBottom: '1px solid rgba(22, 58, 107, 0.14)',
         backgroundColor: '#0f172a',

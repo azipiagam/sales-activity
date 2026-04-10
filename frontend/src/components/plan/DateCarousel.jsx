@@ -16,7 +16,7 @@ export default function DateCarousel({
 }) {
   const textOnLightAccent = 'var(--text-on-light-accent)';
   const textOnBluePrimary = 'var(--text-on-blue-primary)';
-  const selectedDateText = 'var(--theme-blue-overlay)';
+  const selectedDateText = '#FFFFFF';
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const [isLoading, setIsLoading] = useState(false);
   const userClickTimeRef = useRef(0);

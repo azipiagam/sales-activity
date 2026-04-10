@@ -11,26 +11,74 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { Fade } from '@mui/material';
-import { AddPlan, CheckIn } from '../plan';
+import { AddAddress, AddPlan, CheckIn } from '../plan/add';
 
 export default function NavBottom({ value, onChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [openAddPlan, setOpenAddPlan] = useState(false);
+  const [openAddAddress, setOpenAddAddress] = useState(false);
   const [openCheckIn, setOpenCheckIn] = useState(false);
+  const [addressSelection, setAddressSelection] = useState(null);
+
+  const themeBlueDark = 'var(--theme-blue-overlay)';
+  const themeBlue = 'var(--theme-blue-primary)';
+  const themeBlueDarkRgb = '22, 58, 107';
+  const themeBlueRgb = '31, 78, 140';
+  const themeBlueLight = `rgba(${themeBlueRgb}, 0.92)`;
+  const themeGold = '#E9C46A';
+  const themeWhite = '#FFFFFF';
 
   const handleFabClick = () => {
     setIsExpanded(false);
+    setAddressSelection(null);
     setOpenAddPlan(true);
   };
 
   const handleAddPlan = () => {
     setIsExpanded(false);
+    setAddressSelection(null);
     setOpenAddPlan(true);
   };  
 
   const handleCheckIn = () => {
     setIsExpanded(false);
     setOpenCheckIn(true);
+  };
+
+  const handleCloseAddPlan = () => {
+    setOpenAddPlan(false);
+    setAddressSelection(null);
+  };
+
+  const handleOpenAddAddress = (payload) => {
+    setAddressSelection({
+      customerId: payload?.customerId || '',
+      addressId: payload?.addressId || 'master',
+      address: payload?.address || '',
+      originalAddress: payload?.originalAddress || '',
+      latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
+      longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
+    });
+    setOpenAddPlan(false);
+    setOpenAddAddress(true);
+  };
+
+  const handleBackToAddPlanFromAddress = () => {
+    setOpenAddAddress(false);
+    setOpenAddPlan(true);
+  };
+
+  const handleApplyAddress = (payload) => {
+    setAddressSelection({
+      customerId: payload?.customerId || addressSelection?.customerId || '',
+      addressId: payload?.addressId || 'master',
+      address: payload?.address || '',
+      originalAddress: payload?.originalAddress || addressSelection?.originalAddress || '',
+      latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
+      longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
+    });
+    setOpenAddAddress(false);
+    setOpenAddPlan(true);
   };
 
   const handleOverlayClick = () => {
@@ -89,20 +137,31 @@ export default function NavBottom({ value, onChange }) {
           }}
           sx={{
             borderTop: '1px solid',
-            borderColor: 'divider',
-            backgroundColor: 'background.paper',
+            borderColor: 'rgba(255, 255, 255, 0.24)',
+            background: `linear-gradient(135deg, ${themeBlueDark} 0%, ${themeBlue} 62%, ${themeBlueLight} 100%)`,
             borderTopLeftRadius: '20px',
             borderTopRightRadius: '20px',
+            boxShadow: `0 -10px 24px rgba(${themeBlueDarkRgb}, 0.35)`,
             opacity: 0,
             animation: 'slideUp 0.6s ease-out 0.5s forwards',
             width: '100%',
             '& .MuiBottomNavigationAction-root': {
-              color: 'rgba(0, 0, 0, 0.54)',
+              color: 'rgba(255, 255, 255, 0.9)',
               minWidth: 'auto',
               padding: '6px 12px',
+              transition: 'all 0.25s ease',
+              '& .MuiBottomNavigationAction-label': {
+                color: 'inherit',
+                fontWeight: 600,
+                transition: 'color 0.25s ease',
+              },
+              '& .MuiSvgIcon-root': {
+                color: 'inherit',
+                transition: 'color 0.25s ease',
+              },
               '&.Mui-selected': {
-                color: '#4e8ec2',
-                backgroundColor: 'rgba(107, 163, 208, 0.1)',
+                color: themeGold,
+                backgroundColor: 'rgba(255, 255, 255, 0.14)',
                 borderRadius: '12px',
               },
             },
@@ -162,11 +221,11 @@ export default function NavBottom({ value, onChange }) {
               aria-label="Check In"
               sx={{
                 // background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                backgroundColor: '#6BA3D0',
+                background: `linear-gradient(135deg, ${themeBlueDark} 0%, ${themeBlue} 100%)`,
                 borderRadius: '50%',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8)',
                 border: '2px solid',
-                borderColor: 'rgba(76, 175, 202, 0.3)',
+                borderColor: 'rgba(233, 196, 106, 0.55)',
                 width: { xs: 60, sm: 64 },
                 height: { xs: 60, sm: 64 },
                 display: 'flex',
@@ -185,14 +244,14 @@ export default function NavBottom({ value, onChange }) {
                   width: 0,
                   height: 0,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(76, 175, 202, 0.3)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.3)',
                   transform: 'translate(-50%, -50%)',
                   transition: 'width 0.6s, height 0.6s',
                 },
                 '&:hover': {
-                  background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
+                  background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
                   transform: 'scale(1.08) translateY(-2px)',
-                  boxShadow: '0 6px 16px rgba(76, 175, 202, 0.2), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  boxShadow: `0 6px 16px rgba(${themeBlueDarkRgb}, 0.3), 0 0 0 2px rgba(233, 196, 106, 0.65)`,
                   '&::before': {
                     width: '120%',
                     height: '120%',
@@ -203,7 +262,7 @@ export default function NavBottom({ value, onChange }) {
                 },
                 '&:focus': {
                   outline: 'none',
-                  boxShadow: '0 0 0 3px rgba(76, 175, 202, 0.4)',
+                  boxShadow: '0 0 0 3px rgba(233, 196, 106, 0.4)',
                 },
                 '@keyframes slideInUp': {
                   from: {
@@ -236,11 +295,11 @@ export default function NavBottom({ value, onChange }) {
               aria-label="Add Plan"
               sx={{
                 // background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                backgroundColor: '#6BA3D0',
+                background: `linear-gradient(135deg, ${themeBlueDark} 0%, ${themeBlue} 100%)`,
                 borderRadius: '50%',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8)',
                 border: '2px solid',
-                borderColor: 'rgba(76, 175, 202, 0.3)',
+                borderColor: 'rgba(233, 196, 106, 0.55)',
                 width: { xs: 60, sm: 64 },
                 height: { xs: 60, sm: 64 },
                 display: 'flex',
@@ -259,14 +318,14 @@ export default function NavBottom({ value, onChange }) {
                   width: 0,
                   height: 0,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(76, 175, 202, 0.3)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.3)',
                   transform: 'translate(-50%, -50%)',
                   transition: 'width 0.6s, height 0.6s',
                 },
                 '&:hover': {
-                  background: 'linear-gradient(135deg, rgba(76, 175, 202, 0.1) 0%, rgba(107, 163, 208, 0.15) 100%)',
+                  background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
                   transform: 'scale(1.08) translateY(-2px)',
-                  boxShadow: '0 6px 16px rgba(76, 175, 202, 0.2), 0 0 0 2px rgba(76, 175, 202, 0.5)',
+                  boxShadow: `0 6px 16px rgba(${themeBlueDarkRgb}, 0.3), 0 0 0 2px rgba(233, 196, 106, 0.65)`,
                   '&::before': {
                     width: '120%',
                     height: '120%',
@@ -277,7 +336,7 @@ export default function NavBottom({ value, onChange }) {
                 },
                 '&:focus': {
                   outline: 'none',
-                  boxShadow: '0 0 0 3px rgba(76, 175, 202, 0.4)',
+                  boxShadow: '0 0 0 3px rgba(233, 196, 106, 0.4)',
                 },
               }}
             >
@@ -302,8 +361,10 @@ export default function NavBottom({ value, onChange }) {
             position: 'absolute',
             bottom: 20,
             left: { xs: 'calc(50% - 28px)', sm: 'calc(50% - 30px)' },
-            backgroundColor: '#4e8ec2',
-            color: 'white',
+            background: `linear-gradient(135deg, ${themeBlueDark} 0%, ${themeBlue} 100%)`,
+            color: themeWhite,
+            border: '2px solid',
+            borderColor: 'rgba(233, 196, 106, 0.6)',
             width: { xs: 56, sm: 60 },
             height: { xs: 56, sm: 60 },
             opacity: 0,
@@ -311,10 +372,10 @@ export default function NavBottom({ value, onChange }) {
             transform: isExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
             transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
-              backgroundColor: '#5a8fb8',
-              color: 'white',
+              background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
+              color: themeGold,
             },
-            boxShadow: '0 4px 12px rgba(107, 163, 208, 0.4)',
+            boxShadow: `0 4px 12px rgba(${themeBlueDarkRgb}, 0.35)`,
             zIndex: 1002,
           }}
           onClick={handleFabClick}
@@ -330,15 +391,34 @@ export default function NavBottom({ value, onChange }) {
       {/* Add Plan Dialog */}
       <AddPlan
         open={openAddPlan}
-        onClose={() => setOpenAddPlan(false)}
+        onClose={handleCloseAddPlan}
         onOpenCheckIn={() => setOpenCheckIn(true)}
+        onOpenAddAddress={handleOpenAddAddress}
+        addressSelection={addressSelection}
+      />
+
+      {/* Add Address Dialog */}
+      <AddAddress
+        open={openAddAddress}
+        onClose={handleBackToAddPlanFromAddress}
+        onBackToAddPlan={handleBackToAddPlanFromAddress}
+        onApplyAddress={handleApplyAddress}
+        customerId={addressSelection?.customerId || ''}
+        initialAddressId={addressSelection?.addressId || 'master'}
+        initialAddress={addressSelection?.address || ''}
+        initialOriginalAddress={addressSelection?.originalAddress || ''}
+        initialLatitude={addressSelection?.latitude ?? null}
+        initialLongitude={addressSelection?.longitude ?? null}
       />
 
       {/* Check In Dialog */}
       <CheckIn
         open={openCheckIn}
         onClose={() => setOpenCheckIn(false)}
-        onOpenAddPlan={() => setOpenAddPlan(true)}
+        onOpenAddPlan={() => {
+          setAddressSelection(null);
+          setOpenAddPlan(true);
+        }}
       />
     </Box>
     </>

@@ -22,17 +22,16 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AddIcon from '@mui/icons-material/Add';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 // Custom imports
-import { apiRequest } from '../../services/api';
-import { AlertDialog } from './feedback';
-import { LoadingPlan } from './loading';
-import { AddressMap } from './maps';
-import { useActivityPlans } from '../../contexts/ActivityPlanContext';
+import { apiRequest } from '../../../services/api';
+import { AlertDialog } from '../feedback';
+import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 // Utilities
 import { parse, format } from 'date-fns';
-import { getCoordinatesFromAddressEnhanced } from '../../utils/geocoding';
+import { getCoordinatesFromAddressEnhanced } from '../../../utils/geocoding';
 
 // Constants
 const ACTIVITY_TYPES = {
@@ -47,6 +46,7 @@ const DEFAULT_COORDINATES = {
   LNG: 106.67938722917663,
   TOLERANCE: 0.0001,
 };
+const MASTER_ADDRESS_ID = 'master';
 
 const getTodayDateString = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -60,15 +60,15 @@ const ActivityTypeButton = ({ type, label, selected, onClick }) => (
       py: { xs: 1.25, sm: 1.5 },
       fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
       fontWeight: 600,
-      backgroundColor: selected ? '#6BA3D0' : 'transparent',
-      color: selected ? 'white' : '#6BA3D0',
-      borderColor: '#6BA3D0',
+      backgroundColor: selected ? 'var(--theme-blue-primary)' : 'transparent',
+      color: selected ? 'white' : 'var(--theme-blue-primary)',
+      borderColor: 'var(--theme-blue-primary)',
       borderRadius: { xs: '8px', sm: '10px' },
       textTransform: 'none',
       '&:hover': {
-        backgroundColor: selected ? '#5a8fb8' : 'rgba(107, 163, 208, 0.08)',
-        borderColor: '#6BA3D0',
-        color: selected ? 'white' : '#6BA3D0',
+        backgroundColor: selected ? 'var(--theme-blue-overlay)' : 'rgba(31, 78, 140, 0.08)',
+        borderColor: 'var(--theme-blue-primary)',
+        color: selected ? 'white' : 'var(--theme-blue-primary)',
       },
     }}
   >
@@ -82,6 +82,7 @@ const useFormState = () => {
     date: getTodayDateString(),
     customerId: '',
     customer: null,
+    customerAddressId: MASTER_ADDRESS_ID,
     tujuan: '',
     keterangan: '',
   });
@@ -95,6 +96,7 @@ const useFormState = () => {
       date: getTodayDateString(),
       customerId: '',
       customer: null,
+      customerAddressId: MASTER_ADDRESS_ID,
       tujuan: '',
       keterangan: '',
     });
@@ -224,12 +226,11 @@ const useLocationHandler = () => {
   };
 };
 
-export default function AddPlan({ open, onClose, onOpenCheckIn }) {
+export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress, addressSelection }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showLoadingPlan, setShowLoadingPlan] = useState(false);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
-  const [geocodingConfidence, setGeocodingConfidence] = useState(null);
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
 
@@ -270,6 +271,25 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     }
   }, [open, updateField]);
 
+  useEffect(() => {
+    if (!open || !addressSelection) return;
+
+    const hasAddress = typeof addressSelection.address === 'string';
+    const hasCoordinates =
+      Number.isFinite(addressSelection.latitude) && Number.isFinite(addressSelection.longitude);
+    const selectedAddressId = addressSelection.addressId || MASTER_ADDRESS_ID;
+
+    if (hasAddress) {
+      setCustomerAddress(addressSelection.address);
+    }
+
+    if (hasCoordinates) {
+      handleLocationChange(addressSelection.latitude, addressSelection.longitude);
+    }
+
+    updateField('customerAddressId', selectedAddressId);
+  }, [open, addressSelection, handleLocationChange, setCustomerAddress, updateField]);
+
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
   }, [updateField]);
@@ -287,10 +307,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
       if (!newValue) {
         updateField('customer', null);
         updateField('customerId', '');
+        updateField('customerAddressId', MASTER_ADDRESS_ID);
         setCustomerAddress('');
         setInputValue('');
         setSearchInput('');
-        setGeocodingConfidence(null);
         // Reset location when customer is cleared
         resetLocation();
         return;
@@ -302,6 +322,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
 
       updateField('customer', newValue);
       updateField('customerId', customerId);
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress(fullAddress);
       setInputValue(customerName);
       setSearchInput('');
@@ -316,9 +337,6 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
           // Update location coordinates
           handleLocationChange(lat, lng);
 
-          // Store confidence level
-          setGeocodingConfidence(confidence);
-
           console.log(`Customer location found: ${lat}, ${lng} for address: "${fullAddress}" (confidence: ${confidence})`);
         } catch (geocodingError) {
           console.warn('Failed to geocode customer address:', geocodingError.message);
@@ -332,6 +350,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
       setErrorDialog({ open: true, message: 'Terjadi kesalahan saat memilih customer. Silakan coba lagi.', fieldType: 'customer' });
       updateField('customer', null);
       updateField('customerId', '');
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress('');
       setInputValue('');
       setSearchInput('');
@@ -348,6 +367,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
       setSearchInput('');
       updateField('customer', null);
       updateField('customerId', '');
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress('');
     }
   }, [updateField]);
@@ -410,6 +430,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
         plan_date: formData.date,
         tujuan: tujuanFormatted,
         keterangan_tambahan: formData.keterangan || '',
+        customer_address_id: formData.customerAddressId || MASTER_ADDRESS_ID,
         customer_location_lat: latitude || null,
         customer_location_lng: longitude || null,
       };
@@ -494,39 +515,34 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
     setLoading(false);
     setShowLoadingPlan(false);
     setGeocodingLoading(false);
-    setGeocodingConfidence(null);
     setSearchInput('');
     setInputValue('');
     onClose();
   }, [resetForm, resetLocation, onClose]);
 
-  const handleAddressChange = useCallback(async (newAddress) => {
-    setCustomerAddress(newAddress);
-
-    // Geocode immediately if address is valid
-    if (newAddress && newAddress.trim().length >= 5) {
-      setGeocodingLoading(true);
-      try {
-        const geocodingResult = await getCoordinatesFromAddressEnhanced(newAddress.trim());
-        const { lat, lng, confidence } = geocodingResult;
-
-        handleLocationChange(lat, lng);
-        setGeocodingConfidence(confidence);
-        console.log(`Address geocoded: ${lat}, ${lng} for "${newAddress}" (confidence: ${confidence})`);
-      } catch (geocodingError) {
-        console.warn('Failed to geocode address:', geocodingError.message);
-      } finally {
-        setGeocodingLoading(false);
-      }
-    } else {
-      setGeocodingLoading(false);
-    }
-  }, [handleLocationChange]);
-
   const handleSwitchToCheckIn = useCallback(() => {
     handleClose();
     if (onOpenCheckIn) onOpenCheckIn();
   }, [handleClose, onOpenCheckIn]);
+
+  const handleOpenAddressPage = useCallback(() => {
+    if (!onOpenAddAddress) return;
+    if (!formData.customerId) {
+      setErrorDialog({ open: true, message: 'Pilih customer terlebih dahulu sebelum mengatur alamat.', fieldType: 'customer' });
+      return;
+    }
+
+    const originalAddressFromCustomer = formData.customer ? buildFullAddress(formData.customer) : '';
+
+    onOpenAddAddress({
+      customerId: formData.customerId || '',
+      addressId: formData.customerAddressId || MASTER_ADDRESS_ID,
+      address: customerAddress || '',
+      originalAddress: originalAddressFromCustomer || customerAddress || '',
+      latitude: Number.isFinite(latitude) ? latitude : null,
+      longitude: Number.isFinite(longitude) ? longitude : null,
+    });
+  }, [onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, formData.customerId, formData.customerAddressId, buildFullAddress]);
 
   return (
     <Dialog
@@ -567,7 +583,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
             alignItems: 'center',
             mb: 3,
             pb: 2,
-            borderBottom: '1px solid rgba(107, 163, 208, 0.1)',
+            borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
           }}
         >
           <Typography
@@ -575,13 +591,13 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
             sx={{
               fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
               fontWeight: 700,
-              color: '#6BA3D0',
+              color: 'var(--theme-blue-primary)',
               display: 'flex',
               alignItems: 'center',
               gap: 1,
             }}
           >
-            <AssignmentIcon sx={{ color: '#6BA3D0' }} />
+            <AssignmentIcon sx={{ color: 'var(--theme-blue-primary)' }} />
             Create Activity Plan
           </Typography>
           <IconButton
@@ -604,8 +620,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               gap: 1,
               p: 0.5,
               borderRadius: '999px',
-              backgroundColor: 'rgba(107, 163, 208, 0.12)',
-              border: '1px solid rgba(107, 163, 208, 0.2)',
+              backgroundColor: 'rgba(31, 78, 140, 0.12)',
+              border: '1px solid rgba(31, 78, 140, 0.2)',
             }}
           >
             <Button
@@ -616,8 +632,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                backgroundColor: '#6BA3D0',
-                '&:hover': { backgroundColor: '#5a8fb8' },
+                backgroundColor: 'var(--theme-blue-primary)',
+                '&:hover': { backgroundColor: 'var(--theme-blue-overlay)' },
               }}
               disabled
             >
@@ -632,7 +648,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                 borderRadius: '999px',
                 textTransform: 'none',
                 fontWeight: 700,
-                color: '#4e8ec2',
+                color: 'var(--theme-blue-overlay)',
               }}
             >
               Check In
@@ -684,10 +700,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                   },
                 },
@@ -748,10 +764,10 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
                     '&:hover fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#6BA3D0',
+                      borderColor: 'var(--theme-blue-primary)',
                     },
                   },
                 }}
@@ -827,7 +843,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
           />
         </Box>
 
-        {/* Alamat dan Lokasi */}
+        {/* Alamat dan Maps */}
         <Box sx={{ mb: 3 }}>
           <Typography
             variant="body2"
@@ -838,97 +854,55 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               fontWeight: 600,
             }}
           >
-            Alamat 
+            Alamat dan Maps
           </Typography>
-          <TextField
+
+          <Button
+            variant="outlined"
             fullWidth
-            multiline
-            rows={4}
-            placeholder="Masukkan alamat lengkap..."
-            value={customerAddress}
-            onChange={(e) => handleAddressChange(e.target.value)}
+            onClick={handleOpenAddressPage}
+            startIcon={geocodingLoading ? <CircularProgress size={18} /> : <LocationOnIcon />}
             sx={{
-              mb: 2,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: { xs: '8px', sm: '10px' },
-                '&:hover fieldset': {
-                  borderColor: '#6BA3D0',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#6BA3D0',
-                },
+              py: { xs: 1.25, sm: 1.5 },
+              borderColor: 'var(--theme-blue-primary)',
+              color: 'var(--theme-blue-primary)',
+              borderRadius: { xs: '8px', sm: '10px' },
+              textTransform: 'none',
+              fontWeight: 700,
+              justifyContent: 'flex-start',
+              '&:hover': {
+                borderColor: 'var(--theme-blue-overlay)',
+                backgroundColor: 'rgba(31, 78, 140, 0.06)',
               },
             }}
-          />
+          >
+            Buka halaman alamat & maps
+          </Button>
 
-          <Box sx={{
-            height: '350px',
-            borderRadius: { xs: '8px', sm: '10px' },
-            overflow: 'hidden',
-            border: '1px solid rgba(0, 0, 0, 0.23)',
-            position: 'relative',
-          }}>
-            {geocodingLoading && (
-              <Box sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                zIndex: 10,
-              }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress sx={{ color: '#6BA3D0', mb: 1 }} />
-                  <Typography variant="body2" sx={{ color: '#666' }}>
-                    Mencari lokasi customer...
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-            <AddressMap
-              address={customerAddress}
-              latitude={latitude}
-              longitude={longitude}
-              onLocationChange={handleLocationChange}
-            />
-          </Box>
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 1,
+              color: '#666',
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+            }}
+          >
+            {customerAddress?.trim() ? `Alamat: ${customerAddress}` : 'Alamat belum diatur.'}
+          </Typography>
 
-          {latitude && longitude && (
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#333',
-                mt: 1,
-                backgroundColor: '#f5f5f5',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontFamily: 'monospace',
-              }}
-            >
-              Koordinat: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-              {geocodingConfidence && (
-                <span style={{
-                  marginLeft: '8px',
-                  color: geocodingConfidence === 'exact' ? '#2e7d32' :
-                         geocodingConfidence === 'good' ? '#1976d2' : '#f57c00'
-                }}>
-                  ({geocodingConfidence === 'exact' ? '🎯 Lokasi tepat' :
-                    geocodingConfidence === 'good' ? '📍 Lokasi baik' :
-                    '⚠️ Lokasi perkiraan - geser marker untuk akurasi'})
-                </span>
-              )}
-              {isDefaultLocation(latitude, longitude) && !geocodingConfidence && (
-                <span style={{ color: '#d32f2f', marginLeft: '8px' }}>
-                  (Geser marker untuk mengatur lokasi)
-                </span>
-              )}
-            </Typography>
-          )}
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 0.75,
+              color: latitude && longitude ? '#1f4e8c' : '#d32f2f',
+              fontWeight: 600,
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+            }}
+          >
+            {latitude && longitude
+              ? `Koordinat: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+              : 'Koordinat belum diatur.'}
+          </Typography>
         </Box>
 
         {/* Tujuan */}
@@ -995,7 +969,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               transition: 'border-color 0.2s',
             }}
             onFocus={(e) => {
-              e.target.style.borderColor = '#6BA3D0';
+              e.target.style.borderColor = 'var(--theme-blue-primary)';
             }}
             onBlur={(e) => {
               e.target.style.borderColor = 'rgba(0, 0, 0, 0.23)';
@@ -1022,13 +996,13 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               py: { xs: 1.25, sm: 1.5 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
               fontWeight: 600,
-              borderColor: '#6BA3D0',
-              color: '#6BA3D0',
+              borderColor: 'var(--theme-blue-primary)',
+              color: 'var(--theme-blue-primary)',
               borderRadius: { xs: '8px', sm: '10px' },
               textTransform: 'none',
               '&:hover': {
-                borderColor: '#5a8fb8',
-                backgroundColor: 'rgba(107, 163, 208, 0.08)',
+                borderColor: 'var(--theme-blue-overlay)',
+                backgroundColor: 'rgba(31, 78, 140, 0.08)',
               },
             }}
           >
@@ -1043,16 +1017,16 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
               py: { xs: 1.25, sm: 1.5 },
               fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
               fontWeight: 600,
-              backgroundColor: '#6BA3D0',
+              backgroundColor: 'var(--theme-blue-primary)',
               color: 'white',
               borderRadius: { xs: '8px', sm: '10px' },
               textTransform: 'none',
               '&:hover': {
-                backgroundColor: '#5a8fb8',
+                backgroundColor: 'var(--theme-blue-overlay)',
                 color: 'white',
               },
               '&:disabled': {
-                backgroundColor: '#6BA3D0',
+                backgroundColor: 'var(--theme-blue-primary)',
                 opacity: 0.6,
               },
             }}
@@ -1068,9 +1042,29 @@ export default function AddPlan({ open, onClose, onOpenCheckIn }) {
 
 
       {/* Loading Plan Overlay */}
-      {showLoadingPlan && <LoadingPlan />}
+      {showLoadingPlan && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(10, 18, 34, 0.7)',
+          }}
+        >
+          <CircularProgress
+            size={52}
+            thickness={4.5}
+            sx={{ color: '#FFFFFF' }}
+          />
+        </Box>
+      )}
       </DialogContent>
     </Dialog>
   );
 }
+
+
 
