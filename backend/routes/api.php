@@ -35,10 +35,16 @@ Route::middleware('auth.sales')->group(function () {
     Route::post('/check-in', [CheckInController::class, 'checkIn']);
 
     // Activity Plans - urutan PENTING!
+    Route::get('/customers/{customerId}/addresses', [CustomerAddressController::class, 'index']);
+    Route::post('/customers/{customerId}/addresses', [CustomerAddressController::class, 'store']);
+    Route::put('/customers/{customerId}/addresses/{addressId}', [CustomerAddressController::class, 'update']);
+    Route::delete('/customers/{customerId}/addresses/{addressId}', [CustomerAddressController::class, 'destroy']);
+    
+    // ─── Activity Plans (existing + range) 
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
+    Route::get('activity-plans/range', [ActivityPlanController::class, 'getRangePlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
-    Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
-    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);  // Handle foto di sini
+    Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);
