@@ -47,6 +47,7 @@ const DEFAULT_COORDINATES = {
   LNG: 106.67938722917663,
   TOLERANCE: 0.0001,
 };
+const MASTER_ADDRESS_ID = 'master';
 
 const getTodayDateString = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -82,6 +83,7 @@ const useFormState = () => {
     date: getTodayDateString(),
     customerId: '',
     customer: null,
+    customerAddressId: MASTER_ADDRESS_ID,
     tujuan: '',
     keterangan: '',
   });
@@ -95,6 +97,7 @@ const useFormState = () => {
       date: getTodayDateString(),
       customerId: '',
       customer: null,
+      customerAddressId: MASTER_ADDRESS_ID,
       tujuan: '',
       keterangan: '',
     });
@@ -275,6 +278,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
     const hasAddress = typeof addressSelection.address === 'string';
     const hasCoordinates =
       Number.isFinite(addressSelection.latitude) && Number.isFinite(addressSelection.longitude);
+    const selectedAddressId = addressSelection.addressId || MASTER_ADDRESS_ID;
 
     if (hasAddress) {
       setCustomerAddress(addressSelection.address);
@@ -283,7 +287,9 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
     if (hasCoordinates) {
       handleLocationChange(addressSelection.latitude, addressSelection.longitude);
     }
-  }, [open, addressSelection, handleLocationChange, setCustomerAddress]);
+
+    updateField('customerAddressId', selectedAddressId);
+  }, [open, addressSelection, handleLocationChange, setCustomerAddress, updateField]);
 
   const handleInputChange = useCallback((field) => (event) => {
     updateField(field, event.target.value);
@@ -302,6 +308,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       if (!newValue) {
         updateField('customer', null);
         updateField('customerId', '');
+        updateField('customerAddressId', MASTER_ADDRESS_ID);
         setCustomerAddress('');
         setInputValue('');
         setSearchInput('');
@@ -316,6 +323,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
 
       updateField('customer', newValue);
       updateField('customerId', customerId);
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress(fullAddress);
       setInputValue(customerName);
       setSearchInput('');
@@ -343,6 +351,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       setErrorDialog({ open: true, message: 'Terjadi kesalahan saat memilih customer. Silakan coba lagi.', fieldType: 'customer' });
       updateField('customer', null);
       updateField('customerId', '');
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress('');
       setInputValue('');
       setSearchInput('');
@@ -359,6 +368,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       setSearchInput('');
       updateField('customer', null);
       updateField('customerId', '');
+      updateField('customerAddressId', MASTER_ADDRESS_ID);
       setCustomerAddress('');
     }
   }, [updateField]);
@@ -421,6 +431,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
         plan_date: formData.date,
         tujuan: tujuanFormatted,
         keterangan_tambahan: formData.keterangan || '',
+        customer_address_id: formData.customerAddressId || MASTER_ADDRESS_ID,
         customer_location_lat: latitude || null,
         customer_location_lng: longitude || null,
       };
@@ -517,16 +528,22 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
 
   const handleOpenAddressPage = useCallback(() => {
     if (!onOpenAddAddress) return;
+    if (!formData.customerId) {
+      setErrorDialog({ open: true, message: 'Pilih customer terlebih dahulu sebelum mengatur alamat.', fieldType: 'customer' });
+      return;
+    }
 
     const originalAddressFromCustomer = formData.customer ? buildFullAddress(formData.customer) : '';
 
     onOpenAddAddress({
+      customerId: formData.customerId || '',
+      addressId: formData.customerAddressId || MASTER_ADDRESS_ID,
       address: customerAddress || '',
       originalAddress: originalAddressFromCustomer || customerAddress || '',
       latitude: Number.isFinite(latitude) ? latitude : null,
       longitude: Number.isFinite(longitude) ? longitude : null,
     });
-  }, [onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, buildFullAddress]);
+  }, [onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, formData.customerId, formData.customerAddressId, buildFullAddress]);
 
   return (
     <Dialog

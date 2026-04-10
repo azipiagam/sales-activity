@@ -8,6 +8,7 @@ use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CustomerAddressController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);

@@ -301,9 +301,13 @@ export default function DashboardDownloadDialog({
             borderRadius: '14px',
             textTransform: 'none',
             fontWeight: 700,
+            color: '#fff',
             background: `linear-gradient(135deg, ${themeBluePrimary} 0%, ${themeBlueOverlay} 100%)`,
             '&:hover': {
               background: `linear-gradient(135deg, ${themeBlueOverlay} 0%, ${themeBluePrimary} 100%)`,
+            },
+            '&.Mui-disabled': {
+              color: 'rgba(255, 255, 255, 0.9)',
             },
           }}
         >

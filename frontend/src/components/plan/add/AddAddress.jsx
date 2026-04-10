@@ -13,6 +13,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddLocationAltRoundedIcon from '@mui/icons-material/AddLocationAltRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import FmdGoodRoundedIcon from '@mui/icons-material/FmdGoodRounded';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
@@ -20,8 +21,14 @@ import RadioButtonUncheckedRoundedIcon from '@mui/icons-material/RadioButtonUnch
 
 import { AddressMap } from '../maps';
 import { getCoordinatesFromAddressEnhanced } from '../../../utils/geocoding';
+import {
+  createCustomerAddress,
+  deleteCustomerAddress,
+  getCustomerAddresses,
+  updateCustomerAddress,
+} from './AddCustomerAddress';
 
-const PRIMARY_ADDRESS_ID = 'primary-address';
+const MASTER_ADDRESS_ID = 'master';
 const DEFAULT_COORDINATES = {
   LAT: -6.14524734321372,
   LNG: 106.67938722917663,
@@ -130,22 +137,25 @@ export default function AddAddress({
   onClose,
   onBackToAddPlan,
   onApplyAddress,
+  customerId = '',
+  initialAddressId = MASTER_ADDRESS_ID,
   initialAddress = '',
   initialOriginalAddress = '',
   initialLatitude = null,
   initialLongitude = null,
 }) {
   const [primaryAddress, setPrimaryAddress] = useState({
-    id: PRIMARY_ADDRESS_ID,
+    id: MASTER_ADDRESS_ID,
     title: 'Alamat Utama',
     address: '',
     latitude: null,
     longitude: null,
   });
   const [additionalAddresses, setAdditionalAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState(PRIMARY_ADDRESS_ID);
+  const [selectedAddressId, setSelectedAddressId] = useState(MASTER_ADDRESS_ID);
   const [latitude, setLatitude] = useState(DEFAULT_COORDINATES.LAT);
   const [longitude, setLongitude] = useState(DEFAULT_COORDINATES.LNG);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -170,7 +180,7 @@ export default function AddAddress({
   const updateAddressCoordinates = useCallback((addressId, lat, lng) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    if (addressId === PRIMARY_ADDRESS_ID) {
+    if (addressId === MASTER_ADDRESS_ID) {
       setPrimaryAddress((prev) => ({
         ...prev,
         latitude: lat,
@@ -193,53 +203,139 @@ export default function AddAddress({
   useEffect(() => {
     if (!open) return;
 
-    const normalizedOriginalAddress = (initialOriginalAddress || initialAddress || '').trim();
-    const normalizedInitialAddress = (initialAddress || '').trim();
+    let cancelled = false;
     const hasInitialCoordinates = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
 
-    const isUsingPrimaryAddress =
-      !normalizedInitialAddress || normalizedInitialAddress === normalizedOriginalAddress;
+    const applyFallbackData = () => {
+      const normalizedOriginalAddress = (initialOriginalAddress || initialAddress || '').trim();
+      const normalizedInitialAddress = (initialAddress || '').trim();
+      const isUsingPrimaryAddress =
+        !normalizedInitialAddress || normalizedInitialAddress === normalizedOriginalAddress;
 
-    const nextPrimaryAddress = {
-      id: PRIMARY_ADDRESS_ID,
-      title: 'Alamat Utama',
-      address: normalizedOriginalAddress,
-      latitude: isUsingPrimaryAddress && hasInitialCoordinates ? initialLatitude : null,
-      longitude: isUsingPrimaryAddress && hasInitialCoordinates ? initialLongitude : null,
+      const nextPrimaryAddress = {
+        id: MASTER_ADDRESS_ID,
+        title: 'Alamat Utama',
+        address: normalizedOriginalAddress,
+        latitude: isUsingPrimaryAddress && hasInitialCoordinates ? initialLatitude : null,
+        longitude: isUsingPrimaryAddress && hasInitialCoordinates ? initialLongitude : null,
+      };
+
+      const nextAdditionalAddresses = [];
+      let nextSelectedAddressId = MASTER_ADDRESS_ID;
+
+      if (normalizedInitialAddress && !isUsingPrimaryAddress) {
+        const initialAdditionalId = `additional-${Date.now()}`;
+        nextAdditionalAddresses.push({
+          id: initialAdditionalId,
+          title: 'Alamat Tambahan',
+          address: normalizedInitialAddress,
+          latitude: hasInitialCoordinates ? initialLatitude : null,
+          longitude: hasInitialCoordinates ? initialLongitude : null,
+        });
+        nextSelectedAddressId = initialAdditionalId;
+      }
+
+      setPrimaryAddress(nextPrimaryAddress);
+      setAdditionalAddresses(nextAdditionalAddresses);
+      setSelectedAddressId(nextSelectedAddressId);
+
+      if (hasInitialCoordinates) {
+        setLatitude(initialLatitude);
+        setLongitude(initialLongitude);
+      } else {
+        setLatitude(DEFAULT_COORDINATES.LAT);
+        setLongitude(DEFAULT_COORDINATES.LNG);
+      }
     };
 
-    const nextAdditionalAddresses = [];
-    let nextSelectedAddressId = PRIMARY_ADDRESS_ID;
+    const initializeFromApi = async () => {
+      if (!customerId) {
+        applyFallbackData();
+        return;
+      }
 
-    if (normalizedInitialAddress && !isUsingPrimaryAddress) {
-      const initialAdditionalId = `additional-${Date.now()}`;
-      nextAdditionalAddresses.push({
-        id: initialAdditionalId,
-        title: 'Alamat Tambahan',
-        address: normalizedInitialAddress,
-        latitude: hasInitialCoordinates ? initialLatitude : null,
-        longitude: hasInitialCoordinates ? initialLongitude : null,
-      });
-      nextSelectedAddressId = initialAdditionalId;
-    }
+      setLoadingAddresses(true);
+      try {
+        const addresses = await getCustomerAddresses(customerId);
+        if (cancelled) return;
 
-    setPrimaryAddress(nextPrimaryAddress);
-    setAdditionalAddresses(nextAdditionalAddresses);
-    setSelectedAddressId(nextSelectedAddressId);
+        const masterAddress = addresses.find((item) => item.id === MASTER_ADDRESS_ID || item.isDefault || item.source === 'master');
+        const nextPrimaryAddress = {
+          id: MASTER_ADDRESS_ID,
+          title: 'Alamat Utama',
+          address: masterAddress?.address || (initialOriginalAddress || initialAddress || '').trim(),
+          latitude: masterAddress?.latitude ?? null,
+          longitude: masterAddress?.longitude ?? null,
+        };
+
+        const nextAdditionalAddresses = addresses
+          .filter((item) => item.id !== MASTER_ADDRESS_ID && !item.isDefault)
+          .map((item) => ({
+            id: item.id,
+            title: 'Alamat Tambahan',
+            address: item.address,
+            latitude: item.latitude,
+            longitude: item.longitude,
+          }));
+
+        const addressMap = new Map([
+          [nextPrimaryAddress.id, nextPrimaryAddress],
+          ...nextAdditionalAddresses.map((item) => [item.id, item]),
+        ]);
+
+        let nextSelectedAddressId = MASTER_ADDRESS_ID;
+        if (initialAddressId && addressMap.has(initialAddressId)) {
+          nextSelectedAddressId = initialAddressId;
+        } else if ((initialAddress || '').trim()) {
+          const initialAddressLower = initialAddress.trim().toLowerCase();
+          const matchedAddress = nextAdditionalAddresses.find(
+            (item) => item.address?.trim().toLowerCase() === initialAddressLower,
+          );
+          if (matchedAddress) {
+            nextSelectedAddressId = matchedAddress.id;
+          }
+        }
+
+        setPrimaryAddress(nextPrimaryAddress);
+        setAdditionalAddresses(nextAdditionalAddresses);
+        setSelectedAddressId(nextSelectedAddressId);
+
+        const selectedItem = addressMap.get(nextSelectedAddressId);
+        if (hasInitialCoordinates) {
+          setLatitude(initialLatitude);
+          setLongitude(initialLongitude);
+        } else if (Number.isFinite(selectedItem?.latitude) && Number.isFinite(selectedItem?.longitude)) {
+          setLatitude(selectedItem.latitude);
+          setLongitude(selectedItem.longitude);
+        } else {
+          setLatitude(DEFAULT_COORDINATES.LAT);
+          setLongitude(DEFAULT_COORDINATES.LNG);
+        }
+
+        setError('');
+      } catch (apiError) {
+        if (cancelled) return;
+        setError(apiError?.message || 'Gagal mengambil alamat customer.');
+        applyFallbackData();
+      } finally {
+        if (!cancelled) {
+          setLoadingAddresses(false);
+        }
+      }
+    };
+
     setOpenAddSheet(false);
     setNewAddressText('');
     setEditingAddressId(null);
-    setError('');
     setSubmitting(false);
+    setError('');
 
-    if (hasInitialCoordinates) {
-      setLatitude(initialLatitude);
-      setLongitude(initialLongitude);
-    } else {
-      setLatitude(DEFAULT_COORDINATES.LAT);
-      setLongitude(DEFAULT_COORDINATES.LNG);
-    }
-  }, [open, initialAddress, initialOriginalAddress, initialLatitude, initialLongitude]);
+    initializeFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId, initialAddressId, initialAddress, initialOriginalAddress, initialLatitude, initialLongitude]);
 
   useEffect(() => {
     if (!open || !selectedAddress) return;
@@ -320,11 +416,16 @@ export default function AddAddress({
   }, []);
 
   const handleOpenAddSheet = useCallback(() => {
+    if (!customerId) {
+      setError('Pilih customer di halaman Add Plan terlebih dahulu.');
+      return;
+    }
+
     setOpenAddSheet(true);
     setNewAddressText('');
     setEditingAddressId(null);
     setError('');
-  }, []);
+  }, [customerId]);
 
   const handleCloseAddSheet = useCallback(() => {
     if (addingAddress) return;
@@ -348,6 +449,11 @@ export default function AddAddress({
 
     if (normalizedAddress.length < 5) {
       setError('Alamat tambahan minimal 5 karakter.');
+      return;
+    }
+
+    if (!customerId) {
+      setError('Customer belum dipilih. Kembali ke Add Plan dan pilih customer terlebih dahulu.');
       return;
     }
 
@@ -375,38 +481,88 @@ export default function AddAddress({
       console.warn('Failed to geocode additional address:', geocodingError?.message);
     }
 
-    if (editingAddressId) {
-      setAdditionalAddresses((prev) => prev.map((item) => (
-        item.id === editingAddressId
-          ? {
-              ...item,
-              address: normalizedAddress,
-              latitude: nextLatitude,
-              longitude: nextLongitude,
-            }
-          : item
-      )));
-      setSelectedAddressId(editingAddressId);
-    } else {
-      const newAddressId = `additional-${Date.now()}`;
-      const newAddressItem = {
-        id: newAddressId,
-        address: normalizedAddress,
-        latitude: nextLatitude,
-        longitude: nextLongitude,
-      };
-      setAdditionalAddresses((prev) => [newAddressItem, ...prev]);
-      setSelectedAddressId(newAddressId);
+    try {
+      if (editingAddressId) {
+        const updatedAddress = await updateCustomerAddress(customerId, editingAddressId, {
+          address: normalizedAddress,
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+        });
+
+        setAdditionalAddresses((prev) => prev.map((item) => (
+          item.id === editingAddressId
+            ? {
+                ...item,
+                address: updatedAddress?.address || normalizedAddress,
+                latitude: updatedAddress?.latitude ?? nextLatitude,
+                longitude: updatedAddress?.longitude ?? nextLongitude,
+              }
+            : item
+        )));
+
+        setSelectedAddressId(editingAddressId);
+        setLatitude(updatedAddress?.latitude ?? nextLatitude);
+        setLongitude(updatedAddress?.longitude ?? nextLongitude);
+      } else {
+        const createdAddress = await createCustomerAddress(customerId, {
+          address: normalizedAddress,
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+        });
+
+        if (!createdAddress?.id) {
+          throw new Error('Gagal menyimpan alamat tambahan.');
+        }
+
+        setAdditionalAddresses((prev) => [
+          ...prev,
+          {
+            id: createdAddress.id,
+            title: 'Alamat Tambahan',
+            address: createdAddress.address || normalizedAddress,
+            latitude: createdAddress.latitude ?? nextLatitude,
+            longitude: createdAddress.longitude ?? nextLongitude,
+          },
+        ]);
+        setSelectedAddressId(createdAddress.id);
+        setLatitude(createdAddress.latitude ?? nextLatitude);
+        setLongitude(createdAddress.longitude ?? nextLongitude);
+      }
+
+      setOpenAddSheet(false);
+      setNewAddressText('');
+      setEditingAddressId(null);
+      setError('');
+    } catch (apiError) {
+      setError(apiError?.message || 'Gagal menyimpan alamat tambahan.');
+    } finally {
+      setAddingAddress(false);
+    }
+  }, [newAddressText, latitude, longitude, editingAddressId, additionalAddresses, customerId]);
+
+  const handleDeleteAdditionalAddress = useCallback(async (item) => {
+    if (!item?.id) return;
+    if (!customerId) {
+      setError('Customer belum dipilih. Kembali ke Add Plan dan pilih customer terlebih dahulu.');
+      return;
     }
 
-    setLatitude(nextLatitude);
-    setLongitude(nextLongitude);
-    setOpenAddSheet(false);
-    setNewAddressText('');
-    setEditingAddressId(null);
-    setError('');
-    setAddingAddress(false);
-  }, [newAddressText, latitude, longitude, editingAddressId, additionalAddresses]);
+    setAddingAddress(true);
+    try {
+      await deleteCustomerAddress(customerId, item.id);
+      setAdditionalAddresses((prev) => prev.filter((addressItem) => addressItem.id !== item.id));
+
+      if (selectedAddressId === item.id) {
+        setSelectedAddressId(MASTER_ADDRESS_ID);
+      }
+
+      setError('');
+    } catch (apiError) {
+      setError(apiError?.message || 'Gagal menghapus alamat tambahan.');
+    } finally {
+      setAddingAddress(false);
+    }
+  }, [customerId, selectedAddressId]);
 
   const handleApply = useCallback(async () => {
     if (!hasCoordinates) {
@@ -422,10 +578,31 @@ export default function AddAddress({
     setSubmitting(true);
 
     try {
+      if (customerId && selectedAddress.id !== MASTER_ADDRESS_ID && selectedAddress.address?.trim()) {
+        const updatedAddress = await updateCustomerAddress(customerId, selectedAddress.id, {
+          address: selectedAddress.address?.trim() || '',
+          latitude,
+          longitude,
+        });
+
+        setAdditionalAddresses((prev) => prev.map((item) => (
+          item.id === selectedAddress.id
+            ? {
+                ...item,
+                address: updatedAddress?.address || item.address,
+                latitude: updatedAddress?.latitude ?? latitude,
+                longitude: updatedAddress?.longitude ?? longitude,
+              }
+            : item
+        )));
+      }
+
       if (onApplyAddress) {
         const selectedAddressText = selectedAddress.address?.trim() || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         onApplyAddress({
+          customerId: customerId || '',
+          addressId: selectedAddress.id || MASTER_ADDRESS_ID,
           address: selectedAddressText,
           originalAddress: primaryAddress.address?.trim() || '',
           latitude,
@@ -435,7 +612,7 @@ export default function AddAddress({
     } finally {
       setSubmitting(false);
     }
-  }, [hasCoordinates, selectedAddress, onApplyAddress, latitude, longitude, primaryAddress.address]);
+  }, [hasCoordinates, selectedAddress, onApplyAddress, customerId, latitude, longitude, primaryAddress.address]);
 
   return (
     <>
@@ -574,7 +751,7 @@ export default function AddAddress({
               <AddressCard
                 title="Alamat Utama"
                 address={primaryAddress.address}
-                selected={selectedAddressId === PRIMARY_ADDRESS_ID}
+                selected={selectedAddressId === MASTER_ADDRESS_ID}
                 onClick={() => handleSelectAddress(primaryAddress)}
                 icon={<FmdGoodRoundedIcon fontSize="small" />}
               />
@@ -597,6 +774,7 @@ export default function AddAddress({
                   onClick={handleOpenAddSheet}
                   startIcon={<AddLocationAltRoundedIcon sx={{ fontSize: '1rem !important' }} />}
                   variant="contained"
+                  disabled={loadingAddresses || addingAddress || !customerId}
                   sx={{
                     textTransform: 'none',
                     fontWeight: 700,
@@ -615,6 +793,15 @@ export default function AddAddress({
                   Tambah Alamat
                 </Button>
               </Box>
+
+              {loadingAddresses ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <CircularProgress size={16} />
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    Memuat daftar alamat...
+                  </Typography>
+                </Box>
+              ) : null}
 
               {additionalAddresses.length === 0 ? (
                 <Box
@@ -640,29 +827,78 @@ export default function AddAddress({
                       onClick={() => handleSelectAddress(item)}
                       icon={<LocationOnOutlinedIcon fontSize="small" />}
                       action={(
-                        <Button
-                          size="small"
-                          variant="text"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleEditAdditionalAddress(item);
-                          }}
-                          startIcon={<EditRoundedIcon sx={{ fontSize: '0.9rem !important' }} />}
+                        <Box
                           sx={{
-                            minWidth: 0,
-                            p: 0,
-                            textTransform: 'none',
-                            fontSize: '0.72rem',
-                            lineHeight: 1.1,
-                            color: 'var(--theme-blue-primary)',
-                            '&:hover': {
-                              backgroundColor: 'transparent',
-                              color: 'var(--theme-blue-overlay)',
-                            },
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            px: 0.7,
+                            py: 0.35,
+                            borderRadius: '999px',
+                            border: '1px solid rgba(15, 23, 42, 0.12)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.82)',
                           }}
                         >
-                          Edit
-                        </Button>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEditAdditionalAddress(item);
+                            }}
+                            startIcon={<EditRoundedIcon sx={{ fontSize: '0.86rem !important' }} />}
+                            sx={{
+                              minWidth: 0,
+                              px: 0.25,
+                              py: 0.1,
+                              textTransform: 'none',
+                              fontSize: '0.72rem',
+                              lineHeight: 1.2,
+                              fontWeight: 600,
+                              color: 'var(--theme-blue-primary)',
+                              '& .MuiButton-startIcon': {
+                                mr: 0.3,
+                                ml: 0,
+                              },
+                              '&:hover': {
+                                backgroundColor: 'transparent',
+                                color: 'var(--theme-blue-overlay)',
+                              },
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteAdditionalAddress(item);
+                            }}
+                            startIcon={<DeleteOutlineRoundedIcon sx={{ fontSize: '0.9rem !important' }} />}
+                            disabled={addingAddress}
+                            sx={{
+                              minWidth: 0,
+                              px: 0.25,
+                              py: 0.1,
+                              textTransform: 'none',
+                              fontSize: '0.72rem',
+                              lineHeight: 1.2,
+                              fontWeight: 600,
+                              color: '#c62828',
+                              '& .MuiButton-startIcon': {
+                                mr: 0.3,
+                                ml: 0,
+                              },
+                              '&:hover': {
+                                backgroundColor: 'transparent',
+                                color: '#b71c1c',
+                              },
+                            }}
+                          >
+                            Hapus
+                          </Button>
+                        </Box>
                       )}
                     />
                   ))}
@@ -694,7 +930,7 @@ export default function AddAddress({
                 variant="outlined"
                 fullWidth
                 onClick={handleBack}
-                disabled={submitting}
+                disabled={submitting || loadingAddresses || addingAddress}
                 sx={{
                   minHeight: 46,
                   textTransform: 'none',
@@ -711,7 +947,7 @@ export default function AddAddress({
                 variant="contained"
                 fullWidth
                 onClick={handleApply}
-                disabled={submitting || geocodingLoading || !hasCoordinates}
+                disabled={submitting || loadingAddresses || addingAddress || geocodingLoading || !hasCoordinates}
                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircleRoundedIcon />}
                 sx={{
                   minHeight: 46,
@@ -805,6 +1041,7 @@ export default function AddAddress({
                 textTransform: 'none',
                 borderRadius: '10px',
                 fontWeight: 700,
+                color: '#fff',
                 backgroundColor: 'var(--theme-blue-primary)',
                 '&:hover': {
                   backgroundColor: 'var(--theme-blue-overlay)',

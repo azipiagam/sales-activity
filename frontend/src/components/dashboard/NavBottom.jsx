@@ -52,6 +52,8 @@ export default function NavBottom({ value, onChange }) {
 
   const handleOpenAddAddress = (payload) => {
     setAddressSelection({
+      customerId: payload?.customerId || '',
+      addressId: payload?.addressId || 'master',
       address: payload?.address || '',
       originalAddress: payload?.originalAddress || '',
       latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
@@ -68,6 +70,8 @@ export default function NavBottom({ value, onChange }) {
 
   const handleApplyAddress = (payload) => {
     setAddressSelection({
+      customerId: payload?.customerId || addressSelection?.customerId || '',
+      addressId: payload?.addressId || 'master',
       address: payload?.address || '',
       originalAddress: payload?.originalAddress || addressSelection?.originalAddress || '',
       latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
@@ -399,6 +403,8 @@ export default function NavBottom({ value, onChange }) {
         onClose={handleBackToAddPlanFromAddress}
         onBackToAddPlan={handleBackToAddPlanFromAddress}
         onApplyAddress={handleApplyAddress}
+        customerId={addressSelection?.customerId || ''}
+        initialAddressId={addressSelection?.addressId || 'master'}
         initialAddress={addressSelection?.address || ''}
         initialOriginalAddress={addressSelection?.originalAddress || ''}
         initialLatitude={addressSelection?.latitude ?? null}
