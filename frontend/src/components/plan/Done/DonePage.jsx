@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -8,15 +8,165 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { parse, isValid } from 'date-fns';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
+import { getCustomerAddresses } from '../add/AddCustomerAddress';
 import HeaderDone from './HeaderDone';
 import MapsDone from './MapsDone';
 import CameraDone from './CameraDone';
 import CardDone from './CardDone';
 
+const MASTER_ADDRESS_ID = 'master';
+const DISTANCE_LIMIT_KM = 2;
+
 const normalizeTaskId = (value) => {
   if (value === undefined || value === null || value === '') return null;
   const numeric = Number(value);
   return Number.isNaN(numeric) ? value : numeric;
+};
+
+const normalizeAddressSource = (source, fallbackAddressId) => {
+  const normalizedSource = String(source || '').toLowerCase();
+  if (normalizedSource === 'custom' || normalizedSource === 'master' || normalizedSource === 'fix') {
+    return normalizedSource;
+  }
+
+  return String(fallbackAddressId) === MASTER_ADDRESS_ID ? 'master' : 'custom';
+};
+
+const getTaskCustomerId = (task) => task?.customer_id ?? task?.customerId ?? '';
+const getTaskAddressId = (task) => task?.customer_address_id ?? task?.customerAddressId ?? null;
+
+const toFiniteNumber = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const calculateDistanceKm = (fromLat, fromLng, toLat, toLng) => {
+  const sourceLat = toFiniteNumber(fromLat);
+  const sourceLng = toFiniteNumber(fromLng);
+  const targetLat = toFiniteNumber(toLat);
+  const targetLng = toFiniteNumber(toLng);
+
+  if (
+    sourceLat === null ||
+    sourceLng === null ||
+    targetLat === null ||
+    targetLng === null
+  ) {
+    return null;
+  }
+
+  const toRadians = (deg) => (deg * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+
+  const dLat = toRadians(targetLat - sourceLat);
+  const dLng = toRadians(targetLng - sourceLng);
+  const lat1 = toRadians(sourceLat);
+  const lat2 = toRadians(targetLat);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusKm * c;
+};
+
+const resolveValidationAddressReference = (task, addresses = []) => {
+  const selectedAddressIdRaw = getTaskAddressId(task);
+  const selectedAddressId =
+    selectedAddressIdRaw === undefined || selectedAddressIdRaw === null || selectedAddressIdRaw === ''
+      ? MASTER_ADDRESS_ID
+      : String(selectedAddressIdRaw);
+
+  let selectedAddress = null;
+  if (selectedAddressId !== MASTER_ADDRESS_ID) {
+    selectedAddress = addresses.find((item) => String(item?.id) === selectedAddressId) || null;
+  }
+
+  if (!selectedAddress) {
+    selectedAddress =
+      addresses.find(
+        (item) =>
+          String(item?.id) === MASTER_ADDRESS_ID ||
+          item?.isDefault ||
+          item?.is_default ||
+          String(item?.source || '').toLowerCase() === 'master' ||
+          String(item?.source || '').toLowerCase() === 'fix'
+      ) || null;
+  }
+
+  if (!selectedAddress && addresses.length > 0) {
+    selectedAddress = addresses[0];
+  }
+
+  const referenceSource = normalizeAddressSource(selectedAddress?.source, selectedAddressId);
+  const referenceLatitude = toFiniteNumber(
+    selectedAddress?.latitude ?? selectedAddress?.lat ?? task?.customer_location_lat ?? task?.customerLocationLat
+  );
+  const referenceLongitude = toFiniteNumber(
+    selectedAddress?.longitude ?? selectedAddress?.lng ?? task?.customer_location_lng ?? task?.customerLocationLng
+  );
+
+  return {
+    addressId: selectedAddress?.id ?? selectedAddressId,
+    source: referenceSource,
+    latitude: referenceLatitude,
+    longitude: referenceLongitude,
+    address: selectedAddress?.address ?? null,
+  };
+};
+
+const resolveFixAddressConfirmation = (donePayload, task, currentLocation, validationAddressRef) => {
+  const hasBackendFlag = typeof donePayload?.needs_fix_address_confirmation === 'boolean';
+  const backendDistanceKm = toFiniteNumber(donePayload?.distance_km);
+
+  if (hasBackendFlag) {
+    return {
+      needsFixAddressConfirmation: donePayload.needs_fix_address_confirmation,
+      distanceKm: backendDistanceKm,
+    };
+  }
+
+  const referenceSource = String(validationAddressRef?.source || '').toLowerCase();
+  const customerAddressId = getTaskAddressId(task);
+  const fallbackSource = normalizeAddressSource(referenceSource, customerAddressId ?? MASTER_ADDRESS_ID);
+  const isCustomAddress = fallbackSource === 'custom';
+
+  if (isCustomAddress) {
+    return {
+      needsFixAddressConfirmation: false,
+      distanceKm: backendDistanceKm,
+    };
+  }
+
+  const distanceKm = calculateDistanceKm(
+    validationAddressRef?.latitude ?? task?.customer_location_lat ?? task?.customerLocationLat,
+    validationAddressRef?.longitude ?? task?.customer_location_lng ?? task?.customerLocationLng,
+    currentLocation?.latitude,
+    currentLocation?.longitude
+  );
+
+  if (distanceKm === null) {
+    return {
+      needsFixAddressConfirmation: false,
+      distanceKm: backendDistanceKm,
+    };
+  }
+
+  return {
+    needsFixAddressConfirmation: distanceKm > DISTANCE_LIMIT_KM,
+    distanceKm: Number(distanceKm.toFixed(3)),
+  };
+};
+
+const resolveDistanceToCustomerKm = (task, currentLocation, validationAddressRef) => {
+  return calculateDistanceKm(
+    validationAddressRef?.latitude ?? task?.customer_location_lat ?? task?.customerLocationLat,
+    validationAddressRef?.longitude ?? task?.customer_location_lng ?? task?.customerLocationLng,
+    currentLocation?.latitude,
+    currentLocation?.longitude
+  );
 };
 
 export default function DonePage() {
@@ -30,8 +180,9 @@ export default function DonePage() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [autoLocateAttempted, setAutoLocateAttempted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [validationAddressRef, setValidationAddressRef] = useState(null);
 
-  const { invalidateCache, fetchPlansByDate, updatePlanInCache } = useActivityPlans();
+  const { invalidateCache, fetchPlansByDate, updatePlanInCache, getPlansByDate } = useActivityPlans();
 
   const taskId = useMemo(() => {
     const sourceTaskId = location.state?.taskId ?? searchParams.get('taskId');
@@ -47,14 +198,39 @@ export default function DonePage() {
   }, [location.state, searchParams]);
 
   const taskData = location.state?.task;
-  const taskName = taskData?.namaCustomer;
-  const planNo = taskData?.idPlan ?? taskData?.plan_no ?? '';
-  const tujuan = taskData?.tujuan ?? '';
+  const [taskMeta, setTaskMeta] = useState(taskData ?? null);
+
+  const activeTask = taskMeta ?? taskData ?? null;
+  const taskName = activeTask?.namaCustomer ?? activeTask?.customer_name;
+  const planNo = activeTask?.idPlan ?? activeTask?.plan_no ?? '';
+  const tujuan = activeTask?.tujuan ?? '';
+
+  useEffect(() => {
+    setTaskMeta(taskData ?? null);
+  }, [taskData, taskId]);
+
+  const loadValidationAddressReference = useCallback(async (task) => {
+    if (!task) return null;
+
+    const customerId = getTaskCustomerId(task);
+    if (!customerId) {
+      return resolveValidationAddressReference(task, []);
+    }
+
+    try {
+      const addresses = await getCustomerAddresses(customerId);
+      return resolveValidationAddressReference(task, addresses);
+    } catch (err) {
+      console.error('Error loading customer addresses for done validation:', err);
+      return resolveValidationAddressReference(task, []);
+    }
+  }, []);
 
   useEffect(() => {
     setAutoLocateAttempted(false);
     setCurrentLocation(null);
     setCameraActive(false);
+    setValidationAddressRef(null);
   }, [taskId]);
 
   const handleBackToPlan = () => {
@@ -115,6 +291,54 @@ export default function DonePage() {
     }
   }, [taskId, autoLocateAttempted, currentLocation, locationLoading]);
 
+  useEffect(() => {
+    if (!taskId || taskMeta) return;
+
+    let cancelled = false;
+
+    const hydrateTaskMeta = async () => {
+      try {
+        let plans = getPlansByDate(dateToUse);
+        if (!Array.isArray(plans)) {
+          plans = await fetchPlansByDate(dateToUse);
+        }
+
+        if (!cancelled && Array.isArray(plans)) {
+          const matched = plans.find((plan) => String(plan?.id) === String(taskId));
+          if (matched) {
+            setTaskMeta(matched);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading task metadata:', err);
+      }
+    };
+
+    hydrateTaskMeta();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, taskMeta, dateToUse, fetchPlansByDate, getPlansByDate]);
+
+  useEffect(() => {
+    if (!activeTask) return;
+
+    let cancelled = false;
+    const loadAddressReference = async () => {
+      const reference = await loadValidationAddressReference(activeTask);
+      if (!cancelled) {
+        setValidationAddressRef(reference);
+      }
+    };
+
+    loadAddressReference();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTask, loadValidationAddressReference]);
+
   const handleSaveResult = async () => {
     if (!taskId) return;
     if (!currentLocation?.latitude || !currentLocation?.longitude) {
@@ -124,6 +348,26 @@ export default function DonePage() {
 
     try {
       setSaving(true);
+      let currentValidationAddressRef = validationAddressRef;
+      if (!currentValidationAddressRef) {
+        currentValidationAddressRef = await loadValidationAddressReference(activeTask);
+        setValidationAddressRef(currentValidationAddressRef);
+      }
+
+      const distanceToCustomerKm = resolveDistanceToCustomerKm(
+        activeTask,
+        currentLocation,
+        currentValidationAddressRef
+      );
+      const isProceed = window.confirm(
+        Number.isFinite(distanceToCustomerKm)
+          ? `Jarak antara koordinat result dan customer adalah ${distanceToCustomerKm.toFixed(2)} KM.\n\nLanjutkan proses Done?`
+          : 'Koordinat customer tidak tersedia, jarak tidak bisa dihitung.\n\nLanjutkan proses Done?'
+      );
+
+      if (!isProceed) {
+        return;
+      }
 
       const resultText = result.trim() || '-';
 
@@ -152,6 +396,53 @@ export default function DonePage() {
         invalidateCache(dateToUse);
         await fetchPlansByDate(dateToUse, true);
         throw new Error(errorData.message || 'Failed to save result');
+      }
+
+      const donePayload = await response.json().catch(() => ({}));
+
+      const { needsFixAddressConfirmation, distanceKm } = resolveFixAddressConfirmation(
+        donePayload,
+        activeTask,
+        currentLocation,
+        currentValidationAddressRef
+      );
+
+      if (needsFixAddressConfirmation) {
+        const distanceText =
+          distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
+        const shouldSaveFixAddress = window.confirm(
+          distanceText
+            ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari 2 KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
+            : 'Jarak hasil kunjungan lebih dari 2 KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?'
+        );
+
+        if (shouldSaveFixAddress) {
+          const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
+
+          if (!customerId) {
+            alert('Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.');
+          } else {
+            const fixAddressResponse = await apiRequest(
+              `customers/${encodeURIComponent(customerId)}/fix-address`,
+              {
+                method: 'POST',
+                body: JSON.stringify({
+                  lat: currentLocation.latitude,
+                  lng: currentLocation.longitude,
+                }),
+              }
+            );
+
+            if (!fixAddressResponse.ok) {
+              const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
+              alert(
+                `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
+                  fixAddressError.message || 'Unknown error'
+                }`
+              );
+            }
+          }
+        }
       }
 
       invalidateCache(dateToUse);

@@ -197,6 +197,10 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           tujuan: formattedTujuan,
           tambahan: taskData.keterangan_tambahan || '',
           result: taskData.result || '',
+          customer_id: taskData.customer_id || '',
+          customer_address_id: taskData.customer_address_id ?? null,
+          customer_location_lat: taskData.customer_location_lat ?? null,
+          customer_location_lng: taskData.customer_location_lng ?? null,
           visitDate: visitDate,
           status: status,
         };
@@ -300,6 +304,10 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           tujuan: formattedTujuan,
           tambahan: taskData.keterangan_tambahan || '',
           result: taskData.result || '',
+          customer_id: taskData.customer_id || '',
+          customer_address_id: taskData.customer_address_id ?? null,
+          customer_location_lat: taskData.customer_location_lat ?? null,
+          customer_location_lng: taskData.customer_location_lng ?? null,
           visitDate: visitDate,
           status: status,
         };

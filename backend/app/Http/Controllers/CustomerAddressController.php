@@ -45,7 +45,7 @@ class CustomerAddressController extends Controller
             $defaultAddress = [
                 'id'          => 'master',          // sentinel ID stays 'master' so FE logic is consistent
                 'customer_id' => $customerId,
-                'address'     => $fix->address,
+                'address'     => $fix->address ?: $master->address,
                 'lat'         => $fix->lat,
                 'lng'         => $fix->lng,
                 'is_default'  => true,
