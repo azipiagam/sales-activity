@@ -11,13 +11,19 @@ use Carbon\Carbon;
 class CustomerAddressController extends Controller
 {
     /**
-     * Get all addresses for a customer
-     * Includes the master address from master_customer as the default entry
+     * Get all addresses for a customer.
+     *
+     * Priority for default address:
+     *   1. fix_address (if exists for this customer)  → is_default: true, source: 'fix'
+     *   2. master_customer address                    → is_default: true, source: 'master'
+     *
+     * Additional addresses from customer_addresses are appended after the default.
+     *
      * URL: GET /api/customers/{customerId}/addresses
      */
     public function index($customerId)
     {
-        // Get master address from master_customer
+        // Verify customer exists
         $master = DB::table('master_customer')
             ->where('id', $customerId)
             ->select('id', 'customer_name', 'address')
@@ -27,18 +33,39 @@ class CustomerAddressController extends Controller
             return response()->json(['message' => 'Customer not found'], 404);
         }
 
-        // Build default address entry from master_customer
-        $defaultAddress = [
-            'id'          => 'master',          // sentinel ID so FE knows this is the default
-            'customer_id' => $customerId,
-            'address'     => $master->address,
-            'lat'         => null,
-            'lng'         => null,
-            'is_default'  => true,
-            'source'      => 'master',
-            'created_at'  => null,
-            'updated_at'  => null,
-        ];
+        // Check if a fix_address exists for this customer
+        $fix = DB::table('fix_address')
+            ->where('customer_id', $customerId)
+            ->first();
+
+        // Build default address entry
+        // If fix_address exists → use it as default (source: 'fix')
+        // Otherwise → fall back to master_customer (source: 'master')
+        if ($fix) {
+            $defaultAddress = [
+                'id'          => 'master',          // sentinel ID stays 'master' so FE logic is consistent
+                'customer_id' => $customerId,
+                'address'     => $fix->address,
+                'lat'         => $fix->lat,
+                'lng'         => $fix->lng,
+                'is_default'  => true,
+                'source'      => 'fix',             // FE can show "(Corrected)" label if needed
+                'created_at'  => $fix->created_at,
+                'updated_at'  => $fix->updated_at,
+            ];
+        } else {
+            $defaultAddress = [
+                'id'          => 'master',
+                'customer_id' => $customerId,
+                'address'     => $master->address,
+                'lat'         => null,
+                'lng'         => null,
+                'is_default'  => true,
+                'source'      => 'master',
+                'created_at'  => null,
+                'updated_at'  => null,
+            ];
+        }
 
         // Get additional addresses from customer_addresses
         $additionalAddresses = DB::table('customer_addresses')
@@ -60,19 +87,15 @@ class CustomerAddressController extends Controller
             })
             ->toArray();
 
-        // Merge: master first, then additional
-        $allAddresses = array_merge([$defaultAddress], $additionalAddresses);
-
-        return response()->json($allAddresses);
+        return response()->json(array_merge([$defaultAddress], $additionalAddresses));
     }
 
     /**
-     * Add new address for a customer
+     * Add new address for a customer.
      * URL: POST /api/customers/{customerId}/addresses
      */
     public function store(Request $request, $customerId)
     {
-        // Verify customer exists
         $customer = DB::table('master_customer')
             ->where('id', $customerId)
             ->first();
@@ -117,12 +140,11 @@ class CustomerAddressController extends Controller
     }
 
     /**
-     * Update an address
+     * Update a custom address.
      * URL: PUT /api/customers/{customerId}/addresses/{addressId}
      */
     public function update(Request $request, $customerId, $addressId)
     {
-        // Prevent editing the master sentinel
         if ($addressId === 'master') {
             return response()->json([
                 'message' => 'Default address can only be updated via master customer data',
@@ -171,12 +193,11 @@ class CustomerAddressController extends Controller
     }
 
     /**
-     * Delete an address
+     * Delete a custom address.
      * URL: DELETE /api/customers/{customerId}/addresses/{addressId}
      */
     public function destroy($customerId, $addressId)
     {
-        // Prevent deleting the master sentinel
         if ($addressId === 'master') {
             return response()->json([
                 'message' => 'Default address cannot be deleted',
