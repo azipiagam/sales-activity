@@ -50,6 +50,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('activity-plans/range', [ActivityPlanController::class, 'getRangePlans']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
+    Route::put('/activity-plans/{id}', [ActivityPlanController::class, 'update']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);

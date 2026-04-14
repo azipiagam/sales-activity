@@ -12,19 +12,10 @@ class FixAddressController extends Controller
 {
     /**
      * Upsert fix address for a customer.
-     * Called by FE after user confirms "Yes" on the >2KM alert.
      * URL: POST /api/customers/{customerId}/fix-address
-     *
-     * Body:
-     * {
-     *   "lat": -6.1234,
-     *   "lng": 106.8456,
-     *   "address": "Jl. Result No. 1, Jakarta"  // optional, dari reverse geocode FE atau kosong
-     * }
      */
     public function upsert(Request $request, $customerId)
     {
-        // Verify customer exists
         $customer = DB::table('master_customer')
             ->where('id', $customerId)
             ->first();
@@ -37,6 +28,8 @@ class FixAddressController extends Controller
             'lat'     => 'required|numeric|between:-90,90',
             'lng'     => 'required|numeric|between:-180,180',
             'address' => 'nullable|string|max:255',
+            'city'    => 'nullable|string|max:100',
+            'state'   => 'nullable|string|max:100',
         ]);
 
         $now      = Carbon::now()->toDateTimeString();
@@ -45,19 +38,18 @@ class FixAddressController extends Controller
             ->first();
 
         if ($existing) {
-            // Update existing fix address
             DB::table('fix_address')
                 ->where('customer_id', $customerId)
                 ->update([
                     'lat'        => $request->lat,
                     'lng'        => $request->lng,
                     'address'    => $request->address,
+                    'city'       => $request->city,
+                    'state'      => $request->state,
                     'updated_at' => $now,
                 ]);
-
             $id = $existing->id;
         } else {
-            // Insert new fix address
             $id = Str::uuid()->toString();
             DB::table('fix_address')->insert([
                 'id'          => $id,
@@ -65,6 +57,8 @@ class FixAddressController extends Controller
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
                 'address'     => $request->address,
+                'city'        => $request->city,
+                'state'       => $request->state,
                 'created_at'  => $now,
                 'updated_at'  => $now,
             ]);
@@ -78,13 +72,15 @@ class FixAddressController extends Controller
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
                 'address'     => $request->address,
+                'city'        => $request->city,
+                'state'       => $request->state,
                 'updated_at'  => $now,
             ],
         ]);
     }
 
     /**
-     * Get current fix address for a customer (optional utility endpoint).
+     * Get current fix address for a customer.
      * URL: GET /api/customers/{customerId}/fix-address
      */
     public function show($customerId)

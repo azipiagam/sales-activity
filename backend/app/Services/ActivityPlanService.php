@@ -312,6 +312,79 @@ class ActivityPlanService
     }
 
     /**
+     * Update activity plan (only for 'in progress' or 'rescheduled' status)
+     */
+    public function update($planId, $data)
+    {
+        $plan = DB::table('activity_plans')
+            ->where('id', $planId)
+            ->first();
+
+        if (!$plan) {
+            throw new \Exception("Activity plan not found");
+        }
+
+        if (!in_array($plan->status, ['in progress', 'rescheduled'])) {
+            throw new \Exception("Cannot edit activity plan with status: {$plan->status}");
+        }
+
+        // Resolve lat/lng kalau customer_address_id berubah
+        if (isset($data['customer_address_id'])) {
+            $data = $this->resolveAddressCoordinatesStatic($data);
+        }
+
+        $now = Carbon::now()->toDateTimeString();
+
+        DB::table('activity_plans')
+            ->where('id', $planId)
+            ->update([
+                'customer_id'           => $data['customer_id']          ?? $plan->customer_id,
+                'customer_name'         => $data['customer_name']         ?? $plan->customer_name,
+                'plan_date'             => $data['plan_date']             ?? $plan->plan_date,
+                'tujuan'                => $data['tujuan']                ?? $plan->tujuan,
+                'keterangan_tambahan'   => $data['keterangan_tambahan']   ?? $plan->keterangan_tambahan,
+                'customer_address_id'   => $data['customer_address_id']   ?? $plan->customer_address_id,
+                'customer_location_lat' => $data['customer_location_lat'] ?? $plan->customer_location_lat,
+                'customer_location_lng' => $data['customer_location_lng'] ?? $plan->customer_location_lng,
+                'updated_at'            => $now,
+            ]);
+
+        return DB::table('activity_plans')->where('id', $planId)->first();
+    }
+
+    /**
+     * Static version of resolveAddressCoordinates untuk dipakai di service
+     * (tanpa dependency ke $request)
+     */
+    private function resolveAddressCoordinatesStatic(array $data): array
+    {
+        $addressId = $data['customer_address_id'] ?? null;
+
+        if (!$addressId) {
+            return $data;
+        }
+
+        if ($addressId === 'master') {
+            $data['customer_location_lat'] = null;
+            $data['customer_location_lng'] = null;
+            return $data;
+        }
+
+        $address = DB::table('customer_addresses')
+            ->where('id', $addressId)
+            ->where('customer_id', $data['customer_id'])
+            ->select('lat', 'lng')
+            ->first();
+
+        if ($address) {
+            $data['customer_location_lat'] = $address->lat;
+            $data['customer_location_lng'] = $address->lng;
+        }
+
+        return $data;
+    }
+
+    /**
      * Delete activity plan (soft delete)
      */
     public function delete($planId)
