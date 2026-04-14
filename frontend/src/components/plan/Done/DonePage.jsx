@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -13,9 +13,13 @@ import HeaderDone from './HeaderDone';
 import MapsDone from './MapsDone';
 import CameraDone from './CameraDone';
 import CardDone from './CardDone';
+import PopupValidationDone from './PopupValidationDone';
+import PopupDoneAdditionalAddress from './PopupDone/PopupDoneAdditionalAddress';
+import PopupDoneMasterCustomer from './PopupDone/PopupDoneMasterCustomer';
 
 const MASTER_ADDRESS_ID = 'master';
 const DISTANCE_LIMIT_KM = 2;
+const isMasterCustomerSource = (source) => source === 'master' || source === 'fix';
 
 const normalizeTaskId = (value) => {
   if (value === undefined || value === null || value === '') return null;
@@ -178,9 +182,28 @@ export default function DonePage() {
   const [saving, setSaving] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [currentAddress, setCurrentAddress] = useState('Lokasi belum diambil');
+  const [addressLoading, setAddressLoading] = useState(false);
   const [autoLocateAttempted, setAutoLocateAttempted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [validationAddressRef, setValidationAddressRef] = useState(null);
+  const [validationPopup, setValidationPopup] = useState({
+    open: false,
+    title: 'Informasi',
+    message: '',
+    type: 'info',
+    confirmText: 'OK',
+    cancelText: 'Batal',
+    showCancel: false,
+  });
+  const [addressValidationPopup, setAddressValidationPopup] = useState({
+    open: false,
+    addressType: 'master',
+    distanceKm: null,
+    radiusLimitKm: DISTANCE_LIMIT_KM,
+  });
+  const validationPopupResolverRef = useRef(null);
+  const addressValidationResolverRef = useRef(null);
 
   const { invalidateCache, fetchPlansByDate, updatePlanInCache, getPlansByDate } = useActivityPlans();
 
@@ -205,9 +228,120 @@ export default function DonePage() {
   const planNo = activeTask?.idPlan ?? activeTask?.plan_no ?? '';
   const tujuan = activeTask?.tujuan ?? '';
 
+  const closeValidationPopup = useCallback((result) => {
+    setValidationPopup((prev) => ({ ...prev, open: false }));
+    if (validationPopupResolverRef.current) {
+      const pendingResolve = validationPopupResolverRef.current;
+      validationPopupResolverRef.current = null;
+      pendingResolve(Boolean(result));
+    }
+  }, []);
+
+  const closeAddressValidationPopup = useCallback((result) => {
+    setAddressValidationPopup((prev) => ({ ...prev, open: false }));
+    if (addressValidationResolverRef.current) {
+      const pendingResolve = addressValidationResolverRef.current;
+      addressValidationResolverRef.current = null;
+      pendingResolve(Boolean(result));
+    }
+  }, []);
+
+  const openValidationPopup = useCallback(
+    ({
+      title,
+      message,
+      type = 'info',
+      confirmText = 'OK',
+      cancelText = 'Batal',
+      showCancel = false,
+    }) => {
+      if (validationPopupResolverRef.current) {
+        const pendingResolve = validationPopupResolverRef.current;
+        validationPopupResolverRef.current = null;
+        pendingResolve(false);
+      }
+
+      setValidationPopup({
+        open: true,
+        title,
+        message,
+        type,
+        confirmText,
+        cancelText,
+        showCancel,
+      });
+
+      return new Promise((resolve) => {
+        validationPopupResolverRef.current = resolve;
+      });
+    },
+    []
+  );
+
+  const showValidationAlert = useCallback(
+    (message, options = {}) =>
+      openValidationPopup({
+        title: options.title || 'Informasi',
+        message,
+        type: options.type || 'info',
+        confirmText: options.confirmText || 'Tutup',
+        showCancel: false,
+      }),
+    [openValidationPopup]
+  );
+
+  const showValidationConfirm = useCallback(
+    (message, options = {}) =>
+      openValidationPopup({
+        title: options.title || 'Konfirmasi',
+        message,
+        type: options.type || 'warning',
+        confirmText: options.confirmText || 'Lanjutkan',
+        cancelText: options.cancelText || 'Batal',
+        showCancel: true,
+      }),
+    [openValidationPopup]
+  );
+
+  const showAddressValidationPopup = useCallback(({ addressType, distanceKm }) => {
+    if (addressValidationResolverRef.current) {
+      const pendingResolve = addressValidationResolverRef.current;
+      addressValidationResolverRef.current = null;
+      pendingResolve(false);
+    }
+
+    const normalizedType = addressType === 'additional' ? 'additional' : 'master';
+    const normalizedDistance = Number.isFinite(distanceKm) ? Number(distanceKm) : null;
+
+    setAddressValidationPopup({
+      open: true,
+      addressType: normalizedType,
+      distanceKm: normalizedDistance,
+      radiusLimitKm: DISTANCE_LIMIT_KM,
+    });
+
+    return new Promise((resolve) => {
+      addressValidationResolverRef.current = resolve;
+    });
+  }, []);
+
   useEffect(() => {
     setTaskMeta(taskData ?? null);
   }, [taskData, taskId]);
+
+  useEffect(
+    () => () => {
+      if (validationPopupResolverRef.current) {
+        validationPopupResolverRef.current(false);
+        validationPopupResolverRef.current = null;
+      }
+      if (addressValidationResolverRef.current) {
+        addressValidationResolverRef.current(false);
+        addressValidationResolverRef.current = null;
+      }
+    },
+    []
+  );
 
   const loadValidationAddressReference = useCallback(async (task) => {
     if (!task) return null;
@@ -229,6 +363,8 @@ export default function DonePage() {
   useEffect(() => {
     setAutoLocateAttempted(false);
     setCurrentLocation(null);
+    setCurrentAddress('Lokasi belum diambil');
+    setAddressLoading(false);
     setCameraActive(false);
     setValidationAddressRef(null);
   }, [taskId]);
@@ -270,7 +406,10 @@ export default function DonePage() {
       });
     } catch (err) {
       console.error('Error getting current location:', err);
-      alert(`Error: ${err.message}`);
+      await showValidationAlert(`Error: ${err.message}`, {
+        title: 'Gagal Mengambil Lokasi',
+        type: 'error',
+      });
     } finally {
       setLocationLoading(false);
     }
@@ -339,10 +478,57 @@ export default function DonePage() {
     };
   }, [activeTask, loadValidationAddressReference]);
 
+  useEffect(() => {
+    const latitude = Number(currentLocation?.latitude);
+    const longitude = Number(currentLocation?.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setCurrentAddress('Lokasi belum diambil');
+      setAddressLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const resolveAddress = async () => {
+      try {
+        setAddressLoading(true);
+        const { getEnhancedAddressFromCoordinates } = await import('../../../utils/geocoding');
+        const resolved = await getEnhancedAddressFromCoordinates(latitude, longitude, {
+          accuracy: currentLocation?.accuracy ?? null,
+        });
+
+        if (!cancelled) {
+          const formattedAddress = String(resolved?.address || '').trim();
+          setCurrentAddress(formattedAddress || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+      } catch (err) {
+        console.error('Error resolving current address:', err);
+        if (!cancelled) {
+          setCurrentAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        }
+      } finally {
+        if (!cancelled) {
+          setAddressLoading(false);
+        }
+      }
+    };
+
+    const debounceTimer = setTimeout(resolveAddress, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceTimer);
+    };
+  }, [currentLocation?.latitude, currentLocation?.longitude, currentLocation?.accuracy]);
+
   const handleSaveResult = async () => {
     if (!taskId) return;
     if (!currentLocation?.latitude || !currentLocation?.longitude) {
-      alert('Silakan ambil lokasi saat ini terlebih dahulu.');
+      await showValidationAlert('Silakan ambil lokasi saat ini terlebih dahulu.', {
+        title: 'Lokasi Belum Tersedia',
+        type: 'warning',
+      });
       return;
     }
 
@@ -359,11 +545,19 @@ export default function DonePage() {
         currentLocation,
         currentValidationAddressRef
       );
-      const isProceed = window.confirm(
-        Number.isFinite(distanceToCustomerKm)
-          ? `Jarak antara koordinat result dan customer adalah ${distanceToCustomerKm.toFixed(2)} KM.\n\nLanjutkan proses Done?`
-          : 'Koordinat customer tidak tersedia, jarak tidak bisa dihitung.\n\nLanjutkan proses Done?'
+      const addressSource = normalizeAddressSource(
+        currentValidationAddressRef?.source,
+        getTaskAddressId(activeTask) ?? MASTER_ADDRESS_ID
       );
+      const usesMasterCustomerAddress = isMasterCustomerSource(addressSource);
+      const shouldAutoSaveFixAddressFromInitialValidation =
+        usesMasterCustomerAddress &&
+        Number.isFinite(distanceToCustomerKm) &&
+        distanceToCustomerKm > DISTANCE_LIMIT_KM;
+      const isProceed = await showAddressValidationPopup({
+        addressType: usesMasterCustomerAddress ? 'master' : 'additional',
+        distanceKm: distanceToCustomerKm,
+      });
 
       if (!isProceed) {
         return;
@@ -406,41 +600,57 @@ export default function DonePage() {
         currentLocation,
         currentValidationAddressRef
       );
-
-      if (needsFixAddressConfirmation) {
+      let shouldSaveFixAddress = shouldAutoSaveFixAddressFromInitialValidation;
+      if (!shouldSaveFixAddress && needsFixAddressConfirmation) {
         const distanceText =
           distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
-        const shouldSaveFixAddress = window.confirm(
+        shouldSaveFixAddress = await showValidationConfirm(
           distanceText
-            ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari 2 KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
-            : 'Jarak hasil kunjungan lebih dari 2 KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?'
+            ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
+            : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?`,
+          {
+            title: 'Konfirmasi Fix Address',
+            type: 'warning',
+            confirmText: 'Simpan Fix Address',
+            cancelText: 'Lewati',
+          }
         );
+      }
 
-        if (shouldSaveFixAddress) {
-          const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
+      if (shouldSaveFixAddress) {
+        const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
 
-          if (!customerId) {
-            alert('Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.');
-          } else {
-            const fixAddressResponse = await apiRequest(
-              `customers/${encodeURIComponent(customerId)}/fix-address`,
+        if (!customerId) {
+          await showValidationAlert(
+            'Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.',
+            {
+              title: 'Fix Address Tidak Tersimpan',
+              type: 'warning',
+            }
+          );
+        } else {
+          const fixAddressResponse = await apiRequest(
+            `customers/${encodeURIComponent(customerId)}/fix-address`,
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                lat: currentLocation.latitude,
+                lng: currentLocation.longitude,
+              }),
+            }
+          );
+
+          if (!fixAddressResponse.ok) {
+            const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
+            await showValidationAlert(
+              `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
+                fixAddressError.message || 'Unknown error'
+              }`,
               {
-                method: 'POST',
-                body: JSON.stringify({
-                  lat: currentLocation.latitude,
-                  lng: currentLocation.longitude,
-                }),
+                title: 'Fix Address Gagal Disimpan',
+                type: 'warning',
               }
             );
-
-            if (!fixAddressResponse.ok) {
-              const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
-              alert(
-                `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
-                  fixAddressError.message || 'Unknown error'
-                }`
-              );
-            }
           }
         }
       }
@@ -453,7 +663,10 @@ export default function DonePage() {
       handleBackToPlan();
     } catch (err) {
       console.error('Error saving result:', err);
-      alert(`Error: ${err.message}`);
+      await showValidationAlert(`Error: ${err.message}`, {
+        title: 'Gagal Menyimpan Done',
+        type: 'error',
+      });
     } finally {
       setSaving(false);
     }
@@ -507,6 +720,8 @@ export default function DonePage() {
         taskName={taskName}
         planNo={planNo}
         tujuan={tujuan}
+        currentAddress={currentAddress}
+        addressLoading={addressLoading}
         onRefreshLocation={handleGetCurrentLocation}
         showRefreshLocation={Boolean(currentLocation)}
         refreshLoading={locationLoading}
@@ -620,6 +835,37 @@ export default function DonePage() {
           </Paper>
         </Box>
       ) : null}
+
+      <PopupDoneAdditionalAddress
+        open={addressValidationPopup.open && addressValidationPopup.addressType === 'additional'}
+        distanceKm={addressValidationPopup.distanceKm}
+        radiusLimitKm={addressValidationPopup.radiusLimitKm}
+        disableBackdropClose={saving}
+        onConfirm={() => closeAddressValidationPopup(true)}
+        onCancel={() => closeAddressValidationPopup(false)}
+      />
+
+      <PopupDoneMasterCustomer
+        open={addressValidationPopup.open && addressValidationPopup.addressType === 'master'}
+        distanceKm={addressValidationPopup.distanceKm}
+        radiusLimitKm={addressValidationPopup.radiusLimitKm}
+        disableBackdropClose={saving}
+        onConfirm={() => closeAddressValidationPopup(true)}
+        onCancel={() => closeAddressValidationPopup(false)}
+      />
+
+      <PopupValidationDone
+        open={validationPopup.open}
+        title={validationPopup.title}
+        message={validationPopup.message}
+        type={validationPopup.type}
+        confirmText={validationPopup.confirmText}
+        cancelText={validationPopup.cancelText}
+        showCancel={validationPopup.showCancel}
+        disableBackdropClose={saving}
+        onConfirm={() => closeValidationPopup(true)}
+        onCancel={() => closeValidationPopup(false)}
+      />
     </Box>
   );
 }
