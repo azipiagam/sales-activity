@@ -10,8 +10,6 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import CircularProgress from '@mui/material/CircularProgress';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { useTheme } from '@mui/material/styles';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { DASHBOARD_EXPORT_PERIOD_OPTIONS } from '../../constants/dashboardPeriods';
 
@@ -22,13 +20,9 @@ export default function DashboardDownloadDialog({
   provinceLabel = 'Semua Provinsi',
   isDownloading = false,
 }) {
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const themeBlueOverlay = 'var(--theme-blue-overlay)';
   const themeBluePrimary = 'var(--theme-blue-primary)';
   const themeBluePrimaryRgb = '31, 78, 140';
-  const headerGradient =
-    `linear-gradient(135deg, ${themeBlueOverlay} 0%, ${themeBluePrimary} 100%)`;
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -82,28 +76,22 @@ export default function DashboardDownloadDialog({
     <Dialog
       open={open}
       onClose={handleClose}
-      fullScreen={fullScreen}
       fullWidth
       maxWidth="xs"
       PaperProps={{
         sx: {
-          borderRadius: fullScreen ? 0 : { xs: '20px', sm: '24px' },
+          borderRadius: { xs: '20px', sm: '24px' },
           overflow: 'hidden',
-          background: fullScreen
-            ? headerGradient
-            : 'linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%)',
-          boxShadow: fullScreen ? 'none' : '0 24px 64px rgba(15, 23, 42, 0.18)',
+          background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%)',
+          boxShadow: '0 24px 64px rgba(15, 23, 42, 0.18)',
         },
       }}
     >
       <DialogTitle
         sx={{
           px: { xs: 2.25, sm: 2.75 },
-          pt: fullScreen
-            ? 'calc(env(safe-area-inset-top, 0px) + 18px)'
-            : { xs: 2.25, sm: 2.75 },
-          pb: fullScreen ? 2 : 1.5,
-          background: 'transparent',
+          pt: { xs: 2.25, sm: 2.75 },
+          pb: 1.5,
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -115,25 +103,20 @@ export default function DashboardDownloadDialog({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: fullScreen
-                ? 'rgba(255, 255, 255, 0.16)'
-                : `linear-gradient(135deg, rgba(${themeBluePrimaryRgb}, 0.18) 0%, rgba(${themeBluePrimaryRgb}, 0.08) 100%)`,
-              border: fullScreen
-                ? '1px solid rgba(255, 255, 255, 0.26)'
-                : `1px solid rgba(${themeBluePrimaryRgb}, 0.18)`,
+              background:
+                `linear-gradient(135deg, rgba(${themeBluePrimaryRgb}, 0.18) 0%, rgba(${themeBluePrimaryRgb}, 0.08) 100%)`,
+              border: `1px solid rgba(${themeBluePrimaryRgb}, 0.18)`,
               flexShrink: 0,
             }}
           >
-            <FileDownloadOutlinedIcon
-              sx={{ color: fullScreen ? '#FFFFFF' : themeBluePrimary, fontSize: 24 }}
-            />
+            <FileDownloadOutlinedIcon sx={{ color: themeBluePrimary, fontSize: 24 }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography
               sx={{
                 fontSize: { xs: '1rem', sm: '1.08rem' },
                 fontWeight: 700,
-                color: fullScreen ? '#FFFFFF' : '#111827',
+                color: '#111827',
                 lineHeight: 1.2,
               }}
             >
@@ -143,7 +126,7 @@ export default function DashboardDownloadDialog({
               sx={{
                 mt: 0.5,
                 fontSize: { xs: '0.8rem', sm: '0.84rem' },
-                color: fullScreen ? 'rgba(255, 255, 255, 0.88)' : '#6B7280',
+                color: '#6B7280',
                 lineHeight: 1.5,
               }}
             >
@@ -153,15 +136,7 @@ export default function DashboardDownloadDialog({
         </Box>
       </DialogTitle>
 
-      <DialogContent
-        sx={{
-          px: { xs: 2.25, sm: 2.75 },
-          pb: 2,
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%)',
-          borderTopLeftRadius: fullScreen ? '20px' : 0,
-          borderTopRightRadius: fullScreen ? '20px' : 0,
-        }}
-      >
+      <DialogContent sx={{ px: { xs: 2.25, sm: 2.75 }, pb: 2 }}>
         <Box
           sx={{
             mb: 1.75,
@@ -294,7 +269,6 @@ export default function DashboardDownloadDialog({
           pb: { xs: 2.25, sm: 2.75 },
           pt: 0.75,
           gap: 1,
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%)',
         }}
       >
         <Button

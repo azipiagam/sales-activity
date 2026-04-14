@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
@@ -9,17 +9,17 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddLocationAltRoundedIcon from '@mui/icons-material/AddLocationAltRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import FmdGoodRoundedIcon from '@mui/icons-material/FmdGoodRounded';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import RadioButtonUncheckedRoundedIcon from '@mui/icons-material/RadioButtonUncheckedRounded';
 
-import { AddressMap } from '../maps';
+import { AddressMap, useGoogleMaps } from '../maps';
 import { getCoordinatesFromAddressEnhanced } from '../../../utils/geocoding';
 import {
   createCustomerAddress,
@@ -144,6 +144,12 @@ export default function AddAddress({
   initialLatitude = null,
   initialLongitude = null,
 }) {
+  const { isLoaded: isGoogleMapsLoaded } = useGoogleMaps();
+  const autocompleteServiceRef = useRef(null);
+  const placesServiceRef = useRef(null);
+  const autocompleteSessionTokenRef = useRef(null);
+  const suggestionsRequestIdRef = useRef(0);
+
   const [primaryAddress, setPrimaryAddress] = useState({
     id: MASTER_ADDRESS_ID,
     title: 'Alamat Utama',
@@ -157,13 +163,16 @@ export default function AddAddress({
   const [longitude, setLongitude] = useState(DEFAULT_COORDINATES.LNG);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const [openAddSheet, setOpenAddSheet] = useState(false);
   const [newAddressText, setNewAddressText] = useState('');
   const [addingAddress, setAddingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [loadingSearchSuggestions, setLoadingSearchSuggestions] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
 
   const hasCoordinates = useMemo(() => {
     return Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -324,9 +333,12 @@ export default function AddAddress({
       }
     };
 
-    setOpenAddSheet(false);
     setNewAddressText('');
     setEditingAddressId(null);
+    setSearchSuggestions([]);
+    setShowSearchSuggestions(false);
+    setLoadingSearchSuggestions(false);
+    setSearchingAddress(false);
     setSubmitting(false);
     setError('');
 
@@ -383,6 +395,121 @@ export default function AddAddress({
     };
   }, [open, selectedAddress, updateAddressCoordinates]);
 
+  useEffect(() => {
+    if (!open || !isGoogleMapsLoaded || !window.google?.maps?.places) return;
+
+    if (!autocompleteServiceRef.current) {
+      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+    }
+
+    if (!placesServiceRef.current) {
+      placesServiceRef.current = new window.google.maps.places.PlacesService(document.createElement('div'));
+    }
+
+    if (!autocompleteSessionTokenRef.current) {
+      autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+    }
+  }, [open, isGoogleMapsLoaded]);
+
+  useEffect(() => {
+    if (!open || !isGoogleMapsLoaded || !autocompleteServiceRef.current) {
+      setSearchSuggestions([]);
+      setShowSearchSuggestions(false);
+      setLoadingSearchSuggestions(false);
+      return;
+    }
+
+    const query = newAddressText.trim();
+    if (query.length < 3) {
+      setSearchSuggestions([]);
+      setShowSearchSuggestions(false);
+      setLoadingSearchSuggestions(false);
+      return;
+    }
+
+    const requestId = suggestionsRequestIdRef.current + 1;
+    suggestionsRequestIdRef.current = requestId;
+    const placesApi = window.google?.maps?.places;
+
+    const timeoutId = setTimeout(() => {
+      if (!placesApi || !autocompleteServiceRef.current) {
+        setLoadingSearchSuggestions(false);
+        setSearchSuggestions([]);
+        setShowSearchSuggestions(false);
+        return;
+      }
+
+      setLoadingSearchSuggestions(true);
+      autocompleteServiceRef.current.getPlacePredictions(
+        {
+          input: query,
+          componentRestrictions: { country: 'id' },
+          sessionToken: autocompleteSessionTokenRef.current,
+        },
+        (predictions, status) => {
+          if (suggestionsRequestIdRef.current !== requestId) return;
+
+          setLoadingSearchSuggestions(false);
+
+          if (
+            status === placesApi.PlacesServiceStatus.OK
+            && Array.isArray(predictions)
+            && predictions.length > 0
+          ) {
+            setSearchSuggestions(predictions.slice(0, 5));
+            setShowSearchSuggestions(true);
+            return;
+          }
+
+          setSearchSuggestions([]);
+          setShowSearchSuggestions(false);
+        },
+      );
+    }, 250);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [open, isGoogleMapsLoaded, newAddressText]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const normalizedAddress = newAddressText.trim();
+    if (normalizedAddress.length < 5) {
+      setSearchingAddress(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      setSearchingAddress(true);
+      try {
+        const geocodingResult = await getCoordinatesFromAddressEnhanced(normalizedAddress);
+        if (cancelled) return;
+
+        if (Number.isFinite(geocodingResult?.lat) && Number.isFinite(geocodingResult?.lng)) {
+          setLatitude(geocodingResult.lat);
+          setLongitude(geocodingResult.lng);
+          setError('');
+        }
+      } catch (geocodingError) {
+        if (!cancelled) {
+          console.warn('Failed to geocode search address:', geocodingError?.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchingAddress(false);
+        }
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [open, newAddressText]);
+
   const handleBack = useCallback(() => {
     if (onBackToAddPlan) {
       onBackToAddPlan();
@@ -403,10 +530,53 @@ export default function AddAddress({
     setError('');
   }, [selectedAddressId, updateAddressCoordinates]);
 
+  const handleSelectSearchSuggestion = useCallback((prediction) => {
+    if (!prediction?.place_id || !placesServiceRef.current || !window.google?.maps?.places) {
+      return;
+    }
+
+    setShowSearchSuggestions(false);
+    setSearchSuggestions([]);
+    setNewAddressText(prediction.description || '');
+    setSearchingAddress(true);
+
+    placesServiceRef.current.getDetails(
+      {
+        placeId: prediction.place_id,
+        fields: ['formatted_address', 'geometry', 'name'],
+        sessionToken: autocompleteSessionTokenRef.current || undefined,
+      },
+      (place, status) => {
+        if (
+          status === window.google.maps.places.PlacesServiceStatus.OK
+          && place?.geometry?.location
+        ) {
+          const nextLatitude = place.geometry.location.lat();
+          const nextLongitude = place.geometry.location.lng();
+
+          setLatitude(nextLatitude);
+          setLongitude(nextLongitude);
+          setNewAddressText(place.formatted_address || prediction.description || '');
+          setError('');
+        }
+
+        if (window.google?.maps?.places) {
+          autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+        }
+
+        setSearchingAddress(false);
+      },
+    );
+  }, []);
+
   const handleSelectAddress = useCallback((item) => {
     if (!item) return;
 
     setSelectedAddressId(item.id);
+    setEditingAddressId(null);
+    setNewAddressText('');
+    setShowSearchSuggestions(false);
+    setSearchSuggestions([]);
     setError('');
 
     if (Number.isFinite(item.latitude) && Number.isFinite(item.longitude)) {
@@ -415,37 +585,35 @@ export default function AddAddress({
     }
   }, []);
 
-  const handleOpenAddSheet = useCallback(() => {
-    if (!customerId) {
-      setError('Pilih customer di halaman Add Plan terlebih dahulu.');
-      return;
-    }
-
-    setOpenAddSheet(true);
-    setNewAddressText('');
-    setEditingAddressId(null);
-    setError('');
-  }, [customerId]);
-
-  const handleCloseAddSheet = useCallback(() => {
-    if (addingAddress) return;
-
-    setOpenAddSheet(false);
-    setNewAddressText('');
-    setEditingAddressId(null);
-  }, [addingAddress]);
-
   const handleEditAdditionalAddress = useCallback((item) => {
     if (!item) return;
 
     setEditingAddressId(item.id);
     setNewAddressText(item.address || '');
-    setOpenAddSheet(true);
+    setShowSearchSuggestions(false);
+    setSearchSuggestions([]);
+    setSelectedAddressId(item.id);
+    if (Number.isFinite(item.latitude) && Number.isFinite(item.longitude)) {
+      setLatitude(item.latitude);
+      setLongitude(item.longitude);
+    }
     setError('');
   }, []);
 
+  const handleCancelEditAddress = useCallback(() => {
+    if (addingAddress) return;
+
+    setEditingAddressId(null);
+    setNewAddressText('');
+    setShowSearchSuggestions(false);
+    setSearchSuggestions([]);
+  }, [addingAddress]);
+
   const handleSaveAdditionalAddress = useCallback(async () => {
     const normalizedAddress = newAddressText.trim();
+
+    setShowSearchSuggestions(false);
+    setSearchSuggestions([]);
 
     if (normalizedAddress.length < 5) {
       setError('Alamat tambahan minimal 5 karakter.');
@@ -529,7 +697,6 @@ export default function AddAddress({
         setLongitude(createdAddress.longitude ?? nextLongitude);
       }
 
-      setOpenAddSheet(false);
       setNewAddressText('');
       setEditingAddressId(null);
       setError('');
@@ -556,13 +723,18 @@ export default function AddAddress({
         setSelectedAddressId(MASTER_ADDRESS_ID);
       }
 
+      if (editingAddressId === item.id) {
+        setEditingAddressId(null);
+        setNewAddressText('');
+      }
+
       setError('');
     } catch (apiError) {
       setError(apiError?.message || 'Gagal menghapus alamat tambahan.');
     } finally {
       setAddingAddress(false);
     }
-  }, [customerId, selectedAddressId]);
+  }, [customerId, selectedAddressId, editingAddressId]);
 
   const handleApply = useCallback(async () => {
     if (!hasCoordinates) {
@@ -689,7 +861,7 @@ export default function AddAddress({
                   fullscreenControl={false}
                 />
 
-                {geocodingLoading ? (
+                {geocodingLoading || searchingAddress ? (
                   <Box
                     sx={{
                       position: 'absolute',
@@ -708,7 +880,7 @@ export default function AddAddress({
                   >
                     <CircularProgress size={14} sx={{ color: 'var(--theme-blue-primary)' }} />
                     <Typography variant="caption" sx={{ color: '#334155', fontWeight: 600 }}>
-                      Menentukan titik alamat...
+                      {searchingAddress ? 'Mencari alamat di maps...' : 'Menentukan titik alamat...'}
                     </Typography>
                   </Box>
                 ) : null}
@@ -762,37 +934,206 @@ export default function AddAddress({
                   mb: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
                   gap: 1,
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: '#0f172a', fontWeight: 700 }}>
                   Alamat Tambahan
                 </Typography>
-
-                <Button
-                  onClick={handleOpenAddSheet}
-                  startIcon={<AddLocationAltRoundedIcon sx={{ fontSize: '1rem !important' }} />}
-                  variant="contained"
-                  disabled={loadingAddresses || addingAddress || !customerId}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    color: '#fff',
-                    backgroundColor: 'var(--theme-blue-primary)',
-                    borderRadius: '10px',
-                    px: 1.2,
-                    py: 0.6,
-                    minWidth: 'fit-content',
-                    boxShadow: '0 8px 20px rgba(31, 78, 140, 0.26)',
-                    '&:hover': {
-                      backgroundColor: 'var(--theme-blue-overlay)',
-                    },
-                  }}
-                >
-                  Tambah Alamat
-                </Button>
               </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.3 }}>
+                <Box sx={{ width: '100%', position: 'relative' }}>
+                  <TextField
+                    fullWidth
+                    placeholder="search alamat"
+                    value={newAddressText}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setNewAddressText(nextValue);
+                      setShowSearchSuggestions(nextValue.trim().length >= 3);
+                      setError('');
+                    }}
+                    onFocus={() => {
+                      if (searchSuggestions.length > 0) {
+                        setShowSearchSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowSearchSuggestions(false);
+                      }, 120);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return;
+
+                      event.preventDefault();
+                      if (showSearchSuggestions && searchSuggestions.length > 0) {
+                        handleSelectSearchSuggestion(searchSuggestions[0]);
+                        return;
+                      }
+
+                      handleSaveAdditionalAddress();
+                    }}
+                    disabled={loadingAddresses || addingAddress || !customerId}
+                    helperText={
+                      !customerId
+                        ? 'Pilih customer dulu di Add Plan.'
+                        : editingAddressId
+                          ? 'Mode edit aktif. Ubah alamat lalu klik Simpan.'
+                          : ''
+                    }
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end" sx={{ mr: 0.2 }}>
+                          <IconButton
+                            onClick={handleSaveAdditionalAddress}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                            }}
+                            disabled={loadingAddresses || addingAddress || !customerId}
+                            aria-label={editingAddressId ? 'Simpan alamat tambahan' : 'Tambah alamat tambahan'}
+                            edge="end"
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '12px',
+                              border: '1px solid rgba(255, 255, 255, 0.78)',
+                              background: 'linear-gradient(135deg, var(--theme-blue-primary) 0%, var(--theme-blue-overlay) 100%)',
+                              color: '#fff',
+                              boxShadow: '0 6px 14px rgba(31, 78, 140, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                              transition: 'all 0.18s ease',
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, var(--theme-blue-overlay) 0%, #1f5aa3 100%)',
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 9px 18px rgba(31, 78, 140, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.24)',
+                              },
+                              '&:active': {
+                                transform: 'translateY(0) scale(0.97)',
+                                boxShadow: '0 4px 10px rgba(31, 78, 140, 0.3)',
+                              },
+                              '&:focus-visible': {
+                                outline: '2px solid rgba(31, 78, 140, 0.38)',
+                                outlineOffset: 2,
+                              },
+                              '&.Mui-disabled': {
+                                borderColor: 'rgba(148, 163, 184, 0.38)',
+                                background: 'linear-gradient(135deg, rgba(148, 163, 184, 0.5) 0%, rgba(100, 116, 139, 0.55) 100%)',
+                                boxShadow: 'none',
+                                color: 'rgba(255, 255, 255, 0.92)',
+                              },
+                            }}
+                          >
+                            {addingAddress ? (
+                              <CircularProgress size={18} sx={{ color: 'inherit' }} />
+                            ) : editingAddressId ? (
+                              <CheckCircleRoundedIcon sx={{ fontSize: '1.2rem' }} />
+                            ) : (
+                              <AddLocationAltRoundedIcon sx={{ fontSize: '1.2rem' }} />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '12px',
+                        backgroundColor: '#fff',
+                      },
+                      '& .MuiOutlinedInput-input': {
+                        pr: 0.5,
+                      },
+                    }}
+                  />
+
+                  {showSearchSuggestions && (searchSuggestions.length > 0 || loadingSearchSuggestions) ? (
+                    <Paper
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        borderRadius: '12px',
+                        border: '1px solid rgba(15, 23, 42, 0.08)',
+                        boxShadow: '0 12px 24px rgba(15, 23, 42, 0.12)',
+                        maxHeight: 220,
+                        overflowY: 'auto',
+                        zIndex: 5,
+                      }}
+                    >
+                      {loadingSearchSuggestions ? (
+                        <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={14} />
+                          <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>
+                            Mencari saran lokasi...
+                          </Typography>
+                        </Box>
+                      ) : (
+                        searchSuggestions.map((suggestion) => (
+                          <Box
+                            key={suggestion.place_id}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                            }}
+                            onClick={() => handleSelectSearchSuggestion(suggestion)}
+                            sx={{
+                              px: 1.2,
+                              py: 1,
+                              borderBottom: '1px solid rgba(15, 23, 42, 0.06)',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.16s ease',
+                              '&:last-of-type': {
+                                borderBottom: 'none',
+                              },
+                              '&:hover': {
+                                backgroundColor: '#eef4fc',
+                              },
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, lineHeight: 1.3 }}>
+                              {suggestion.structured_formatting?.main_text || suggestion.description}
+                            </Typography>
+                            {suggestion.structured_formatting?.secondary_text ? (
+                              <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                {suggestion.structured_formatting.secondary_text}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        ))
+                      )}
+                    </Paper>
+                  ) : null}
+                </Box>
+
+                {customerId ? (
+                  <Typography variant="caption" sx={{ color: '#64748b', px: 0.2 }}>
+                    Ketik alamat lalu maps akan otomatis mengarah ke lokasi.
+                  </Typography>
+                ) : null}
+              </Box>
+
+              {editingAddressId ? (
+                <Box sx={{ mb: 1.2 }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={handleCancelEditAddress}
+                    disabled={addingAddress}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      color: '#64748b',
+                      px: 0.2,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        color: '#334155',
+                      },
+                    }}
+                  >
+                    Batal edit
+                  </Button>
+                </Box>
+              ) : null}
 
               {loadingAddresses ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -947,7 +1288,7 @@ export default function AddAddress({
                 variant="contained"
                 fullWidth
                 onClick={handleApply}
-                disabled={submitting || loadingAddresses || addingAddress || geocodingLoading || !hasCoordinates}
+                disabled={submitting || loadingAddresses || addingAddress || geocodingLoading || searchingAddress || !hasCoordinates}
                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircleRoundedIcon />}
                 sx={{
                   minHeight: 46,
@@ -964,92 +1305,6 @@ export default function AddAddress({
                 Gunakan Alamat
               </Button>
             </Box>
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={openAddSheet}
-        onClose={handleCloseAddSheet}
-        fullWidth
-        maxWidth="sm"
-        sx={{
-          '& .MuiDialog-container': {
-            alignItems: 'flex-end',
-          },
-        }}
-        PaperProps={{
-          sx: {
-            width: '100%',
-            m: 0,
-            borderRadius: '18px 18px 0 0',
-          },
-        }}
-      >
-        <DialogContent sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
-              {editingAddressId ? 'Edit Alamat Tambahan' : 'Tambah Alamat'}
-            </Typography>
-            <IconButton size="small" onClick={handleCloseAddSheet} disabled={addingAddress}>
-              <CloseRoundedIcon />
-            </IconButton>
-          </Box>
-
-          <Typography variant="body2" sx={{ color: '#64748b', mb: 1.2 }}>
-            {editingAddressId
-              ? 'Perbarui alamat tambahan. Lokasi pada map akan ikut diperbarui.'
-              : 'Tambahkan alamat customer tambahan. Lokasi di map akan menyesuaikan otomatis.'}
-          </Typography>
-
-          <TextField
-            multiline
-            minRows={3}
-            fullWidth
-            placeholder="Masukkan alamat tambahan..."
-            value={newAddressText}
-            onChange={(event) => setNewAddressText(event.target.value)}
-            disabled={addingAddress}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-              },
-            }}
-          />
-
-          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={handleCloseAddSheet}
-              disabled={addingAddress}
-              sx={{
-                textTransform: 'none',
-                borderRadius: '10px',
-                fontWeight: 700,
-              }}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleSaveAdditionalAddress}
-              disabled={addingAddress}
-              startIcon={addingAddress ? <CircularProgress size={16} color="inherit" /> : <AddLocationAltRoundedIcon />}
-              sx={{
-                textTransform: 'none',
-                borderRadius: '10px',
-                fontWeight: 700,
-                color: '#fff',
-                backgroundColor: 'var(--theme-blue-primary)',
-                '&:hover': {
-                  backgroundColor: 'var(--theme-blue-overlay)',
-                },
-              }}
-            >
-              {editingAddressId ? 'Simpan Perubahan' : 'Simpan Alamat'}
-            </Button>
           </Box>
         </DialogContent>
       </Dialog>
