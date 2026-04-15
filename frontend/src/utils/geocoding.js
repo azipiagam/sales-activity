@@ -137,6 +137,46 @@ const extractCityFromAddress = (address, source = 'unknown') => {
   }
 };
 
+const extractStateFromAddress = (address, source = 'unknown') => {
+  if (!address || typeof address !== 'string') {
+    return '';
+  }
+
+  if (address.includes(',') && /^\s*-?\d+\.\d+,\s*-?\d+\.\d+/.test(address.split(',')[0].trim())) {
+    return '';
+  }
+
+  try {
+    const parts = address
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => !/^\d{5}$/.test(part) && !/indonesia/i.test(part));
+
+    if (parts.length === 0) {
+      return '';
+    }
+
+    const provinceRegex =
+      /(provinsi|province|dki jakarta|di yogyakarta|jawa|sumatera|kalimantan|sulawesi|papua|maluku|bali|banten|aceh|riau|lampung|bengkulu|gorontalo|nusa tenggara|kepulauan)/i;
+
+    for (let i = parts.length - 1; i >= 0; i -= 1) {
+      if (provinceRegex.test(parts[i])) {
+        return parts[i].replace(/^provinsi\s+/i, '').trim();
+      }
+    }
+
+    if (source === 'google_maps' && parts.length > 1) {
+      return parts[parts.length - 1];
+    }
+
+    return '';
+  } catch (error) {
+    console.warn('Error extracting state from address:', error);
+    return '';
+  }
+};
+
 /**
  * Delay untuk respect rate limiting
  */
@@ -507,7 +547,7 @@ export const getCoordinatesFromAddress = async (address) => {
  * Reverse geocoding: mendapatkan alamat dari koordinat
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
- * @returns {Promise<string>} - Alamat atau error
+ * @returns {Promise<{display_name: string, city: string | null, state: string | null}>} - Detail alamat atau error
  */
 export const getAddressFromCoordinates = async (lat, lng) => {
   if (typeof lat !== 'number' || typeof lng !== 'number') {
@@ -556,7 +596,11 @@ export const getAddressFromCoordinates = async (lat, lng) => {
       throw new Error('Response tidak valid dari server');
     }
 
-    return data.display_name;
+    return {
+      display_name: data.display_name,
+      city: data.city || null,
+      state: data.state || null,
+    };
 
   } catch (error) {
     console.error('[Reverse Geocoding] Error:', error);
@@ -734,22 +778,27 @@ export const getAccurateLocation = async (options = {}) => {
 
 /**
  * Enhanced reverse geocoding dengan Google Maps fallback
- * SELALU mengembalikan marker coordinates, hanya mengambil city name dari alamat
+ * SELALU mengembalikan marker coordinates, termasuk city/state bila tersedia
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
  * @param {Object} options - Options untuk reverse geocoding
- * @returns {Promise<{address: string, city: string, source: string, isApproximate: boolean, coordinates: {lat: number, lng: number}}>}
+ * @returns {Promise<{address: string, city: string, state: string, source: string, isApproximate: boolean, coordinates: {lat: number, lng: number}}>}
  */
 export const getEnhancedAddressFromCoordinates = async (lat, lng, options = {}) => {
   const { useGoogleFallback = true, accuracy = null } = options;
 
   let fullAddress = null;
+  let cityFromSource = '';
+  let stateFromSource = '';
   let source = 'coordinates';
   let isApproximate = true;
 
   // First try OpenStreetMap (existing backend API)
   try {
-    fullAddress = await getAddressFromCoordinates(lat, lng);
+    const reverseResult = await getAddressFromCoordinates(lat, lng);
+    fullAddress = reverseResult?.display_name || null;
+    cityFromSource = String(reverseResult?.city || '').trim();
+    stateFromSource = String(reverseResult?.state || '').trim();
     source = 'openstreetmap';
     isApproximate = false;
   } catch (error) {
@@ -773,6 +822,21 @@ export const getEnhancedAddressFromCoordinates = async (lat, lng, options = {}) 
         if (data.status === 'OK' && data.results && data.results.length > 0) {
           const result = data.results[0];
           fullAddress = result.formatted_address;
+          const addressComponents = Array.isArray(result.address_components) ? result.address_components : [];
+          const cityComponent = addressComponents.find((component) => {
+            const types = component?.types || [];
+            return (
+              types.includes('administrative_area_level_2') ||
+              types.includes('locality') ||
+              types.includes('administrative_area_level_3')
+            );
+          });
+          const stateComponent = addressComponents.find((component) => {
+            const types = component?.types || [];
+            return types.includes('administrative_area_level_1');
+          });
+          cityFromSource = String(cityComponent?.long_name || '').trim();
+          stateFromSource = String(stateComponent?.long_name || '').trim();
           source = 'google_maps';
           isApproximate = accuracy && accuracy > 100; // Consider approximate if accuracy > 100m
         } else {
@@ -785,13 +849,14 @@ export const getEnhancedAddressFromCoordinates = async (lat, lng, options = {}) 
     }
   }
 
-  // Extract city from address (or use fallback)
-  const city = extractCityFromAddress(fullAddress, source);
+  const city = cityFromSource || extractCityFromAddress(fullAddress, source);
+  const state = stateFromSource || extractStateFromAddress(fullAddress, source);
 
   // Always return coordinates for marker, even if address failed
   return {
     address: fullAddress || `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
     city: city,
+    state: state,
     source: source,
     isApproximate: isApproximate,
     coordinates: {

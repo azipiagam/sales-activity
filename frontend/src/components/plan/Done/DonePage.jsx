@@ -19,6 +19,7 @@ import PopupDoneMasterCustomer from './PopupDone/PopupDoneMasterCustomer';
 
 const MASTER_ADDRESS_ID = 'master';
 const DISTANCE_LIMIT_KM = 2;
+const DEFAULT_CURRENT_ADDRESS = 'Lokasi belum diambil';
 const isMasterCustomerSource = (source) => source === 'master' || source === 'fix';
 
 const normalizeTaskId = (value) => {
@@ -182,7 +183,11 @@ export default function DonePage() {
   const [saving, setSaving] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [currentAddress, setCurrentAddress] = useState('Lokasi belum diambil');
+  const [currentAddress, setCurrentAddress] = useState(DEFAULT_CURRENT_ADDRESS);
+  const [currentLocationRegion, setCurrentLocationRegion] = useState({
+    city: '',
+    state: '',
+  });
   const [addressLoading, setAddressLoading] = useState(false);
   const [autoLocateAttempted, setAutoLocateAttempted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -363,7 +368,8 @@ export default function DonePage() {
   useEffect(() => {
     setAutoLocateAttempted(false);
     setCurrentLocation(null);
-    setCurrentAddress('Lokasi belum diambil');
+    setCurrentAddress(DEFAULT_CURRENT_ADDRESS);
+    setCurrentLocationRegion({ city: '', state: '' });
     setAddressLoading(false);
     setCameraActive(false);
     setValidationAddressRef(null);
@@ -483,7 +489,8 @@ export default function DonePage() {
     const longitude = Number(currentLocation?.longitude);
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      setCurrentAddress('Lokasi belum diambil');
+      setCurrentAddress(DEFAULT_CURRENT_ADDRESS);
+      setCurrentLocationRegion({ city: '', state: '' });
       setAddressLoading(false);
       return;
     }
@@ -500,12 +507,19 @@ export default function DonePage() {
 
         if (!cancelled) {
           const formattedAddress = String(resolved?.address || '').trim();
+          const formattedCity = String(resolved?.city || '').trim();
+          const formattedState = String(resolved?.state || '').trim();
           setCurrentAddress(formattedAddress || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          setCurrentLocationRegion({
+            city: formattedCity,
+            state: formattedState,
+          });
         }
       } catch (err) {
         console.error('Error resolving current address:', err);
         if (!cancelled) {
           setCurrentAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          setCurrentLocationRegion({ city: '', state: '' });
         }
       } finally {
         if (!cancelled) {
@@ -629,14 +643,23 @@ export default function DonePage() {
             }
           );
         } else {
+          const normalizedCurrentAddress = String(currentAddress || '').trim();
+          const fixAddressPayload = {
+            lat: currentLocation.latitude,
+            lng: currentLocation.longitude,
+            address:
+              normalizedCurrentAddress && normalizedCurrentAddress !== DEFAULT_CURRENT_ADDRESS
+                ? normalizedCurrentAddress
+                : null,
+            city: String(currentLocationRegion.city || activeTask?.city || '').trim() || null,
+            state: String(currentLocationRegion.state || activeTask?.state || '').trim() || null,
+          };
+
           const fixAddressResponse = await apiRequest(
             `customers/${encodeURIComponent(customerId)}/fix-address`,
             {
               method: 'POST',
-              body: JSON.stringify({
-                lat: currentLocation.latitude,
-                lng: currentLocation.longitude,
-              }),
+              body: JSON.stringify(fixAddressPayload),
             }
           );
 

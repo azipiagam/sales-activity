@@ -40,10 +40,18 @@ class FixAddressController extends Controller
             ->where('customer_id', $customerId)
             ->first();
 
-        $requestAddress = trim((string) $request->input('address', ''));
-        $resolvedAddress = $requestAddress !== ''
-            ? $requestAddress
-            : $this->reverseGeocodeAddress((float) $request->lat, (float) $request->lng);
+        $requestAddress = $this->normalizeOptionalText($request->input('address'), 255);
+        $requestCity = $this->normalizeOptionalText($request->input('city'), 100);
+        $requestState = $this->normalizeOptionalText($request->input('state'), 100);
+
+        $resolvedGeo = null;
+        if (!$requestAddress || !$requestCity || !$requestState) {
+            $resolvedGeo = $this->reverseGeocodeLocation((float) $request->lat, (float) $request->lng);
+        }
+
+        $finalAddress = $requestAddress ?? ($resolvedGeo['address'] ?? null);
+        $finalCity = $requestCity ?? ($resolvedGeo['city'] ?? null);
+        $finalState = $requestState ?? ($resolvedGeo['state'] ?? null);
 
         if ($existing) {
             DB::table('fix_address')
@@ -51,7 +59,9 @@ class FixAddressController extends Controller
                 ->update([
                     'lat'        => $request->lat,
                     'lng'        => $request->lng,
-                    'address'    => $request->address,
+                    'address'    => $finalAddress,
+                    'city'       => $finalCity,
+                    'state'      => $finalState,
                     'updated_at' => $now,
                 ]);
             $id = $existing->id;
@@ -62,7 +72,9 @@ class FixAddressController extends Controller
                 'customer_id' => $customerId,
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
-                'address'     => $request->address,
+                'address'     => $finalAddress,
+                'city'        => $finalCity,
+                'state'       => $finalState,
                 'created_at'  => $now,
                 'updated_at'  => $now,
             ]);
@@ -75,16 +87,18 @@ class FixAddressController extends Controller
                 'customer_id' => $customerId,
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
-                'address'     => $request->address,
+                'address'     => $finalAddress,
+                'city'        => $finalCity,
+                'state'       => $finalState,
                 'updated_at'  => $now,
             ],
         ]);
     }
 
     /**
-     * Reverse geocode coordinate to address string for fix_address.
+     * Reverse geocode coordinate to address/city/state for fix_address.
      */
-    private function reverseGeocodeAddress(float $lat, float $lng): ?string
+    private function reverseGeocodeLocation(float $lat, float $lng): ?array
     {
         if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
             return null;
@@ -94,9 +108,20 @@ class FixAddressController extends Controller
         $lngForCache = number_format($lng, 6, '.', '');
         $cacheKey = 'fix_address_reverse_' . md5($latForCache . ',' . $lngForCache);
 
-        $cachedAddress = Cache::get($cacheKey);
-        if (is_string($cachedAddress) && trim($cachedAddress) !== '') {
-            return $cachedAddress;
+        $cachedData = Cache::get($cacheKey);
+        if (is_array($cachedData)) {
+            return [
+                'address' => $this->normalizeOptionalText($cachedData['address'] ?? null, 255),
+                'city'    => $this->normalizeOptionalText($cachedData['city'] ?? null, 100),
+                'state'   => $this->normalizeOptionalText($cachedData['state'] ?? null, 100),
+            ];
+        }
+        if (is_string($cachedData) && trim($cachedData) !== '') {
+            return [
+                'address' => $this->normalizeOptionalText($cachedData, 255),
+                'city'    => null,
+                'state'   => null,
+            ];
         }
 
         try {
@@ -125,16 +150,37 @@ class FixAddressController extends Controller
             }
 
             $data = $response->json();
-            $displayName = trim((string) ($data['display_name'] ?? ''));
+            $displayName = $this->normalizeOptionalText($data['display_name'] ?? null, 255);
+            $addressParts = is_array($data['address'] ?? null) ? $data['address'] : [];
+            $resolvedCity = $this->normalizeOptionalText(
+                $this->pickFirstAddressField($addressParts, [
+                    'city',
+                    'town',
+                    'village',
+                    'municipality',
+                    'county',
+                    'city_district',
+                    'state_district',
+                ]),
+                100
+            );
+            $resolvedState = $this->normalizeOptionalText(
+                $this->pickFirstAddressField($addressParts, ['state', 'region', 'province']),
+                100
+            );
 
-            if ($displayName === '') {
+            if (!$displayName && !$resolvedCity && !$resolvedState) {
                 return null;
             }
 
-            $normalizedAddress = substr($displayName, 0, 255);
-            Cache::put($cacheKey, $normalizedAddress, 86400); // 24h
+            $normalizedData = [
+                'address' => $displayName,
+                'city'    => $resolvedCity,
+                'state'   => $resolvedState,
+            ];
+            Cache::put($cacheKey, $normalizedData, 86400); // 24h
 
-            return $normalizedAddress;
+            return $normalizedData;
         } catch (\Throwable $e) {
             Log::warning('[FixAddress] Reverse geocode exception', [
                 'lat'     => $lat,
@@ -143,6 +189,32 @@ class FixAddressController extends Controller
             ]);
             return null;
         }
+    }
+
+    private function normalizeOptionalText($value, int $maxLength): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return Str::limit($normalized, $maxLength, '');
+    }
+
+    private function pickFirstAddressField(array $addressParts, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = $addressParts[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

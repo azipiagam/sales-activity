@@ -430,8 +430,29 @@ class GeocodeController extends Controller
                 return null;
             }
 
+            $addressParts = is_array($data['address'] ?? null) ? $data['address'] : [];
+            $city = null;
+            foreach (['city', 'town', 'village', 'municipality', 'county', 'city_district', 'state_district'] as $key) {
+                $candidate = $addressParts[$key] ?? null;
+                if (is_string($candidate) && trim($candidate) !== '') {
+                    $city = trim($candidate);
+                    break;
+                }
+            }
+
+            $state = null;
+            foreach (['state', 'region', 'province'] as $key) {
+                $candidate = $addressParts[$key] ?? null;
+                if (is_string($candidate) && trim($candidate) !== '') {
+                    $state = trim($candidate);
+                    break;
+                }
+            }
+
             return [
-                'display_name' => $data['display_name']
+                'display_name' => $data['display_name'],
+                'city' => $city,
+                'state' => $state,
             ];
 
         } catch (\Exception $e) {

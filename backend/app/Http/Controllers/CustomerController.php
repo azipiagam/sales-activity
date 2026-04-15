@@ -33,8 +33,8 @@ class CustomerController extends Controller
                 'mc.customer_name',
                 'mc.company_name',
                 DB::raw('COALESCE(NULLIF(fa.address, \'\'), mc.address) as address'),
-                'mc.city',
-                'mc.state',
+                DB::raw('COALESCE(NULLIF(fa.city, \'\'), mc.city) as city'),
+                DB::raw('COALESCE(NULLIF(fa.state, \'\'), mc.state) as state'),
                 'mc.phone',
                 'mc.email'
             )
