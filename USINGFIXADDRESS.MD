@@ -1,6 +1,6 @@
 # Sales Activity — Address & Fix Address API
 
-> Auth: semua endpoint pakai `Authorization: Bearer <token>`
+> Auth: semua endpoint pakai `Authorization: Bearer <token>`  
 > Generate token: `echo -n "{sales_internal_id}|x|x" | base64`
 
 ---
@@ -9,9 +9,29 @@
 
 | Tabel | Fungsi |
 |---|---|
-| `master_customer` | Data master, kolom `address` sebagai fallback default |
+| `master_customer` | Data master, kolom `address`/`city`/`state` sebagai fallback default |
 | `customer_addresses` | Alamat tambahan manual per customer |
 | `fix_address` | Koreksi koordinat lapangan, one-to-one per customer, menggantikan master jika ada |
+
+---
+
+## DDL — Tambah Kolom
+
+> Jalankan query ini sebelum deploy. Tidak pakai migrasi, langsung ALTER TABLE.
+
+```sql
+-- customer_addresses
+ALTER TABLE customer_addresses
+    ADD COLUMN city  VARCHAR(100) NULL AFTER address,
+    ADD COLUMN state VARCHAR(100) NULL AFTER city;
+
+-- fix_address (jalankan setelah CREATE TABLE fix_address)
+ALTER TABLE fix_address
+    ADD COLUMN city  VARCHAR(100) NULL AFTER address,
+    ADD COLUMN state VARCHAR(100) NULL AFTER city;
+```
+
+> `city` dan `state` diisi oleh FE via **reverse geocoding** (Google Maps Geocoding API) dari lat/lng yang didapat GPS. BE hanya terima dan simpan — tidak ada logic geocoding di BE.
 
 ---
 
@@ -27,16 +47,20 @@ Priority default: **fix_address** dulu → fallback **master_customer**.
   {
     "id": "master",
     "address": "Jl. Sudirman No.1",
-    "lat": -6.2088,       // null jika source: master (belum ada fix)
+    "lat": -6.2088,
     "lng": 106.8456,
+    "city": "Jakarta Pusat",
+    "state": "DKI Jakarta",
     "is_default": true,
-    "source": "fix"       // "master" | "fix"
+    "source": "fix"        // "master" | "fix"
   },
   {
     "id": "uuid-...",
     "address": "Jl. Gatot Subroto No.5",
     "lat": -6.235,
     "lng": 106.82,
+    "city": "Jakarta Selatan",
+    "state": "DKI Jakarta",
     "is_default": false,
     "source": "custom"
   }
@@ -50,7 +74,9 @@ Tambah alamat baru.
 {
   "address": "Jl. Gatot Subroto No.5",   // required
   "lat": -6.235,                          // optional
-  "lng": 106.82                           // optional
+  "lng": 106.82,                          // optional
+  "city": "Jakarta Selatan",              // optional, dari reverse geocode FE
+  "state": "DKI Jakarta"                  // optional, dari reverse geocode FE
 }
 ```
 
@@ -58,7 +84,7 @@ Tambah alamat baru.
 Update alamat custom. `addressId` harus UUID — tidak bisa `"master"`.
 
 ```json
-{ "address": "...", "lat": -6.235, "lng": 106.82 }
+{ "address": "...", "lat": -6.235, "lng": 106.82, "city": "...", "state": "..." }
 ```
 
 ### `DELETE /api/customers/{customerId}/addresses/{addressId}`
@@ -77,7 +103,9 @@ Simpan atau update koordinat lapangan (upsert).
 {
   "lat": -6.175,                               // required
   "lng": 106.827,                              // required
-  "address": "Jl. MH Thamrin No.1, Jakarta"   // optional
+  "address": "Jl. MH Thamrin No.1, Jakarta",  // optional
+  "city": "Jakarta Pusat",                     // optional, dari reverse geocode FE
+  "state": "DKI Jakarta"                       // optional, dari reverse geocode FE
 }
 ```
 
@@ -90,12 +118,12 @@ Cek apakah customer sudah punya fix address. Return `404` jika belum.
 
 ### Tambahan field saat Create Plan
 
-Field opsional `customer_address_id` di `POST /api/activity-plans`. Backend resolve lat/lng otomatis.
+Field opsional `customer_address_id` di `POST /api/activity-plans`.
 
 | Value | Behaviour |
 |---|---|
 | `"master"` | Pakai koordinat dari fix_address (atau null kalau belum ada) |
-| `"<UUID>"` | Pakai lat/lng dari row customer_addresses, validasi jarak di-skip saat done |
+| `"<UUID>"` | Pakai lat/lng dari customer_addresses, validasi jarak di-skip saat done |
 | tidak dikirim | Legacy — lat/lng bisa dikirim langsung |
 
 ```json
@@ -109,8 +137,6 @@ Field opsional `customer_address_id` di `POST /api/activity-plans`. Backend reso
 ```
 
 ### Response `PUT /api/activity-plans/{id}/done`
-
-Sekarang ada flag tambahan:
 
 ```json
 {
@@ -134,14 +160,11 @@ Sekarang ada flag tambahan:
 | 4 | Klik Done | `PUT /api/activity-plans/{id}/done` dengan lat/lng saat ini |
 | 5a | Jarak ≤2KM atau custom | Selesai, tidak ada aksi tambahan |
 | 5b | Jarak >2KM & source master/fix | FE tampilkan alert Yes/No |
-| 6 | User klik Yes | `POST /api/customers/{id}/fix-address` — next plan otomatis pakai koordinat ini |
+| 6 | User klik Yes | FE reverse geocode lat/lng → dapat city/state → `POST /api/customers/{id}/fix-address` |
 
 ---
 
-## 5. DDL
-
-### fix_address
-> ⚠ Charset di kolom `customer_id` harus eksplisit untuk menghindari FK mismatch (SQL Error 3780). Lokal Laragon bisa default charset berbeda dari VM.
+## 5. DDL Lengkap — fix_address
 
 ```sql
 CREATE TABLE fix_address (
@@ -150,6 +173,8 @@ CREATE TABLE fix_address (
     lat DOUBLE NULL,
     lng DOUBLE NULL,
     address VARCHAR(255) NULL,
+    city VARCHAR(100) NULL,
+    state VARCHAR(100) NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_fix_address_customer
@@ -158,7 +183,9 @@ CREATE TABLE fix_address (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
-### Tambah kolom ke activity_plans
+> ⚠ Charset `utf8mb4_general_ci` wajib eksplisit di kolom `customer_id` agar FK tidak error (SQL 3780).
+
+### Tambah kolom activity_plans
 
 ```sql
 ALTER TABLE activity_plans
