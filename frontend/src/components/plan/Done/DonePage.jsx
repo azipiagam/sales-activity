@@ -10,13 +10,14 @@ import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { parse, isValid } from 'date-fns';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getCustomerAddresses } from '../add/AddCustomerAddress';
 import HeaderDone from './HeaderDone';
 import MapsDone from './MapsDone';
+import FollowUpStatePanel from './FollowUpStatePanel';
 import CameraDone from './CameraDone';
 import CardDone from './CardDone';
 import PopupValidationDone from './PopupValidationDone';
@@ -26,7 +27,31 @@ import PopupDoneMasterCustomer from './PopupDone/PopupDoneMasterCustomer';
 const MASTER_ADDRESS_ID = 'master';
 const DISTANCE_LIMIT_KM = 2;
 const DEFAULT_CURRENT_ADDRESS = 'Lokasi belum diambil';
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+};
+
+const normalizeActivityType = (value) => {
+  const normalized = String(value || '').toLowerCase().trim();
+  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+    return ACTIVITY_TYPES.FOLLOW_UP;
+  }
+  return ACTIVITY_TYPES.VISIT;
+};
+
 const isMasterCustomerSource = (source) => source === 'master' || source === 'fix';
+const isReloadNavigation = () => {
+  if (typeof window === 'undefined') return false;
+
+  const navigationEntries = window.performance?.getEntriesByType?.('navigation');
+  const navigationType = Array.isArray(navigationEntries) ? navigationEntries[0]?.type : null;
+
+  if (navigationType) return navigationType === 'reload';
+
+  // Fallback untuk browser lama yang belum support Navigation Timing Level 2.
+  return window.performance?.navigation?.type === 1;
+};
 
 const normalizeTaskId = (value) => {
   if (value === undefined || value === null || value === '') return null;
@@ -182,6 +207,7 @@ const resolveDistanceToCustomerKm = (task, currentLocation, validationAddressRef
 
 export default function DonePage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -237,23 +263,22 @@ export default function DonePage() {
   useEffect(() => {
     // Done page wajib dibuka dari flow aplikasi (dengan state),
     // agar refresh/back tidak mengunci user di URL done lama.
-    if (!location.state?.taskId) {
-      window.location.replace('/plan/');
+    if (isReloadNavigation() || !location.state?.taskId) {
+      navigate('/plan', { replace: true });
     }
-  }, [location.state]);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      window.location.replace('/plan/');
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [location.state, navigate]);
 
   const activeTask = taskMeta ?? taskData ?? null;
   const taskName = activeTask?.namaCustomer ?? activeTask?.customer_name;
   const planNo = activeTask?.idPlan ?? activeTask?.plan_no ?? '';
+  const activityType = useMemo(
+    () =>
+      normalizeActivityType(
+        activeTask?.tujuan ?? activeTask?.activity_type ?? activeTask?.activityType
+      ),
+    [activeTask]
+  );
+  const isFollowUp = activityType === ACTIVITY_TYPES.FOLLOW_UP;
   const customerLocation = useMemo(() => {
     const latitude = toFiniteNumber(
       validationAddressRef?.latitude ?? activeTask?.customer_location_lat ?? activeTask?.customerLocationLat
@@ -283,10 +308,10 @@ export default function DonePage() {
     [currentAddress]
   );
 
-  const distanceToCustomerKm = useMemo(
-    () => resolveDistanceToCustomerKm(activeTask, currentLocation, validationAddressRef),
-    [activeTask, currentLocation, validationAddressRef]
-  );
+  const distanceToCustomerKm = useMemo(() => {
+    if (isFollowUp) return null;
+    return resolveDistanceToCustomerKm(activeTask, currentLocation, validationAddressRef);
+  }, [isFollowUp, activeTask, currentLocation, validationAddressRef]);
 
   const isInsideRadius = useMemo(() => {
     if (!Number.isFinite(distanceToCustomerKm)) return null;
@@ -466,8 +491,8 @@ export default function DonePage() {
   }, [taskId]);
 
   const handleBackToPlan = useCallback(() => {
-    window.location.replace('/plan/');
-  }, []);
+    navigate('/plan', { replace: true });
+  }, [navigate]);
 
   const handleOpenCamera = () => {
     setCameraActive(true);
@@ -651,34 +676,38 @@ export default function DonePage() {
       if (!isMountedRef.current) return;
       setSaving(true);
       let currentValidationAddressRef = validationAddressRef;
-      if (!currentValidationAddressRef) {
+      let shouldAutoSaveFixAddressFromInitialValidation = false;
+
+      if (!isFollowUp && !currentValidationAddressRef) {
         currentValidationAddressRef = await loadValidationAddressReference(activeTask);
         if (!isMountedRef.current) return;
         setValidationAddressRef(currentValidationAddressRef);
       }
 
-      const distanceToCustomerKm = resolveDistanceToCustomerKm(
-        activeTask,
-        currentLocation,
-        currentValidationAddressRef
-      );
-      const addressSource = normalizeAddressSource(
-        currentValidationAddressRef?.source,
-        getTaskAddressId(activeTask) ?? MASTER_ADDRESS_ID
-      );
-      const usesMasterCustomerAddress = isMasterCustomerSource(addressSource);
-      const shouldAutoSaveFixAddressFromInitialValidation =
-        usesMasterCustomerAddress &&
-        Number.isFinite(distanceToCustomerKm) &&
-        distanceToCustomerKm > DISTANCE_LIMIT_KM;
-      const isProceed = await showAddressValidationPopup({
-        addressType: usesMasterCustomerAddress ? 'master' : 'additional',
-        distanceKm: distanceToCustomerKm,
-      });
-      if (!isMountedRef.current) return;
+      if (!isFollowUp) {
+        const distanceToCustomerKm = resolveDistanceToCustomerKm(
+          activeTask,
+          currentLocation,
+          currentValidationAddressRef
+        );
+        const addressSource = normalizeAddressSource(
+          currentValidationAddressRef?.source,
+          getTaskAddressId(activeTask) ?? MASTER_ADDRESS_ID
+        );
+        const usesMasterCustomerAddress = isMasterCustomerSource(addressSource);
+        shouldAutoSaveFixAddressFromInitialValidation =
+          usesMasterCustomerAddress &&
+          Number.isFinite(distanceToCustomerKm) &&
+          distanceToCustomerKm > DISTANCE_LIMIT_KM;
+        const isProceed = await showAddressValidationPopup({
+          addressType: usesMasterCustomerAddress ? 'master' : 'additional',
+          distanceKm: distanceToCustomerKm,
+        });
+        if (!isMountedRef.current) return;
 
-      if (!isProceed) {
-        return;
+        if (!isProceed) {
+          return;
+        }
       }
 
       const resultText = result.trim() || '-';
@@ -715,77 +744,79 @@ export default function DonePage() {
       const donePayload = await response.json().catch(() => ({}));
       if (!isMountedRef.current) return;
 
-      const { needsFixAddressConfirmation, distanceKm } = resolveFixAddressConfirmation(
-        donePayload,
-        activeTask,
-        currentLocation,
-        currentValidationAddressRef
-      );
-      let shouldSaveFixAddress = shouldAutoSaveFixAddressFromInitialValidation;
-      if (!shouldSaveFixAddress && needsFixAddressConfirmation) {
-        const distanceText =
-          distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
-        shouldSaveFixAddress = await showValidationConfirm(
-          distanceText
-            ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
-            : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?`,
-          {
-            title: 'Konfirmasi Fix Address',
-            type: 'warning',
-            confirmText: 'Simpan Fix Address',
-            cancelText: 'Lewati',
-          }
+      if (!isFollowUp) {
+        const { needsFixAddressConfirmation, distanceKm } = resolveFixAddressConfirmation(
+          donePayload,
+          activeTask,
+          currentLocation,
+          currentValidationAddressRef
         );
-        if (!isMountedRef.current) return;
-      }
-
-      if (shouldSaveFixAddress) {
-        const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
-
-        if (!customerId) {
-          if (isMountedRef.current) {
-            await showValidationAlert(
-              'Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.',
-              {
-                title: 'Fix Address Tidak Tersimpan',
-                type: 'warning',
-              }
-            );
-          }
-        } else {
-          const normalizedCurrentAddress = String(currentAddress || '').trim();
-          const fixAddressPayload = {
-            lat: currentLocation.latitude,
-            lng: currentLocation.longitude,
-            address:
-              normalizedCurrentAddress && normalizedCurrentAddress !== DEFAULT_CURRENT_ADDRESS
-                ? normalizedCurrentAddress
-                : null,
-            city: String(currentLocationRegion.city || activeTask?.city || '').trim() || null,
-            state: String(currentLocationRegion.state || activeTask?.state || '').trim() || null,
-          };
-
-          const fixAddressResponse = await apiRequest(
-            `customers/${encodeURIComponent(customerId)}/fix-address`,
+        let shouldSaveFixAddress = shouldAutoSaveFixAddressFromInitialValidation;
+        if (!shouldSaveFixAddress && needsFixAddressConfirmation) {
+          const distanceText =
+            distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
+          shouldSaveFixAddress = await showValidationConfirm(
+            distanceText
+              ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
+              : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?`,
             {
-              method: 'POST',
-              body: JSON.stringify(fixAddressPayload),
+              title: 'Konfirmasi Fix Address',
+              type: 'warning',
+              confirmText: 'Simpan Fix Address',
+              cancelText: 'Lewati',
             }
           );
           if (!isMountedRef.current) return;
+        }
 
-          if (!fixAddressResponse.ok) {
-            const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
+        if (shouldSaveFixAddress) {
+          const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
+
+          if (!customerId) {
             if (isMountedRef.current) {
               await showValidationAlert(
-                `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
-                  fixAddressError.message || 'Unknown error'
-                }`,
+                'Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.',
                 {
-                  title: 'Fix Address Gagal Disimpan',
+                  title: 'Fix Address Tidak Tersimpan',
                   type: 'warning',
                 }
               );
+            }
+          } else {
+            const normalizedCurrentAddress = String(currentAddress || '').trim();
+            const fixAddressPayload = {
+              lat: currentLocation.latitude,
+              lng: currentLocation.longitude,
+              address:
+                normalizedCurrentAddress && normalizedCurrentAddress !== DEFAULT_CURRENT_ADDRESS
+                  ? normalizedCurrentAddress
+                  : null,
+              city: String(currentLocationRegion.city || activeTask?.city || '').trim() || null,
+              state: String(currentLocationRegion.state || activeTask?.state || '').trim() || null,
+            };
+
+            const fixAddressResponse = await apiRequest(
+              `customers/${encodeURIComponent(customerId)}/fix-address`,
+              {
+                method: 'POST',
+                body: JSON.stringify(fixAddressPayload),
+              }
+            );
+            if (!isMountedRef.current) return;
+
+            if (!fixAddressResponse.ok) {
+              const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
+              if (isMountedRef.current) {
+                await showValidationAlert(
+                  `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
+                    fixAddressError.message || 'Unknown error'
+                  }`,
+                  {
+                    title: 'Fix Address Gagal Disimpan',
+                    type: 'warning',
+                  }
+                );
+              }
             }
           }
         }
@@ -861,6 +892,7 @@ export default function DonePage() {
         onBack={handleBackToPlan}
         taskName={taskName}
         planNo={planNo}
+        tujuan={activeTask?.tujuan}
         onRefreshLocation={handleGetCurrentLocation}
         refreshLoading={locationLoading}
         refreshDisabled={locationLoading || saving}
@@ -877,187 +909,208 @@ export default function DonePage() {
             overflow: 'hidden',
           }}
         >
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 1,
-            }}
-          >
-            <MapsDone
-              currentLocation={currentLocation}
-              customerLocation={customerLocation}
-              customerAddress={customerAddress}
-              resultAddress={currentAddressText}
-              distanceKm={distanceToCustomerKm}
-              locationLoading={locationLoading}
-              saving={saving}
-              onGetCurrentLocation={handleGetCurrentLocation}
-              onMapLocationChange={handleMapLocationChange}
-            />
-          </Box>
-
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: 20,
-              pointerEvents: 'none',
-            }}
-          >
-            <Box
-              sx={{
-                width: '100%',
-                maxWidth: 540,
-                mx: 'auto',
-                px: { xs: 2, sm: 2.5 },
-                pt: 0,
-              }}
-            >
-              <Paper
-                elevation={0}
+          {!isFollowUp ? (
+            <>
+              <Box
                 sx={{
-                  pointerEvents: 'auto',
-                  borderRadius: '0 0 16px 16px',
-                  border: '1px solid rgba(22, 58, 107, 0.13)',
-                  borderTop: 'none',
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(4px)',
-                  boxShadow: '0 7px 16px rgba(10, 28, 53, 0.12)',
-                  px: 1.3,
-                  py: 0.95,
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 1,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle2" sx={{ color: '#1b3557', fontWeight: 700, lineHeight: 1.2 }}>
-                      Informasi Lokasi
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#7a8ea7', fontWeight: 600 }}>
-                      {showLocationInfo ? 'Tap untuk sembunyikan' : 'Tap untuk tampilkan'}
-                    </Typography>
-                  </Box>
-                  <IconButton
-                    onClick={() => setShowLocationInfo((prev) => !prev)}
-                    size="small"
-                    sx={{ color: '#1f4e8c', backgroundColor: 'rgba(31, 78, 140, 0.1)' }}
-                    aria-label={showLocationInfo ? 'Sembunyikan informasi lokasi' : 'Tampilkan informasi lokasi'}
+                <MapsDone
+                  currentLocation={currentLocation}
+                  customerLocation={customerLocation}
+                  customerAddress={customerAddress}
+                  resultAddress={currentAddressText}
+                  distanceKm={distanceToCustomerKm}
+                  locationLoading={locationLoading}
+                  saving={saving}
+                  onGetCurrentLocation={handleGetCurrentLocation}
+                  onMapLocationChange={handleMapLocationChange}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  pointerEvents: 'none',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: '100%',
+                    maxWidth: 540,
+                    mx: 'auto',
+                    px: { xs: 2, sm: 2.5 },
+                    pt: 0,
+                  }}
+                >
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      pointerEvents: 'auto',
+                      borderRadius: '0 0 16px 16px',
+                      border: '1px solid rgba(22, 58, 107, 0.13)',
+                      borderTop: 'none',
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(4px)',
+                      boxShadow: '0 7px 16px rgba(10, 28, 53, 0.12)',
+                      px: 1.3,
+                      py: 0.95,
+                    }}
                   >
-                    {showLocationInfo ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
-                  </IconButton>
-                </Box>
-
-                <Collapse in={showLocationInfo}>
-                  <Box sx={{ pt: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                      <PlaceOutlinedIcon sx={{ color: '#1f4e8c', mt: 0.2, fontSize: 18 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          variant="caption"
-                          sx={{ display: 'block', color: '#1b3557', fontWeight: 700, mb: 0.25 }}
-                        >
-                          Lokasi Customer (Target)
+                        <Typography variant="subtitle2" sx={{ color: '#1b3557', fontWeight: 700, lineHeight: 1.2 }}>
+                          Informasi Lokasi
                         </Typography>
+                        <Typography variant="caption" sx={{ color: '#7a8ea7', fontWeight: 600 }}>
+                          {showLocationInfo ? 'Tap untuk sembunyikan' : 'Tap untuk tampilkan'}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        onClick={() => setShowLocationInfo((prev) => !prev)}
+                        size="small"
+                        sx={{ color: '#1f4e8c', backgroundColor: 'rgba(31, 78, 140, 0.1)' }}
+                        aria-label={showLocationInfo ? 'Sembunyikan informasi lokasi' : 'Tampilkan informasi lokasi'}
+                      >
+                        {showLocationInfo ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
+                      </IconButton>
+                    </Box>
+
+                    <Collapse in={showLocationInfo}>
+                      <Box sx={{ pt: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <PlaceOutlinedIcon sx={{ color: '#1f4e8c', mt: 0.2, fontSize: 18 }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ display: 'block', color: '#1b3557', fontWeight: 700, mb: 0.25 }}
+                            >
+                              Lokasi Customer (Target)
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'block',
+                                color: '#647c94',
+                                lineHeight: 1.42,
+                                wordBreak: 'break-word',
+                              }}
+                              title={customerAddress}
+                            >
+                              {customerAddress}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            borderTop: '1px solid rgba(22, 58, 107, 0.09)',
+                            my: 0.95,
+                          }}
+                        />
+
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <MyLocationOutlinedIcon sx={{ color: '#29924f', mt: 0.2, fontSize: 18 }} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ display: 'block', color: '#1b3557', fontWeight: 700, mb: 0.25 }}
+                            >
+                              Lokasi Anda Saat Ini
+                            </Typography>
+                            {addressLoading ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                <CircularProgress size={14} sx={{ color: '#1f4e8c' }} />
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: '#647c94',
+                                    lineHeight: 1.42,
+                                  }}
+                                >
+                                  Mengambil alamat...
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  display: 'block',
+                                  color: '#647c94',
+                                  lineHeight: 1.42,
+                                  wordBreak: 'break-word',
+                                }}
+                                title={currentAddressText}
+                              >
+                                {currentAddressText}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+
                         <Typography
                           variant="caption"
                           sx={{
                             display: 'block',
-                            color: '#647c94',
-                            lineHeight: 1.42,
-                            wordBreak: 'break-word',
+                            mt: 1.1,
+                            color: '#15355f',
+                            fontWeight: 700,
                           }}
-                          title={customerAddress}
                         >
-                          {customerAddress}
+                          Jarak: {distanceLabel} KM ({distanceContext})
                         </Typography>
                       </Box>
-                    </Box>
+                    </Collapse>
+                  </Paper>
 
-                    <Box
-                      sx={{
-                        borderTop: '1px solid rgba(22, 58, 107, 0.09)',
-                        my: 0.95,
-                      }}
-                    />
-
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                      <MyLocationOutlinedIcon sx={{ color: '#29924f', mt: 0.2, fontSize: 18 }} />
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                          variant="caption"
-                          sx={{ display: 'block', color: '#1b3557', fontWeight: 700, mb: 0.25 }}
-                        >
-                          Lokasi Anda Saat Ini
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: 'block',
-                            color: '#647c94',
-                            lineHeight: 1.42,
-                            wordBreak: 'break-word',
-                          }}
-                          title={currentAddressText}
-                        >
-                          {addressLoading ? 'Mengambil alamat lokasi Anda...' : currentAddressText}
-                        </Typography>
-                      </Box>
-                    </Box>
-
+                  <Box
+                    sx={{
+                      mt: 0.75,
+                      mb: 0.85,
+                      borderRadius: 2,
+                      px: 1.15,
+                      py: 0.85,
+                      border: isInsideRadius === null
+                        ? '1px solid rgba(22, 58, 107, 0.2)'
+                        : isInsideRadius
+                        ? '1px solid rgba(36, 130, 74, 0.32)'
+                        : '1px solid rgba(211, 47, 47, 0.3)',
+                      backgroundColor: isInsideRadius === null
+                        ? 'rgba(255, 255, 255, 0.9)'
+                        : isInsideRadius
+                        ? 'rgba(234, 250, 240, 0.92)'
+                        : 'rgba(252, 235, 235, 0.92)',
+                      backdropFilter: 'blur(4px)',
+                    }}
+                  >
                     <Typography
                       variant="caption"
                       sx={{
                         display: 'block',
-                        mt: 1.1,
-                        color: '#15355f',
                         fontWeight: 700,
+                        color: isInsideRadius === null ? '#1b3557' : isInsideRadius ? '#1f7a3d' : '#b3261e',
                       }}
                     >
-                      Jarak: {distanceLabel} KM ({distanceContext})
+                      {isInsideRadius === null
+                        ? 'Lokasi Anda belum tersedia untuk validasi radius'
+                        : isInsideRadius
+                        ? 'Anda berada dalam radius customer'
+                        : 'Anda berada di luar radius (maks. 2 KM)'}
                     </Typography>
                   </Box>
-                </Collapse>
-              </Paper>
-
-              <Box
-                sx={{
-                  mt: 0.75,
-                  mb: 0.85,
-                  borderRadius: 2,
-                  px: 1.15,
-                  py: 0.85,
-                  border: isInsideRadius === null
-                    ? '1px solid rgba(22, 58, 107, 0.2)'
-                    : isInsideRadius
-                    ? '1px solid rgba(36, 130, 74, 0.32)'
-                    : '1px solid rgba(211, 47, 47, 0.3)',
-                  backgroundColor: isInsideRadius === null
-                    ? 'rgba(255, 255, 255, 0.9)'
-                    : isInsideRadius
-                    ? 'rgba(234, 250, 240, 0.92)'
-                    : 'rgba(252, 235, 235, 0.92)',
-                  backdropFilter: 'blur(4px)',
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    fontWeight: 700,
-                    color: isInsideRadius === null ? '#1b3557' : isInsideRadius ? '#1f7a3d' : '#b3261e',
-                  }}
-                >
-                  {isInsideRadius === null
-                    ? 'Lokasi Anda belum tersedia untuk validasi radius'
-                    : isInsideRadius
-                    ? 'Anda berada dalam radius customer'
-                    : 'Anda berada di luar radius (maks. 2 KM)'}
-                </Typography>
+                </Box>
               </Box>
-            </Box>
-          </Box>
+            </>
+          ) : (
+            <FollowUpStatePanel taskName={taskName} planNo={planNo} />
+          )}
         </Box>
       )}
 
@@ -1116,7 +1169,8 @@ export default function DonePage() {
                   mb: 1.15,
                 }}
               >
-                Lokasi belum tersedia. Gunakan tombol refresh di header atau Ambil Lokasi Saat Ini pada area map.
+                Lokasi belum tersedia. Gunakan tombol refresh di header
+                {!isFollowUp ? ' atau Ambil Lokasi Saat Ini pada area map.' : '.'}
               </Typography>
             ) : null}
 

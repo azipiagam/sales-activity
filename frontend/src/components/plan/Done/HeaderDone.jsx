@@ -11,12 +11,22 @@ export default function HeaderDone({
   onBack,
   taskName,
   planNo,
+  tujuan,
   onRefreshLocation,
   refreshLoading = false,
   refreshDisabled = false,
 }) {
+  const normalizeActivityType = (value) => {
+    const normalized = String(value || '').toLowerCase().trim();
+    if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+      return 'Follow Up';
+    }
+    return 'Visit';
+  };
+
   const customerName = String(taskName || '').trim() || '-';
-  const visitCode = String(planNo || '').trim() ? `${planNo} Visit` : '- Visit';
+  const activityType = normalizeActivityType(tujuan);
+  const visitCode = String(planNo || '').trim() || '-';
   const textOnBlueAccent = 'var(--text-on-blue-accent)';
 
   return (
@@ -115,19 +125,51 @@ export default function HeaderDone({
           >
             {customerName}
           </Typography>
-          <Typography
-            variant="caption"
+
+          <Box
             sx={{
-              display: 'block',
               mt: 0.45,
-              color: 'rgba(235, 244, 255, 0.86)',
-              fontWeight: 500,
-              fontSize: { xs: '0.78rem', sm: '0.82rem' },
-              letterSpacing: 0.2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.8,
             }}
           >
-            {visitCode}
-          </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'rgba(235, 244, 255, 0.86)',
+                fontWeight: 500,
+                fontSize: { xs: '0.78rem', sm: '0.82rem' },
+                letterSpacing: 0.2,
+              }}
+            >
+              {visitCode}
+            </Typography>
+
+            <Box
+              sx={{
+                flexShrink: 0,
+                px: 1.05,
+                py: 0.45,
+                borderRadius: '999px',
+                backgroundColor: '#1f4e8c',
+                border: '1px solid rgba(255, 255, 255, 0.28)',
+                boxShadow: '0 4px 10px rgba(8, 22, 42, 0.24)',
+              }}
+            >
+              <Typography
+                sx={{
+                  color: textOnBlueAccent,
+                  fontWeight: 700,
+                  fontSize: { xs: '0.72rem', sm: '0.76rem' },
+                  letterSpacing: '0.02em',
+                  lineHeight: 1,
+                }}
+              >
+                {activityType}
+              </Typography>
+            </Box>
+          </Box>
         </Box>
       </Box>
     </Box>
