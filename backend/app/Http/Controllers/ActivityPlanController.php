@@ -289,6 +289,48 @@ class ActivityPlanController extends Controller
         return response()->json(['message' => 'Activity plan rescheduled']);
     }
 
+    /**
+     * Update activity plan (only 'in progress' or 'rescheduled')
+     * URL: PUT /api/activity-plans/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'customer_id'           => 'sometimes|required',
+            'customer_name'         => 'sometimes|required',
+            'plan_date'             => 'sometimes|required|date|after_or_equal:today',
+            'tujuan'                => 'sometimes|required|in:Visit,Follow Up',
+            'keterangan_tambahan'   => 'nullable|string',
+            'customer_address_id'   => 'nullable|string',
+            'customer_location_lat' => 'nullable|numeric',
+            'customer_location_lng' => 'nullable|numeric',
+        ]);
+
+        try {
+            $data = $request->only([
+                'customer_id',
+                'customer_name',
+                'plan_date',
+                'tujuan',
+                'keterangan_tambahan',
+                'customer_address_id',
+                'customer_location_lat',
+                'customer_location_lng',
+            ]);
+
+            $result = $this->activityPlanService->update($id, $data);
+
+            return response()->json([
+                'message' => 'Activity plan updated',
+                'data'    => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function destroy($id)
     {
         $this->activityPlanService->delete($id);

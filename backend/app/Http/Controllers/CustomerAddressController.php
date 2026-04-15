@@ -12,44 +12,34 @@ class CustomerAddressController extends Controller
 {
     /**
      * Get all addresses for a customer.
-     *
-     * Priority for default address:
-     *   1. fix_address (if exists for this customer)  → is_default: true, source: 'fix'
-     *   2. master_customer address                    → is_default: true, source: 'master'
-     *
-     * Additional addresses from customer_addresses are appended after the default.
-     *
      * URL: GET /api/customers/{customerId}/addresses
      */
     public function index($customerId)
     {
-        // Verify customer exists
         $master = DB::table('master_customer')
             ->where('id', $customerId)
-            ->select('id', 'customer_name', 'address')
+            ->select('id', 'customer_name', 'address', 'city', 'state')
             ->first();
 
         if (!$master) {
             return response()->json(['message' => 'Customer not found'], 404);
         }
 
-        // Check if a fix_address exists for this customer
         $fix = DB::table('fix_address')
             ->where('customer_id', $customerId)
             ->first();
 
-        // Build default address entry
-        // If fix_address exists → use it as default (source: 'fix')
-        // Otherwise → fall back to master_customer (source: 'master')
         if ($fix) {
             $defaultAddress = [
-                'id'          => 'master',          // sentinel ID stays 'master' so FE logic is consistent
+                'id'          => 'master',
                 'customer_id' => $customerId,
                 'address'     => $fix->address ?: $master->address,
                 'lat'         => $fix->lat,
                 'lng'         => $fix->lng,
+                'city'        => $fix->city,
+                'state'       => $fix->state,
                 'is_default'  => true,
-                'source'      => 'fix',             // FE can show "(Corrected)" label if needed
+                'source'      => 'fix',
                 'created_at'  => $fix->created_at,
                 'updated_at'  => $fix->updated_at,
             ];
@@ -60,6 +50,8 @@ class CustomerAddressController extends Controller
                 'address'     => $master->address,
                 'lat'         => null,
                 'lng'         => null,
+                'city'        => $master->city,
+                'state'       => $master->state,
                 'is_default'  => true,
                 'source'      => 'master',
                 'created_at'  => null,
@@ -67,7 +59,6 @@ class CustomerAddressController extends Controller
             ];
         }
 
-        // Get additional addresses from customer_addresses
         $additionalAddresses = DB::table('customer_addresses')
             ->where('customer_id', $customerId)
             ->orderBy('created_at', 'ASC')
@@ -79,6 +70,8 @@ class CustomerAddressController extends Controller
                     'address'     => $row->address,
                     'lat'         => $row->lat,
                     'lng'         => $row->lng,
+                    'city'        => $row->city,
+                    'state'       => $row->state,
                     'is_default'  => false,
                     'source'      => 'custom',
                     'created_at'  => $row->created_at,
@@ -108,6 +101,8 @@ class CustomerAddressController extends Controller
             'address' => 'required|string|max:255',
             'lat'     => 'nullable|numeric|between:-90,90',
             'lng'     => 'nullable|numeric|between:-180,180',
+            'city'    => 'nullable|string|max:100',
+            'state'   => 'nullable|string|max:100',
         ]);
 
         $id  = Str::uuid()->toString();
@@ -119,6 +114,8 @@ class CustomerAddressController extends Controller
             'address'     => $request->address,
             'lat'         => $request->lat,
             'lng'         => $request->lng,
+            'city'        => $request->city,
+            'state'       => $request->state,
             'created_at'  => $now,
             'updated_at'  => $now,
         ]);
@@ -131,6 +128,8 @@ class CustomerAddressController extends Controller
                 'address'     => $request->address,
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
+                'city'        => $request->city,
+                'state'       => $request->state,
                 'is_default'  => false,
                 'source'      => 'custom',
                 'created_at'  => $now,
@@ -164,6 +163,8 @@ class CustomerAddressController extends Controller
             'address' => 'required|string|max:255',
             'lat'     => 'nullable|numeric|between:-90,90',
             'lng'     => 'nullable|numeric|between:-180,180',
+            'city'    => 'nullable|string|max:100',
+            'state'   => 'nullable|string|max:100',
         ]);
 
         $now = Carbon::now()->toDateTimeString();
@@ -174,6 +175,8 @@ class CustomerAddressController extends Controller
                 'address'    => $request->address,
                 'lat'        => $request->lat,
                 'lng'        => $request->lng,
+                'city'       => $request->city,
+                'state'      => $request->state,
                 'updated_at' => $now,
             ]);
 
@@ -185,6 +188,8 @@ class CustomerAddressController extends Controller
                 'address'     => $request->address,
                 'lat'         => $request->lat,
                 'lng'         => $request->lng,
+                'city'        => $request->city,
+                'state'       => $request->state,
                 'is_default'  => false,
                 'source'      => 'custom',
                 'updated_at'  => $now,
@@ -199,9 +204,7 @@ class CustomerAddressController extends Controller
     public function destroy($customerId, $addressId)
     {
         if ($addressId === 'master') {
-            return response()->json([
-                'message' => 'Default address cannot be deleted',
-            ], 422);
+            return response()->json(['message' => 'Default address cannot be deleted'], 422);
         }
 
         $address = DB::table('customer_addresses')
@@ -213,9 +216,7 @@ class CustomerAddressController extends Controller
             return response()->json(['message' => 'Address not found'], 404);
         }
 
-        DB::table('customer_addresses')
-            ->where('id', $addressId)
-            ->delete();
+        DB::table('customer_addresses')->where('id', $addressId)->delete();
 
         return response()->json(['message' => 'Address deleted']);
     }
