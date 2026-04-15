@@ -26,7 +26,7 @@ export default function PopupDoneMasterCustomer({
       return (
         <Box>
           <Typography sx={{ fontWeight: 700, color: '#b91c1c', mb: 0.75 }}>
-            Diluar radius (&gt; {radiusLimitKm} KM)
+            Diluar radius ({radiusLimitKm}km)
           </Typography>
           <Typography sx={{ color: '#374151', mb: 1 }}>
             Jarak dari lokasi customer:{' '}
@@ -45,7 +45,7 @@ export default function PopupDoneMasterCustomer({
     return (
       <Box>
         <Typography sx={{ fontWeight: 700, color: '#166534', mb: 0.75 }}>
-          Dalam radius (&lt;= {radiusLimitKm} KM)
+          Dalam radius ({radiusLimitKm}km)
         </Typography>
         <Typography sx={{ color: '#374151', mb: 1 }}>
           Jarak dari lokasi customer:{' '}

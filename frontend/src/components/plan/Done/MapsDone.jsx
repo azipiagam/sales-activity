@@ -18,6 +18,8 @@ export default function MapsDone({
   onGetCurrentLocation,
   onMapLocationChange,
 }) {
+  const isOutsideDistanceLimit = Number.isFinite(distanceKm) && distanceKm > DISTANCE_LIMIT_KM;
+
   const customerMarker = customerLocation
     ? [
         {
@@ -27,6 +29,8 @@ export default function MapsDone({
           title: customerAddress?.trim() ? `Lokasi customer: ${customerAddress}` : 'Lokasi customer',
           label: 'C',
           color: '#1f4e8c',
+          shape: 'pin',
+          scale: 1.35,
         },
       ]
     : [];
@@ -39,10 +43,10 @@ export default function MapsDone({
     Number.isFinite(Number(customerLocation?.longitude));
 
   const centerOverride =
-    hasCurrentLocation && hasCustomerLocation
+    hasCurrentLocation
       ? {
-          latitude: (Number(currentLocation.latitude) + Number(customerLocation.latitude)) / 2,
-          longitude: (Number(currentLocation.longitude) + Number(customerLocation.longitude)) / 2,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
         }
       : hasCustomerLocation
       ? {
@@ -52,6 +56,7 @@ export default function MapsDone({
       : null;
 
   const mapZoom = (() => {
+    if (isOutsideDistanceLimit && hasCurrentLocation) return 16;
     if (!Number.isFinite(distanceKm)) return hasCurrentLocation ? 15 : 13;
     if (distanceKm > 5) return 11;
     if (distanceKm > 2) return 12;
@@ -80,8 +85,18 @@ export default function MapsDone({
         longitude={hasCurrentLocation ? currentLocation.longitude : customerLocation?.longitude}
         onLocationChange={onMapLocationChange}
         primaryMarkerLabel="U"
-        primaryMarkerTitle={resultAddress?.trim() ? `Lokasi Anda: ${resultAddress}` : 'Lokasi Anda'}
+        primaryMarkerTitle={
+          resultAddress?.trim()
+            ? isOutsideDistanceLimit
+              ? `Lokasi hasil result: ${resultAddress}`
+              : `Lokasi Anda: ${resultAddress}`
+            : isOutsideDistanceLimit
+            ? 'Lokasi hasil result'
+            : 'Lokasi Anda'
+        }
         primaryMarkerColor="#29924f"
+        primaryMarkerShape="pin"
+        primaryMarkerScale={1.55}
         primaryMarkerDraggable={hasCurrentLocation}
         hidePrimaryMarker={!hasCurrentLocation}
         additionalMarkers={customerMarker}

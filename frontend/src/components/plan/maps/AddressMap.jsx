@@ -21,6 +21,10 @@ export default function AddressMap({
   fullscreenControl = true,
   hidePrimaryMarker = false,
   primaryMarkerColor = '#2e7d32',
+  primaryMarkerScale = 7,
+  primaryMarkerShape = 'circle',
+  additionalMarkerScale = 7,
+  additionalMarkerShape = 'circle',
   primaryMarkerDraggable = true,
   connectorPath = [],
   connectorLineColor = '#2f6fb2',
@@ -67,6 +71,7 @@ export default function AddressMap({
         .map((marker, index) => {
           const markerLat = toFiniteNumber(marker?.latitude);
           const markerLng = toFiniteNumber(marker?.longitude);
+          const markerScale = toFiniteNumber(marker?.scale);
           if (markerLat === null || markerLng === null) return null;
 
           return {
@@ -75,6 +80,8 @@ export default function AddressMap({
             title: String(marker?.title || '').trim(),
             label: String(marker?.label || '').trim(),
             color: String(marker?.color || '').trim() || '#1f4e8c',
+            scale: markerScale !== null && markerScale > 0 ? markerScale : additionalMarkerScale,
+            shape: String(marker?.shape || '').trim() || additionalMarkerShape,
           };
         })
         .filter(Boolean)
@@ -141,15 +148,44 @@ export default function AddressMap({
     setMapZoom(overrideZoomNumber);
   }, [zoomOverride]);
 
-  const createMarkerIcon = useCallback((fillColor) => {
+  const createMarkerLabel = useCallback((labelText, markerShape = 'circle') => {
+    const normalizedText = String(labelText || '').trim();
+    if (!normalizedText) return undefined;
+
+    const normalizedShape = String(markerShape || '').toLowerCase();
+    return {
+      text: normalizedText.slice(0, 1),
+      color: '#ffffff',
+      fontWeight: '700',
+      fontSize: normalizedShape === 'pin' ? '12px' : '11px',
+    };
+  }, []);
+
+  const createMarkerIcon = useCallback((fillColor, markerScale = 7, markerShape = 'circle') => {
     if (!window.google?.maps?.SymbolPath) return undefined;
+    const safeScale = toFiniteNumber(markerScale);
+
+    if (String(markerShape || '').toLowerCase() === 'pin') {
+      return {
+        path: 'M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z',
+        fillColor,
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 1.8,
+        scale: safeScale !== null && safeScale > 0 ? safeScale : 1,
+        anchor: window.google?.maps?.Point ? new window.google.maps.Point(12, 24) : undefined,
+        labelOrigin: window.google?.maps?.Point ? new window.google.maps.Point(12, 9) : undefined,
+      };
+    }
+
     return {
       path: window.google.maps.SymbolPath.CIRCLE,
       fillColor,
       fillOpacity: 1,
       strokeColor: '#ffffff',
       strokeWeight: 2,
-      scale: 7,
+      scale: safeScale !== null && safeScale > 0 ? safeScale : 7,
+      labelOrigin: window.google?.maps?.Point ? new window.google.maps.Point(0, 0) : undefined,
     };
   }, []);
 
@@ -248,9 +284,9 @@ export default function AddressMap({
           position={markerPosition}
           draggable={primaryMarkerDraggable}
           onDragEnd={onMarkerDragEnd}
-          label={String(primaryMarkerLabel || '').trim() || undefined}
+          label={createMarkerLabel(primaryMarkerLabel, primaryMarkerShape)}
           title={String(primaryMarkerTitle || '').trim() || undefined}
-          icon={createMarkerIcon(primaryMarkerColor)}
+          icon={createMarkerIcon(primaryMarkerColor, primaryMarkerScale, primaryMarkerShape)}
         />
       ) : null}
 
@@ -259,9 +295,9 @@ export default function AddressMap({
           key={marker.key}
           position={marker.position}
           title={marker.title || undefined}
-          label={marker.label || undefined}
+          label={createMarkerLabel(marker.label, marker.shape)}
           draggable={false}
-          icon={createMarkerIcon(marker.color)}
+          icon={createMarkerIcon(marker.color, marker.scale, marker.shape)}
         />
       ))}
     </GoogleMap>

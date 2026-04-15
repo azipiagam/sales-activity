@@ -17,6 +17,7 @@ export default function HeaderDone({
 }) {
   const customerName = String(taskName || '').trim() || '-';
   const visitCode = String(planNo || '').trim() ? `${planNo} Visit` : '- Visit';
+  const textOnBlueAccent = 'var(--text-on-blue-accent)';
 
   return (
     <Box
@@ -42,8 +43,7 @@ export default function HeaderDone({
             minHeight: 48,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 1,
+            gap: 1.1,
           }}
         >
           <IconButton
@@ -61,6 +61,22 @@ export default function HeaderDone({
           >
             <ArrowBackIcon fontSize="small" />
           </IconButton>
+
+          <Typography
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: 'center',
+              color: textOnBlueAccent,
+              fontWeight: 800,
+              fontSize: { xs: '0.98rem', sm: '1.08rem' },
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              lineHeight: 1.2,
+            }}
+          >
+            Done Result
+          </Typography>
 
           <IconButton
             onClick={onRefreshLocation}

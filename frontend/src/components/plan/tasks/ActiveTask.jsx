@@ -10,6 +10,7 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
+import EditIcon from '@mui/icons-material/Edit';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -70,15 +71,32 @@ const sortTasksByStatusAndDate = (tasks, selectedFilter) => {
   });
 };
 
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+};
+
+const normalizeTujuan = (tujuan) => {
+  const normalized = String(tujuan || '').toLowerCase().trim();
+  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+    return ACTIVITY_TYPES.FOLLOW_UP;
+  }
+  return ACTIVITY_TYPES.VISIT;
+};
+
 export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
   const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
   const [activeTasks, setActiveTasks] = useState([]);
   const [expandedTaskById, setExpandedTaskById] = useState({});
   const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [currentEditTaskId, setCurrentEditTaskId] = useState(null);
+  const [editTujuan, setEditTujuan] = useState(ACTIVITY_TYPES.VISIT);
+  const [editTambahan, setEditTambahan] = useState('');
   const [actualVisitDate, setActualVisitDate] = useState(new Date());
   const [newVisitDate, setNewVisitDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
@@ -182,13 +200,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           }
           
           // Format tujuan
-          let formattedTujuan = 'Visit';
-          if (taskData.tujuan) {
-            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-            if (formattedTujuan.toLowerCase() === 'follow up') {
-              formattedTujuan = 'Follow Up';
-            }
-          }
+          const formattedTujuan = normalizeTujuan(taskData.tujuan);
           
         return {
           id: taskData.id,
@@ -289,13 +301,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           status = 'missed';
         }
 
-        let formattedTujuan = 'Visit';
-        if (taskData.tujuan) {
-          formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-          if (formattedTujuan.toLowerCase() === 'follow up') {
-            formattedTujuan = 'Follow Up';
-          }
-        }
+        const formattedTujuan = normalizeTujuan(taskData.tujuan);
 
         return {
           id: taskData.id,
@@ -401,6 +407,28 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleMenuReschedule = (taskId) => {
     handleCloseMenu();
     handleOpenRescheduleModal(taskId);
+  };
+
+  const handleOpenEditModal = (taskId) => {
+    const task = activeTasks.find((item) => item.id === taskId);
+    if (!task) return;
+
+    setCurrentEditTaskId(taskId);
+    setEditTujuan(normalizeTujuan(task.tujuan));
+    setEditTambahan(task.tambahan || '');
+    setOpenEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setOpenEditModal(false);
+    setCurrentEditTaskId(null);
+    setEditTujuan(ACTIVITY_TYPES.VISIT);
+    setEditTambahan('');
+  };
+
+  const handleMenuEdit = (taskId) => {
+    handleCloseMenu();
+    handleOpenEditModal(taskId);
   };
 
   const handleSaveResult = async () => {
@@ -552,6 +580,53 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       fetchActiveTask();
     } catch (err) {
       console.error('Error rescheduling:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmEdit = async () => {
+    if (!currentEditTaskId) return;
+
+    try {
+      setSaving(true);
+
+      const payload = {
+        tujuan: normalizeTujuan(editTujuan),
+        keterangan_tambahan: (editTambahan || '').trim(),
+      };
+
+      const response = await apiRequest(`activity-plans/${currentEditTaskId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update task');
+      }
+
+      updatePlanInCache(currentEditTaskId, payload);
+      setActiveTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === currentEditTaskId
+            ? {
+                ...task,
+                tujuan: payload.tujuan,
+                tambahan: payload.keterangan_tambahan,
+              }
+            : task
+        )
+      );
+
+      handleCloseEditModal();
+      invalidateCache(dateToUse);
+      fetchPlansByDate(dateToUse, true).catch((err) => {
+        console.error('Error refreshing after edit:', err);
+      });
+    } catch (err) {
+      console.error('Error editing task:', err);
       alert(`Error: ${err.message}`);
     } finally {
       setSaving(false);
@@ -1172,6 +1247,25 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             <>
               {task.status !== 'missed' && (
                 <MenuItem
+                  onClick={() => handleMenuEdit(menuTaskId)}
+                  disabled={saving}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    '&:hover': {
+                      backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <EditIcon sx={{ fontSize: '1.25rem', color: 'var(--theme-blue-primary)' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="Edit" />
+                </MenuItem>
+              )}
+              {task.status !== 'missed' && (
+                <MenuItem
                   onClick={() => handleMenuReschedule(menuTaskId)}
                   disabled={saving}
                   sx={{
@@ -1409,6 +1503,193 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               }}
             >
               {saving ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        open={openEditModal}
+        onClose={handleCloseEditModal}
+        aria-labelledby="edit-modal-title"
+        aria-describedby="edit-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '90%', sm: '500px', md: '560px' },
+            maxWidth: '90vw',
+            bgcolor: 'background.paper',
+            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+            boxShadow: 24,
+            p: { xs: 3, sm: 4 },
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 3,
+            }}
+          >
+            <Typography
+              id="edit-modal-title"
+              variant="h6"
+              component="h2"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                fontWeight: 700,
+                color: '#333',
+              }}
+            >
+              Edit Task
+            </Typography>
+            <IconButton
+              onClick={handleCloseEditModal}
+              sx={{
+                color: '#666',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  color: '#333',
+                },
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                color: '#666',
+                mb: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              Tujuan
+            </Typography>
+            <TextField
+              select
+              fullWidth
+              value={editTujuan}
+              onChange={(event) => setEditTujuan(normalizeTujuan(event.target.value))}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  '& fieldset': {
+                    borderColor: '#ddd',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                },
+              }}
+            >
+              <MenuItem value={ACTIVITY_TYPES.VISIT}>Visit</MenuItem>
+              <MenuItem value={ACTIVITY_TYPES.FOLLOW_UP}>Follow Up</MenuItem>
+            </TextField>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                color: '#666',
+                mb: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              Keterangan Tambahan
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              minRows={4}
+              value={editTambahan}
+              onChange={(event) => setEditTambahan(event.target.value)}
+              placeholder="Masukkan keterangan tambahan..."
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  alignItems: 'flex-start',
+                  '& fieldset': {
+                    borderColor: '#ddd',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: { xs: 1.5, sm: 2 },
+              mt: 3,
+            }}
+          >
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleCloseEditModal}
+              sx={{
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                fontWeight: 600,
+                borderColor: 'var(--theme-blue-primary)',
+                color: 'var(--theme-blue-primary)',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: 'var(--theme-blue-overlay)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleConfirmEdit}
+              disabled={saving}
+              sx={{
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                fontWeight: 600,
+                backgroundColor: 'var(--theme-blue-primary)',
+                color: 'white',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                '&:hover': {
+                  backgroundColor: 'var(--theme-blue-overlay)',
+                  color: 'white',
+                },
+                '&:disabled': {
+                  backgroundColor: '#ccc',
+                  color: '#666',
+                },
+              }}
+            >
+              {saving ? <CircularProgress size={24} color="inherit" /> : 'Save'}
             </Button>
           </Box>
         </Box>

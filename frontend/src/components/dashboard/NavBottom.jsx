@@ -10,7 +10,6 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
-import { Fade } from '@mui/material';
 import { AddAddress, AddPlan, CheckIn } from '../plan/add';
 
 export default function NavBottom({ value, onChange }) {
@@ -99,11 +98,6 @@ export default function NavBottom({ value, onChange }) {
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             zIndex: 999,
-            animation: 'fadeIn 0.3s ease-out both',
-            '@keyframes fadeIn': {
-              from: { opacity: 0 },
-              to: { opacity: 1 },
-            },
           }}
         />
       )}
@@ -142,22 +136,17 @@ export default function NavBottom({ value, onChange }) {
               borderTopLeftRadius: '20px',
               borderTopRightRadius: '20px',
               boxShadow: `0 -10px 24px rgba(${themeBlueDarkRgb}, 0.35)`,
-              opacity: 0,
-              animation: 'slideUp 0.6s ease-out 0.5s forwards',
               width: '100%',
               '& .MuiBottomNavigationAction-root': {
                 color: 'rgba(255, 255, 255, 0.9)',
                 minWidth: 'auto',
                 padding: '6px 12px',
-                transition: 'all 0.25s ease',
                 '& .MuiBottomNavigationAction-label': {
                   color: 'inherit',
                   fontWeight: 600,
-                  transition: 'color 0.25s ease',
                 },
                 '& .MuiSvgIcon-root': {
                   color: 'inherit',
-                  transition: 'color 0.25s ease',
                 },
                 '&.Mui-selected': {
                   color: themeGold,
@@ -198,7 +187,7 @@ export default function NavBottom({ value, onChange }) {
           </BottomNavigation>
 
           {/* Expandable FAB with Popup */}
-          <Fade in={isExpanded} timeout={150}>
+          {isExpanded && (
             <Box
               sx={{
                 position: 'absolute',
@@ -231,10 +220,8 @@ export default function NavBottom({ value, onChange }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
                   overflow: 'hidden',
-                  animation: isExpanded ? 'slideInUp 0.3s ease-out 0.05s both' : 'none',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -245,11 +232,9 @@ export default function NavBottom({ value, onChange }) {
                     borderRadius: '50%',
                     backgroundColor: 'rgba(31, 78, 140, 0.3)',
                     transform: 'translate(-50%, -50%)',
-                    transition: 'width 0.6s, height 0.6s',
                   },
                   '&:hover': {
                     background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
-                    transform: 'scale(1.08) translateY(-2px)',
                     boxShadow: `0 6px 16px rgba(${themeBlueDarkRgb}, 0.3), 0 0 0 2px rgba(233, 196, 106, 0.65)`,
                     '&::before': {
                       width: '120%',
@@ -263,23 +248,12 @@ export default function NavBottom({ value, onChange }) {
                     outline: 'none',
                     boxShadow: '0 0 0 3px rgba(233, 196, 106, 0.4)',
                   },
-                  '@keyframes slideInUp': {
-                    from: {
-                      opacity: 0,
-                      transform: 'translateY(20px) scale(0.8)',
-                    },
-                    to: {
-                      opacity: 1,
-                      transform: 'translateY(0) scale(1)',
-                    },
-                  },
                 }}
               >
                 <MyLocationIcon
                   sx={{
                     fontSize: { xs: '1.75rem', sm: '2rem' },
                     color: 'white',
-                    transition: 'color 0.3s ease',
                     position: 'relative',
                     zIndex: 1,
                   }}
@@ -304,10 +278,8 @@ export default function NavBottom({ value, onChange }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
                   overflow: 'hidden',
-                  animation: isExpanded ? 'slideInUp 0.3s ease-out 0.1s both' : 'none',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -318,11 +290,9 @@ export default function NavBottom({ value, onChange }) {
                     borderRadius: '50%',
                     backgroundColor: 'rgba(31, 78, 140, 0.3)',
                     transform: 'translate(-50%, -50%)',
-                    transition: 'width 0.6s, height 0.6s',
                   },
                   '&:hover': {
                     background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
-                    transform: 'scale(1.08) translateY(-2px)',
                     boxShadow: `0 6px 16px rgba(${themeBlueDarkRgb}, 0.3), 0 0 0 2px rgba(233, 196, 106, 0.65)`,
                     '&::before': {
                       width: '120%',
@@ -342,14 +312,13 @@ export default function NavBottom({ value, onChange }) {
                   sx={{
                     fontSize: { xs: '1.75rem', sm: '2rem' },
                     color: 'white',
-                    transition: 'color 0.3s ease',
                     position: 'relative',
                     zIndex: 1,
                   }}
                 />
               </Box>
             </Box>
-          </Fade>
+          )}
 
           {/* Main FAB Button */}
           <Fab
@@ -365,10 +334,7 @@ export default function NavBottom({ value, onChange }) {
               borderColor: 'rgba(233, 196, 106, 0.6)',
               width: { xs: 56, sm: 60 },
               height: { xs: 56, sm: 60 },
-              opacity: 0,
-              animation: 'slideUp 0.6s ease-out 0.7s forwards',
               transform: isExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
                 background: `linear-gradient(135deg, ${themeBlue} 0%, ${themeBlueLight} 100%)`,
                 color: themeGold,

@@ -115,11 +115,20 @@ export default function CardDone({
       </Typography>
 
       {capturedImage ? (
-        <Box sx={{ mt: 0.95, position: 'relative', display: 'inline-block' }}>
+        <Box
+          sx={{
+            mt: 0.95,
+            position: 'relative',
+            display: 'inline-block',
+            width: 'fit-content',
+            maxWidth: '100%',
+          }}
+        >
           <img
             src={capturedImage}
             alt="Preview"
             style={{
+              display: 'block',
               maxWidth: '100%',
               maxHeight: '180px',
               borderRadius: '12px',
@@ -132,10 +141,18 @@ export default function CardDone({
             disabled={disabled}
             sx={{
               position: 'absolute',
-              top: 6,
-              right: 6,
+              top: 8,
+              right: 8,
+              width: 30,
+              height: 30,
+              p: 0.5,
               backgroundColor: 'rgba(255, 255, 255, 0.9)',
               color: '#d32f2f',
+              border: '1px solid rgba(22, 58, 107, 0.14)',
+              boxShadow: '0 2px 6px rgba(10, 28, 53, 0.14)',
+              '&:hover': {
+                backgroundColor: '#ffffff',
+              },
             }}
             aria-label="Hapus foto"
           >
