@@ -10,7 +10,7 @@ import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { parse, isValid } from 'date-fns';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
@@ -181,9 +181,7 @@ const resolveDistanceToCustomerKm = (task, currentLocation, validationAddressRef
 };
 
 export default function DonePage() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -214,26 +212,44 @@ export default function DonePage() {
     distanceKm: null,
     radiusLimitKm: DISTANCE_LIMIT_KM,
   });
+  const isMountedRef = useRef(true);
   const validationPopupResolverRef = useRef(null);
   const addressValidationResolverRef = useRef(null);
 
   const { invalidateCache, fetchPlansByDate, updatePlanInCache, getPlansByDate } = useActivityPlans();
 
   const taskId = useMemo(() => {
-    const sourceTaskId = location.state?.taskId ?? searchParams.get('taskId');
+    const sourceTaskId = location.state?.taskId;
     return normalizeTaskId(sourceTaskId);
-  }, [location.state, searchParams]);
+  }, [location.state]);
 
   const dateToUse = useMemo(() => {
-    const sourceDate = location.state?.date ?? searchParams.get('date');
+    const sourceDate = location.state?.date;
     if (!sourceDate) return new Date();
 
     const parsedDate = parse(sourceDate, 'yyyy-MM-dd', new Date());
     return isValid(parsedDate) ? parsedDate : new Date();
-  }, [location.state, searchParams]);
+  }, [location.state]);
 
   const taskData = location.state?.task;
   const [taskMeta, setTaskMeta] = useState(taskData ?? null);
+
+  useEffect(() => {
+    // Done page wajib dibuka dari flow aplikasi (dengan state),
+    // agar refresh/back tidak mengunci user di URL done lama.
+    if (!location.state?.taskId) {
+      window.location.replace('/plan/');
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      window.location.replace('/plan/');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const activeTask = taskMeta ?? taskData ?? null;
   const taskName = activeTask?.namaCustomer ?? activeTask?.customer_name;
@@ -286,7 +302,9 @@ export default function DonePage() {
     : `Dalam radius ${DISTANCE_LIMIT_KM} KM`;
 
   const closeValidationPopup = useCallback((result) => {
-    setValidationPopup((prev) => ({ ...prev, open: false }));
+    if (isMountedRef.current) {
+      setValidationPopup((prev) => ({ ...prev, open: false }));
+    }
     if (validationPopupResolverRef.current) {
       const pendingResolve = validationPopupResolverRef.current;
       validationPopupResolverRef.current = null;
@@ -295,7 +313,9 @@ export default function DonePage() {
   }, []);
 
   const closeAddressValidationPopup = useCallback((result) => {
-    setAddressValidationPopup((prev) => ({ ...prev, open: false }));
+    if (isMountedRef.current) {
+      setAddressValidationPopup((prev) => ({ ...prev, open: false }));
+    }
     if (addressValidationResolverRef.current) {
       const pendingResolve = addressValidationResolverRef.current;
       addressValidationResolverRef.current = null;
@@ -312,6 +332,10 @@ export default function DonePage() {
       cancelText = 'Batal',
       showCancel = false,
     }) => {
+      if (!isMountedRef.current) {
+        return Promise.resolve(false);
+      }
+
       if (validationPopupResolverRef.current) {
         const pendingResolve = validationPopupResolverRef.current;
         validationPopupResolverRef.current = null;
@@ -329,6 +353,10 @@ export default function DonePage() {
       });
 
       return new Promise((resolve) => {
+        if (!isMountedRef.current) {
+          resolve(false);
+          return;
+        }
         validationPopupResolverRef.current = resolve;
       });
     },
@@ -361,6 +389,10 @@ export default function DonePage() {
   );
 
   const showAddressValidationPopup = useCallback(({ addressType, distanceKm }) => {
+    if (!isMountedRef.current) {
+      return Promise.resolve(false);
+    }
+
     if (addressValidationResolverRef.current) {
       const pendingResolve = addressValidationResolverRef.current;
       addressValidationResolverRef.current = null;
@@ -378,6 +410,10 @@ export default function DonePage() {
     });
 
     return new Promise((resolve) => {
+      if (!isMountedRef.current) {
+        resolve(false);
+        return;
+      }
       addressValidationResolverRef.current = resolve;
     });
   }, []);
@@ -388,6 +424,7 @@ export default function DonePage() {
 
   useEffect(
     () => () => {
+      isMountedRef.current = false;
       if (validationPopupResolverRef.current) {
         validationPopupResolverRef.current(false);
         validationPopupResolverRef.current = null;
@@ -428,9 +465,9 @@ export default function DonePage() {
     setValidationAddressRef(null);
   }, [taskId]);
 
-  const handleBackToPlan = () => {
-    navigate('/plan', { replace: true });
-  };
+  const handleBackToPlan = useCallback(() => {
+    window.location.replace('/plan/');
+  }, []);
 
   const handleOpenCamera = () => {
     setCameraActive(true);
@@ -446,6 +483,8 @@ export default function DonePage() {
   };
 
   const handleGetCurrentLocation = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       setLocationLoading(true);
       const { getAccurateLocation } = await import('../../../utils/geocoding');
@@ -453,6 +492,8 @@ export default function DonePage() {
         desiredAccuracy: 100,
         maxRetries: 2,
       });
+
+      if (!isMountedRef.current) return;
 
       if (!locationData?.latitude || !locationData?.longitude) {
         throw new Error('Koordinat GPS tidak valid. Silakan coba lagi.');
@@ -465,16 +506,21 @@ export default function DonePage() {
       });
     } catch (err) {
       console.error('Error getting current location:', err);
-      await showValidationAlert(`Error: ${err.message}`, {
-        title: 'Gagal Mengambil Lokasi',
-        type: 'error',
-      });
+      if (isMountedRef.current) {
+        await showValidationAlert(`Error: ${err.message}`, {
+          title: 'Gagal Mengambil Lokasi',
+          type: 'error',
+        });
+      }
     } finally {
-      setLocationLoading(false);
+      if (isMountedRef.current) {
+        setLocationLoading(false);
+      }
     }
   };
 
   const handleMapLocationChange = (lat, lng) => {
+    if (!isMountedRef.current) return;
     setCurrentLocation((prev) => ({
       ...(prev || {}),
       latitude: lat,
@@ -590,20 +636,24 @@ export default function DonePage() {
   }, [currentLocation?.latitude, currentLocation?.longitude, currentLocation?.accuracy]);
 
   const handleSaveResult = async () => {
-    if (!taskId) return;
+    if (!taskId || !isMountedRef.current) return;
     if (!currentLocation?.latitude || !currentLocation?.longitude) {
-      await showValidationAlert('Silakan ambil lokasi saat ini terlebih dahulu.', {
-        title: 'Lokasi Belum Tersedia',
-        type: 'warning',
-      });
+      if (isMountedRef.current) {
+        await showValidationAlert('Silakan ambil lokasi saat ini terlebih dahulu.', {
+          title: 'Lokasi Belum Tersedia',
+          type: 'warning',
+        });
+      }
       return;
     }
 
     try {
+      if (!isMountedRef.current) return;
       setSaving(true);
       let currentValidationAddressRef = validationAddressRef;
       if (!currentValidationAddressRef) {
         currentValidationAddressRef = await loadValidationAddressReference(activeTask);
+        if (!isMountedRef.current) return;
         setValidationAddressRef(currentValidationAddressRef);
       }
 
@@ -625,6 +675,7 @@ export default function DonePage() {
         addressType: usesMasterCustomerAddress ? 'master' : 'additional',
         distanceKm: distanceToCustomerKm,
       });
+      if (!isMountedRef.current) return;
 
       if (!isProceed) {
         return;
@@ -651,15 +702,18 @@ export default function DonePage() {
           photo: capturedImage || null,
         }),
       });
+      if (!isMountedRef.current) return;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         invalidateCache(dateToUse);
         await fetchPlansByDate(dateToUse, true);
+        if (!isMountedRef.current) return;
         throw new Error(errorData.message || 'Failed to save result');
       }
 
       const donePayload = await response.json().catch(() => ({}));
+      if (!isMountedRef.current) return;
 
       const { needsFixAddressConfirmation, distanceKm } = resolveFixAddressConfirmation(
         donePayload,
@@ -682,19 +736,22 @@ export default function DonePage() {
             cancelText: 'Lewati',
           }
         );
+        if (!isMountedRef.current) return;
       }
 
       if (shouldSaveFixAddress) {
         const customerId = activeTask?.customer_id ?? activeTask?.customerId ?? null;
 
         if (!customerId) {
-          await showValidationAlert(
-            'Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.',
-            {
-              title: 'Fix Address Tidak Tersimpan',
-              type: 'warning',
-            }
-          );
+          if (isMountedRef.current) {
+            await showValidationAlert(
+              'Done berhasil disimpan, tetapi customer ID tidak ditemukan sehingga fix address tidak tersimpan.',
+              {
+                title: 'Fix Address Tidak Tersimpan',
+                type: 'warning',
+              }
+            );
+          }
         } else {
           const normalizedCurrentAddress = String(currentAddress || '').trim();
           const fixAddressPayload = {
@@ -715,22 +772,26 @@ export default function DonePage() {
               body: JSON.stringify(fixAddressPayload),
             }
           );
+          if (!isMountedRef.current) return;
 
           if (!fixAddressResponse.ok) {
             const fixAddressError = await fixAddressResponse.json().catch(() => ({}));
-            await showValidationAlert(
-              `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
-                fixAddressError.message || 'Unknown error'
-              }`,
-              {
-                title: 'Fix Address Gagal Disimpan',
-                type: 'warning',
-              }
-            );
+            if (isMountedRef.current) {
+              await showValidationAlert(
+                `Done berhasil disimpan, tetapi fix address gagal tersimpan: ${
+                  fixAddressError.message || 'Unknown error'
+                }`,
+                {
+                  title: 'Fix Address Gagal Disimpan',
+                  type: 'warning',
+                }
+              );
+            }
           }
         }
       }
 
+      if (!isMountedRef.current) return;
       invalidateCache(dateToUse);
       fetchPlansByDate(dateToUse, true).catch((err) => {
         console.error('Error refreshing after done:', err);
@@ -739,12 +800,16 @@ export default function DonePage() {
       handleBackToPlan();
     } catch (err) {
       console.error('Error saving result:', err);
-      await showValidationAlert(`Error: ${err.message}`, {
-        title: 'Gagal Menyimpan Done',
-        type: 'error',
-      });
+      if (isMountedRef.current) {
+        await showValidationAlert(`Error: ${err.message}`, {
+          title: 'Gagal Menyimpan Done',
+          type: 'error',
+        });
+      }
     } finally {
-      setSaving(false);
+      if (isMountedRef.current) {
+        setSaving(false);
+      }
     }
   };
 

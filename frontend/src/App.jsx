@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -52,7 +52,11 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDonePage = location.pathname === '/plan/done';
+  const normalizedPathname = useMemo(() => {
+    const trimmed = String(location.pathname || '').replace(/\/+$/, '');
+    return trimmed || '/';
+  }, [location.pathname]);
+  const isDonePage = normalizedPathname === '/plan/done';
   const [navValue, setNavValue] = useState(location.pathname.startsWith('/plan') ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
@@ -69,18 +73,29 @@ function AppContent() {
     // Pastikan setelah login pertama kali, user selalu melihat Dashboard
     // navValue = 0 → Dashboard
     // navValue = 1 → Plan (My Activity Plan)
-    if (location.pathname.startsWith('/plan')) {
+    if (normalizedPathname.startsWith('/plan')) {
       setNavValue(1);
       return;
     }
 
-    if (location.pathname === '/') {
+    if (normalizedPathname === '/') {
       setNavValue(0);
       return;
     }
 
     navigate('/', { replace: true });
-  }, [location.pathname, navigate]);
+  }, [normalizedPathname, navigate]);
+
+  useEffect(() => {
+    // Bersihkan query parameter dari halaman done ketika user sudah ada di /plan.
+    if (normalizedPathname !== '/plan' || !location.search) return;
+
+    const searchParams = new URLSearchParams(location.search);
+    const hasDoneParams = searchParams.has('taskId') || searchParams.has('date');
+    if (!hasDoneParams) return;
+
+    navigate('/plan', { replace: true });
+  }, [normalizedPathname, location.search, navigate]);
 
   useEffect(() => {
     setCalendarAnchorEl(null);
@@ -222,7 +237,7 @@ function AppContent() {
             </motion.div>
           ) : (
             <motion.div
-              key="plan"
+              key={isDonePage ? 'plan-done' : 'plan-main'}
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{

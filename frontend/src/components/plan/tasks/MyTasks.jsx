@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
@@ -31,7 +31,26 @@ export default function MyTasks({ selectedDate }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef(new Set());
   const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
+
+  const clearAllTimeouts = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    timeoutIdsRef.current.clear();
+  }, []);
+
+  const runTimeout = useCallback((callback, delay) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      if (!isMountedRef.current) return;
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
   
   const dateToUse = useMemo(() => {
     if (selectedDate) {
@@ -47,6 +66,14 @@ export default function MyTasks({ selectedDate }) {
   const dateStr = format(dateToUse, 'yyyy-MM-dd');
   const loading = isLoading(`date:${dateStr}`);
   const error = getError(`date:${dateStr}`);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
 
   useEffect(() => {
     let isMounted = true;
@@ -171,17 +198,21 @@ export default function MyTasks({ selectedDate }) {
 
   useEffect(() => {
     const timer = setInterval(() => {
+      if (!isMountedRef.current) return;
       setIsAnimating(true);
-      setTimeout(() => {
+      runTimeout(() => {
         setCurrentTime(new Date());
-        setTimeout(() => {
+        runTimeout(() => {
           setIsAnimating(false);
         }, 800);
       }, 2400);
     }, 3000);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      clearInterval(timer);
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts, runTimeout]);
 
   const day = String(currentTime.getDate()).padStart(2, '0');
   const month = String(currentTime.getMonth() + 1).padStart(2, '0');

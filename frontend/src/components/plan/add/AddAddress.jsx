@@ -149,6 +149,7 @@ export default function AddAddress({
   const placesServiceRef = useRef(null);
   const autocompleteSessionTokenRef = useRef(null);
   const suggestionsRequestIdRef = useRef(0);
+  const blurHideSuggestionsTimerRef = useRef(null);
 
   const [primaryAddress, setPrimaryAddress] = useState({
     id: MASTER_ADDRESS_ID,
@@ -185,6 +186,16 @@ export default function AddAddress({
   const selectedAddress = useMemo(() => {
     return allAddresses.find((item) => item.id === selectedAddressId) || primaryAddress;
   }, [allAddresses, selectedAddressId, primaryAddress]);
+
+  useEffect(
+    () => () => {
+      if (blurHideSuggestionsTimerRef.current) {
+        window.clearTimeout(blurHideSuggestionsTimerRef.current);
+        blurHideSuggestionsTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const updateAddressCoordinates = useCallback((addressId, lat, lng) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -955,13 +966,21 @@ export default function AddAddress({
                       setError('');
                     }}
                     onFocus={() => {
+                      if (blurHideSuggestionsTimerRef.current) {
+                        window.clearTimeout(blurHideSuggestionsTimerRef.current);
+                        blurHideSuggestionsTimerRef.current = null;
+                      }
                       if (searchSuggestions.length > 0) {
                         setShowSearchSuggestions(true);
                       }
                     }}
                     onBlur={() => {
-                      setTimeout(() => {
+                      if (blurHideSuggestionsTimerRef.current) {
+                        window.clearTimeout(blurHideSuggestionsTimerRef.current);
+                      }
+                      blurHideSuggestionsTimerRef.current = window.setTimeout(() => {
                         setShowSearchSuggestions(false);
+                        blurHideSuggestionsTimerRef.current = null;
                       }, 120);
                     }}
                     onKeyDown={(event) => {

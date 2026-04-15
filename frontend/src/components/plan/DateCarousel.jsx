@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -20,7 +20,48 @@ export default function DateCarousel({
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const [isLoading, setIsLoading] = useState(false);
   const userClickTimeRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef(new Set());
   const { isLoading: checkDataLoading } = useActivityPlans();
+
+  const clearAllTimeouts = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    timeoutIdsRef.current.clear();
+  }, []);
+
+  const runTimeout = useCallback((callback, delay) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      if (!isMountedRef.current) return;
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
+
+  const setLoadingState = useCallback(
+    (nextLoading) => {
+      if (!isMountedRef.current) return;
+      setIsLoading(nextLoading);
+      if (onLoadingChange) {
+        onLoadingChange(nextLoading);
+      }
+    },
+    [onLoadingChange]
+  );
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+      if (onLoadingChange) {
+        onLoadingChange(false);
+      }
+    },
+    [clearAllTimeouts, onLoadingChange]
+  );
   
   const getMondayOfWeek = (date) => {
     const d = new Date(date);
@@ -109,10 +150,8 @@ export default function DateCarousel({
     currentSelectedDate.setHours(0, 0, 0, 0);
     
     if (clickedDate.getTime() !== currentSelectedDate.getTime()) {
-      setIsLoading(true);
-      if (onLoadingChange) {
-        onLoadingChange(true);
-      }
+      clearAllTimeouts();
+      setLoadingState(true);
       
       const dateStr = format(clickedDate, 'yyyy-MM-dd');
       const cacheKey = `date:${dateStr}`;
@@ -130,20 +169,18 @@ export default function DateCarousel({
       const maxChecks = 50; 
       
       const checkLoading = () => {
+        if (!isMountedRef.current) return;
         checkCount++;
         const dataLoading = checkDataLoading(cacheKey);
         
         if (!dataLoading || checkCount >= maxChecks) {
-          setIsLoading(false);
-          if (onLoadingChange) {
-            onLoadingChange(false);
-          }
+          setLoadingState(false);
         } else {
-          setTimeout(checkLoading, 200);
+          runTimeout(checkLoading, 200);
         }
       };
       
-      setTimeout(() => {
+      runTimeout(() => {
         checkLoading();
       }, 300);
     } else {
@@ -160,24 +197,19 @@ export default function DateCarousel({
   const handlePreviousWeek = () => {
     if (isLoading) return;
 
-    setIsLoading(true);
-    if (onLoadingChange) {
-      onLoadingChange(true);
-    }
+    clearAllTimeouts();
+    setLoadingState(true);
     
 
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const previousMonday = new Date(mondayTime - fiveDaysInMs);
     
-    setTimeout(() => {
+    runTimeout(() => {
       setCurrentWeekMonday(previousMonday);
       
-      setTimeout(() => {
-        setIsLoading(false);
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
+      runTimeout(() => {
+        setLoadingState(false);
       }, 600);
     }, 50);
   };
@@ -185,23 +217,18 @@ export default function DateCarousel({
   const handleNextWeek = () => {
     if (isLoading) return;
 
-    setIsLoading(true);
-    if (onLoadingChange) {
-      onLoadingChange(true);
-    }
+    clearAllTimeouts();
+    setLoadingState(true);
     
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const nextMonday = new Date(mondayTime + fiveDaysInMs);
     
-    setTimeout(() => {
+    runTimeout(() => {
       setCurrentWeekMonday(nextMonday);
       
-      setTimeout(() => {
-        setIsLoading(false);
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
+      runTimeout(() => {
+        setLoadingState(false);
       }, 600);
     }, 50);
   };

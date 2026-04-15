@@ -366,7 +366,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleOpenModal = (task) => {
     if (!task?.id) return;
 
-    navigate(`/plan/done?taskId=${task.id}&date=${dateStr}`, {
+    navigate('/plan/done', {
       state: {
         taskId: task.id,
         date: dateStr,

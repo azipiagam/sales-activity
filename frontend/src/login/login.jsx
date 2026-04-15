@@ -16,6 +16,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import { motion } from 'framer-motion';
 import { getApiUrl } from '../services/api';
 import backgroundHeaderSvg from '../assets/media/bgh1.svg';
+import logoPiagam from '../assets/media/logo-piagam2.png';
 // import backgroundBody from '../assets/media/background.svg';
 
 export default function Login() {
@@ -151,8 +152,8 @@ export default function Login() {
         >
           <Box
             component="img"
-            src="/logo-pilar.png"
-            alt="Logo Pilar"
+            src={logoPiagam}
+            alt="Logo Piagam"
             sx={{
               width: { xs: 170, sm: 220, md: 260 },
               height: { xs: 82, sm: 96, md: 110 },
