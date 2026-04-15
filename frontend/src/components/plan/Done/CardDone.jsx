@@ -3,10 +3,12 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputBase from '@mui/material/InputBase';
+import Typography from '@mui/material/Typography';
+import Paper from '@mui/material/Paper';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
-import FormatListBulletedRoundedIcon from '@mui/icons-material/FormatListBulletedRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 
 export default function CardDone({
   result,
@@ -18,36 +20,53 @@ export default function CardDone({
 }) {
   return (
     <>
-      <Box
+      <Typography
+        variant="subtitle2"
         sx={{
-          minHeight: 54,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          px: 0.5,
+          color: '#163a6b',
+          fontWeight: 700,
+          fontSize: '0.92rem',
+          mb: 1.1,
         }}
       >
-        <FormatListBulletedRoundedIcon sx={{ color: '#7a7a7a' }} />
+        Hasil Kunjungan (Wajib)
+      </Typography>
+
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2.25,
+          border: '1px solid rgba(22, 58, 107, 0.14)',
+          backgroundColor: '#f8fbff',
+          px: 1.2,
+          py: 0.75,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 1,
+          mb: 1.5,
+        }}
+      >
+        <DescriptionOutlinedIcon sx={{ color: '#1f4e8c', mt: 0.7, fontSize: 19 }} />
         <InputBase
           multiline
-          maxRows={3}
-          placeholder="Result (wajib diisi)"
+          minRows={3}
+          maxRows={5}
+          placeholder="Masukkan hasil kunjungan Anda"
           value={result}
           onChange={(e) => onResultChange(e.target.value)}
           disabled={disabled}
           sx={{
             flex: 1,
-            color: '#4c4c4c',
-            fontSize: { xs: '1rem', sm: '1.05rem' },
+            color: '#28415f',
+            fontSize: '0.94rem',
+            lineHeight: 1.45,
             '& .MuiInputBase-input::placeholder': {
-              color: '#8a8a8a',
+              color: '#86a1bc',
               opacity: 1,
             },
           }}
         />
-      </Box>
-
-      <Box sx={{ height: '1px', backgroundColor: 'rgba(0, 0, 0, 0.08)', my: 0.5 }} />
+      </Paper>
 
       <Button
         variant="text"
@@ -57,22 +76,23 @@ export default function CardDone({
         onClick={onOpenCamera}
         sx={{
           textTransform: 'none',
-          px: 0.5,
-          py: 1.2,
+          px: 0.35,
+          py: 1.05,
           width: '100%',
           justifyContent: 'space-between',
-          color: '#6e6e6e',
-          fontSize: { xs: '1rem', sm: '1.05rem' },
+          color: '#1b3557',
+          fontSize: '0.92rem',
+          fontWeight: 600,
           '& .MuiButton-startIcon': {
-            color: '#7a7a7a',
-            mr: 1.5,
+            color: '#1f4e8c',
+            mr: 1.3,
           },
           '& .MuiButton-endIcon': {
-            color: '#9b9b9b',
-            ml: 1.5,
+            color: '#94a8bf',
+            ml: 1.3,
           },
           '&:hover': {
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(31, 78, 140, 0.06)',
           },
         }}
       >
@@ -80,17 +100,31 @@ export default function CardDone({
           Ambil swafoto (opsional)
         </Box>
       </Button>
+      <Typography
+        variant="caption"
+        sx={{
+          display: 'block',
+          color: '#7d90a8',
+          fontSize: '0.74rem',
+          ml: 0.6,
+          mt: -0.2,
+          mb: capturedImage ? 0.7 : 0,
+        }}
+      >
+        Sebagai bukti kunjungan
+      </Typography>
 
       {capturedImage ? (
-        <Box sx={{ mt: 1.25, position: 'relative', display: 'inline-block' }}>
+        <Box sx={{ mt: 0.95, position: 'relative', display: 'inline-block' }}>
           <img
             src={capturedImage}
             alt="Preview"
             style={{
               maxWidth: '100%',
-              maxHeight: '220px',
-              borderRadius: '10px',
-              border: '1px solid rgba(0,0,0,0.15)',
+              maxHeight: '180px',
+              borderRadius: '12px',
+              border: '1px solid rgba(22, 58, 107, 0.2)',
+              boxShadow: '0 6px 14px rgba(10, 28, 53, 0.16)',
             }}
           />
           <IconButton
@@ -100,7 +134,7 @@ export default function CardDone({
               position: 'absolute',
               top: 6,
               right: 6,
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
               color: '#d32f2f',
             }}
             aria-label="Hapus foto"

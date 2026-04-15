@@ -5,55 +5,141 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { AddressMap } from '../maps';
 
+const DISTANCE_LIMIT_KM = 2;
+
 export default function MapsDone({
   currentLocation,
+  customerLocation = null,
+  customerAddress,
+  resultAddress,
+  distanceKm = null,
   locationLoading = false,
   saving = false,
   onGetCurrentLocation,
   onMapLocationChange,
 }) {
+  const customerMarker = customerLocation
+    ? [
+        {
+          id: 'customer-location',
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+          title: customerAddress?.trim() ? `Lokasi customer: ${customerAddress}` : 'Lokasi customer',
+          label: 'C',
+          color: '#1f4e8c',
+        },
+      ]
+    : [];
+
+  const hasCurrentLocation =
+    Number.isFinite(Number(currentLocation?.latitude)) &&
+    Number.isFinite(Number(currentLocation?.longitude));
+  const hasCustomerLocation =
+    Number.isFinite(Number(customerLocation?.latitude)) &&
+    Number.isFinite(Number(customerLocation?.longitude));
+
+  const centerOverride =
+    hasCurrentLocation && hasCustomerLocation
+      ? {
+          latitude: (Number(currentLocation.latitude) + Number(customerLocation.latitude)) / 2,
+          longitude: (Number(currentLocation.longitude) + Number(customerLocation.longitude)) / 2,
+        }
+      : hasCustomerLocation
+      ? {
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+        }
+      : null;
+
+  const mapZoom = (() => {
+    if (!Number.isFinite(distanceKm)) return hasCurrentLocation ? 15 : 13;
+    if (distanceKm > 5) return 11;
+    if (distanceKm > 2) return 12;
+    if (distanceKm > 1) return 13;
+    if (distanceKm > 0.4) return 14;
+    return 15;
+  })();
+
   return (
     <Box
       sx={{
         width: '100%',
         position: 'relative',
         mt: 0,
-        height: {
-          xs: 'calc(100dvh - 206px)',
-          sm: 'calc(100dvh - 230px)',
-          md: 'calc(100dvh - 248px)',
-        },
+        height: '100%',
         minHeight: { xs: 320, sm: 380, md: 430 },
         overflow: 'hidden',
+        borderRadius: 0,
         borderBottom: '1px solid rgba(22, 58, 107, 0.14)',
-        background:
-          'linear-gradient(145deg, rgba(31, 78, 140, 0.18), rgba(22, 58, 107, 0.24))',
+        background: 'linear-gradient(145deg, rgba(31, 78, 140, 0.18), rgba(22, 58, 107, 0.24))',
       }}
     >
-      {currentLocation ? (
-        <AddressMap
-          address=""
-          latitude={currentLocation.latitude}
-          longitude={currentLocation.longitude}
-          onLocationChange={onMapLocationChange}
-        />
-      ) : (
+      <AddressMap
+        address=""
+        latitude={hasCurrentLocation ? currentLocation.latitude : customerLocation?.latitude}
+        longitude={hasCurrentLocation ? currentLocation.longitude : customerLocation?.longitude}
+        onLocationChange={onMapLocationChange}
+        primaryMarkerLabel="U"
+        primaryMarkerTitle={resultAddress?.trim() ? `Lokasi Anda: ${resultAddress}` : 'Lokasi Anda'}
+        primaryMarkerColor="#29924f"
+        primaryMarkerDraggable={hasCurrentLocation}
+        hidePrimaryMarker={!hasCurrentLocation}
+        additionalMarkers={customerMarker}
+        radiusCircle={
+          hasCustomerLocation
+            ? {
+                latitude: customerLocation.latitude,
+                longitude: customerLocation.longitude,
+                radiusMeters: DISTANCE_LIMIT_KM * 1000,
+              }
+            : null
+        }
+        centerOverride={centerOverride}
+        zoomOverride={mapZoom}
+        mapTypeControl={false}
+        fullscreenControl={false}
+        mapOptions={{
+          gestureHandling: 'greedy',
+          minZoom: 4,
+          maxZoom: 20,
+        }}
+      />
+
+      {!hasCurrentLocation ? (
         <Box
           sx={{
             position: 'absolute',
-            inset: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            bottom: 18,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            px: 2,
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: 1,
+            width: 'calc(100% - 28px)',
+            maxWidth: 320,
           }}
         >
+          <Typography
+            variant="caption"
+            sx={{
+              px: 1,
+              color: '#15355f',
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            Ambil lokasi Anda untuk validasi radius kunjungan
+          </Typography>
           <Button
             variant="contained"
             onClick={onGetCurrentLocation}
             disabled={locationLoading || saving}
             sx={{
               textTransform: 'none',
+              borderRadius: 2.5,
+              py: 1,
+              fontWeight: 700,
               backgroundColor: '#163a6b',
               '&:hover': {
                 backgroundColor: '#1f4e8c',
@@ -70,39 +156,8 @@ export default function MapsDone({
             )}
           </Button>
         </Box>
-      )}
-
-      {currentLocation ? (
-        <Box
-          sx={{
-            position: 'absolute',
-            left: { xs: 10, sm: 16 },
-            bottom: { xs: 10, sm: 16 },
-            px: 1.25,
-            py: 0.75,
-            borderRadius: '10px',
-            backgroundColor: 'rgba(255, 255, 255, 0.92)',
-            boxShadow: '0 6px 18px rgba(12, 26, 49, 0.2)',
-            maxWidth: 'calc(100% - 20px)',
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              color: '#1d3557',
-              fontWeight: 600,
-              lineHeight: 1.45,
-              wordBreak: 'break-word',
-            }}
-          >
-            Koordinat: {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-            {currentLocation.accuracy
-              ? ` (akurasi +/-${Math.round(currentLocation.accuracy)} m)`
-              : ''}
-          </Typography>
-        </Box>
       ) : null}
+
     </Box>
   );
 }
