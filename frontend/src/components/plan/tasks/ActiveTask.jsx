@@ -787,7 +787,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const isDoneTask = activeTask.status === 'done';
         const isDeletedTask = activeTask.status === 'deleted';
         const isCustomerNameExpanded = expandedCustomerNameId === activeTask.id;
-        const summaryLabel = isExpanded ? 'Plan No' : 'Keterangan Tambahan';
+        const summaryLabel = isExpanded ? 'Plan No' : 'Additional Information';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
         const cardTone = {
           accent: 'var(--theme-blue-primary)',
@@ -1101,7 +1101,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 mb: 0.5,
               }}
             >
-              Tujuan
+              Purpose
             </Typography>
             <Typography
               variant="body1"
@@ -1126,7 +1126,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   mb: 0.5,
                 }}
               >
-                Tambahan
+                Additional Notes 
               </Typography>
               <Typography
                 variant="body1"
@@ -1573,7 +1573,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 fontWeight: 500,
               }}
             >
-              Tujuan
+              Purpose
             </Typography>
             <TextField
               select
@@ -1611,7 +1611,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                 fontWeight: 500,
               }}
             >
-              Keterangan Tambahan
+              Additional Information
             </Typography>
             <TextField
               fullWidth
@@ -1619,7 +1619,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               minRows={4}
               value={editTambahan}
               onChange={(event) => setEditTambahan(event.target.value)}
-              placeholder="Masukkan keterangan tambahan..."
+              placeholder="Enter additional information..."
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: { xs: '8px', sm: '10px' },

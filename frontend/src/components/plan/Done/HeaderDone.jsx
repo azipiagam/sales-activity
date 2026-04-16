@@ -85,7 +85,7 @@ export default function HeaderDone({
               lineHeight: 1.2,
             }}
           >
-            Done Result
+            Complete Plan
           </Typography>
 
           <IconButton

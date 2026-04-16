@@ -105,7 +105,7 @@ export default function NavigationPage({
                 textAlign: 'center',
               }}
             >
-              Pilih Menu Aktivitas
+              Select Activity Menu
             </Typography>
             <IconButton
               onClick={onClose}
@@ -134,7 +134,7 @@ export default function NavigationPage({
                   Plan
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: '#667085', lineHeight: 1.2, textAlign: 'left' }}>
-                  Tambah activity plan kunjungan customer
+                  Create Customer Visit Activity Plan
                 </Typography>
               </Box>
             </Button>
@@ -152,7 +152,7 @@ export default function NavigationPage({
                   Follow Up
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: '#667085', lineHeight: 1.2, textAlign: 'left' }}>
-                  Tambah activity plan follow up customer
+                  Create Customer Follow up Activity Plan
                 </Typography>
               </Box>
             </Button>
@@ -170,7 +170,7 @@ export default function NavigationPage({
                   Check In
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: '#667085', lineHeight: 1.2, textAlign: 'left' }}>
-                  Catat kehadiran di lokasi saat ini
+                  Record Presence At Current Location
                 </Typography>
               </Box>
             </Button>

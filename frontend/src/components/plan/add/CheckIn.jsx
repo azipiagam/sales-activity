@@ -27,9 +27,6 @@ import MyLocationIcon from '@mui/icons-material/MyLocation';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-// Google Maps components
-import { AddressMap } from '../maps';
-
 // Webcam component
 import Webcam from 'react-webcam';
 
@@ -306,12 +303,6 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
     if (onOpenAddPlan) onOpenAddPlan();
   }, [handleClose, onOpenAddPlan]);
 
-  // Update location from map drag (optional)
-  const handleMapLocationChange = useCallback((lat, lng) => {
-    setLocation({ latitude: lat, longitude: lng });
-    getAddressFromCoordinates(lat, lng);
-  }, [getAddressFromCoordinates]);
-
   // Handle check-in process
   const handleCheckIn = useCallback(async () => {
     if (!location) {
@@ -483,7 +474,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               fontWeight: 600,
             }}
           >
-            Lokasi Saat Ini
+            Current Location
           </Typography>
 
           {/* Get Location Button (optional refresh) */}
@@ -548,39 +539,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
             </Box>
           )}
 
-          {/* Map Display */}
-          {location && (
-            <Box sx={{ mt: 2, mb: 2 }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: '0.875rem',
-                  color: '#666',
-                  mb: 1,
-                  fontWeight: 600,
-                }}
-              >
-                Peta Lokasi
-              </Typography>
-              <Box
-                sx={{
-                  height: '250px',
-                  width: '100%',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <AddressMap
-                  address={address}
-                  latitude={location.latitude}
-                  longitude={location.longitude}
-                  onLocationChange={handleMapLocationChange}
-                />
-              </Box>
-            </Box>
-          )}
+
         </Box>
 
         {/* Result Input */}
@@ -594,7 +553,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               fontWeight: 600,
             }}
           >
-            Hasil Check In
+            Check-in Result
           </Typography>
           <TextareaAutosize
             minRows={3}
@@ -633,7 +592,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               fontWeight: 600,
             }}
           >
-            Foto Check In (Opsional):
+            Check In Photo (Optional):
           </Typography>
 
           {/* Tombol Buka Kamera */}

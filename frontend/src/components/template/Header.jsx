@@ -85,16 +85,16 @@ export default function Header({
   const periodOptions = DASHBOARD_PERIOD_OPTIONS;
   const provinceOptions = Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0
     ? dashboardProvinceOptions
-    : ['Semua Provinsi'];
+    : ['All States'];
 
   const bottomControlHeight = { xs: 64, sm: 70, md: 74 };
   
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour >= 5 && hour < 12) return 'Selamat Pagi';
-    if (hour >= 12 && hour < 15) return 'Selamat Siang';
-    if (hour >= 15 && hour < 19) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 5 && hour < 12) return 'Good Morning !';
+    if (hour >= 12 && hour < 15) return 'Good Afternoon !';
+    if (hour >= 15 && hour < 19) return 'Good Evening !';
+    return 'Good Night';
   };
   
   useEffect(() => {

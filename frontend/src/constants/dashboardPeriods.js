@@ -1,12 +1,12 @@
 export const DEFAULT_DASHBOARD_PERIOD = 'Bulan ini';
 
 export const DASHBOARD_PERIOD_OPTIONS = [
-  'Semua',
-  'Hari Ini',
-  '7 Hari Terakhir',
-  '30 Hari Terakhir',
-  'Bulan ini',
-  'Bulan lalu',
+  'All Periods',
+  'Today',
+  '7 Days Ago',
+  '30 Days Ago',
+  'This Month',
+  'Last Month',
 ];
 
 export const DASHBOARD_EXPORT_PERIOD_OPTIONS = [

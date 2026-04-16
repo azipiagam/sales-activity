@@ -29,7 +29,7 @@ export default function CardDone({
           mb: 1.1,
         }}
       >
-        Hasil Kunjungan (Wajib)
+        Hasil (Wajib)
       </Typography>
 
       <Paper

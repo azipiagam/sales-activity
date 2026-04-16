@@ -244,6 +244,8 @@ export default function AddPlan({
   const [geocodingLoading, setGeocodingLoading] = useState(false);
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
+  const [confirmationDialog, setConfirmationDialog] = useState({ open: false, message: '' });
+  const [saveAddressDialog, setSaveAddressDialog] = useState({ open: false, message: '' });
 
   // Refs
   const geocodingTimeoutRef = useRef(null);
@@ -431,11 +433,15 @@ export default function AddPlan({
       }
 
       if (isDefaultLocation(latitude, longitude)) {
-        setErrorDialog({ open: true, message: 'Lokasi masih default. Geser marker ke lokasi yang sesuai.', fieldType: 'location' });
+        setConfirmationDialog({ open: true, message: 'Lokasi di luar jangkauan. Lanjutkan?' });
         return;
       }
     }
 
+    proceedToCreatePlan();
+  };
+
+  const proceedToCreatePlan = async () => {
     setLoading(true);
     setShowLoadingPlan(true);
 
@@ -526,6 +532,18 @@ export default function AddPlan({
     }
   };
 
+  const handleConfirmContinue = useCallback(() => {
+    setConfirmationDialog({ open: false });
+    setSaveAddressDialog({ open: true, message: 'Simpan alamat atau tidak?' });
+  }, []);
+
+  const handleConfirmSaveAddress = useCallback((save) => {
+    setSaveAddressDialog({ open: false });
+    // If save, logic to save address can be added here
+    // For now, proceed to create plan
+    proceedToCreatePlan();
+  }, []);
+
   const handleClose = useCallback(() => {
     // Clear any pending geocoding timeout
     if (geocodingTimeoutRef.current) {
@@ -538,6 +556,8 @@ export default function AddPlan({
     resetLocation();
     setErrorDialog({ open: false, message: '', fieldType: '' });
     setSuccessDialog({ open: false, message: '' });
+    setConfirmationDialog({ open: false, message: '' });
+    setSaveAddressDialog({ open: false, message: '' });
     setLoading(false);
     setShowLoadingPlan(false);
     setGeocodingLoading(false);
@@ -655,6 +675,118 @@ export default function AddPlan({
           severity="success"
         />
 
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={confirmationDialog.open}
+          onClose={() => setConfirmationDialog({ open: false })}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              borderRadius: '12px',
+              p: 2,
+            },
+          }}
+        >
+          <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Konfirmasi
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {confirmationDialog.message}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => setConfirmationDialog({ open: false })}
+                sx={{
+                  borderColor: 'var(--theme-blue-primary)',
+                  color: 'var(--theme-blue-primary)',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    borderColor: 'var(--theme-blue-overlay)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                  },
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleConfirmContinue}
+                sx={{
+                  backgroundColor: 'var(--theme-blue-primary)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    backgroundColor: 'var(--theme-blue-overlay)',
+                  },
+                }}
+              >
+                Lanjutkan
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+
+        {/* Save Address Dialog */}
+        <Dialog
+          open={saveAddressDialog.open}
+          onClose={() => setSaveAddressDialog({ open: false })}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              borderRadius: '12px',
+              p: 2,
+            },
+          }}
+        >
+          <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Konfirmasi Alamat
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {saveAddressDialog.message}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => handleConfirmSaveAddress(false)}
+                sx={{
+                  borderColor: 'var(--theme-blue-primary)',
+                  color: 'var(--theme-blue-primary)',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    borderColor: 'var(--theme-blue-overlay)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                  },
+                }}
+              >
+                Tidak
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => handleConfirmSaveAddress(true)}
+                sx={{
+                  backgroundColor: 'var(--theme-blue-primary)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    backgroundColor: 'var(--theme-blue-overlay)',
+                  },
+                }}
+              >
+                Ya
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+
         {/* Date Input */}
         <Box sx={{ mb: 3 }}>
           <Typography
@@ -741,7 +873,7 @@ export default function AddPlan({
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Cari atau pilih Customer (minimal 2 karakter)"
+                placeholder="Search or select Customer (minimum 2 characters)"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
@@ -836,7 +968,7 @@ export default function AddPlan({
               fontWeight: 600,
             }}
           >
-            Alamat dan Maps
+            Customer Address
           </Typography>
 
           {!disableAddressEdit && (
@@ -859,11 +991,9 @@ export default function AddPlan({
                 },
               }}
             >
-              Buka halaman alamat & maps
+              Open Address & Maps Page
             </Button>
           )}
-
-          {disableAddressEdit}
 
           {customerAddress?.trim() && (
             <Typography
@@ -904,11 +1034,11 @@ export default function AddPlan({
               fontWeight: 600,
             }}
           >
-            Keterangan Tambahan
+            Additional Notes (Optional)
           </Typography>
           <TextareaAutosize
             minRows={5}
-            placeholder="Masukkan keterangan tambahan..."
+            placeholder="Enter additional information..."
             value={formData.keterangan}
             onChange={handleInputChange('keterangan')}
             style={{
