@@ -28,7 +28,7 @@ import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import logoPiagam from '../../assets/media/logo-piagam2.png';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
 import { downloadDashboardXls } from '../../utils/dashboardExport';
-import DashboardDownloadDialog from './DashboardDownloadDialog';
+import DashboardDownloadDialog from '../dashboard/DashboardDownloadDialog';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,

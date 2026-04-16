@@ -25,6 +25,7 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 // Google Maps components
 import { AddressMap } from '../maps';
@@ -36,7 +37,7 @@ import Webcam from 'react-webcam';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
-export default function CheckIn({ open, onClose, onOpenAddPlan }) {
+export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation }) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -417,13 +418,25 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             alignItems: 'center',
             mb: 3,
             pb: 2,
             borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
+            gap: 1,
           }}
         >
+          <IconButton
+            onClick={onOpenNavigation || onClose}
+            sx={{
+              color: '#666',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+              },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
           <Typography
             variant="h5"
             sx={{
@@ -433,65 +446,12 @@ export default function CheckIn({ open, onClose, onOpenAddPlan }) {
               display: 'flex',
               alignItems: 'center',
               gap: 1,
+              flex: 1,
             }}
           >
             <MyLocationIcon sx={{ color: 'var(--theme-blue-primary)' }} />
             Check In
           </Typography>
-          <IconButton
-            onClick={handleClose}
-            sx={{
-              color: '#666',
-              '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-              },
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        <Box sx={{ mb: 3 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 1,
-              p: 0.5,
-              borderRadius: '999px',
-              backgroundColor: 'rgba(31, 78, 140, 0.12)',
-              border: '1px solid rgba(31, 78, 140, 0.2)',
-            }}
-          >
-            <Button
-              variant="text"
-              fullWidth
-              onClick={handleSwitchToAddPlan}
-              startIcon={<AddIcon />}
-              sx={{
-                borderRadius: '999px',
-                textTransform: 'none',
-                fontWeight: 700,
-                color: 'var(--theme-blue-overlay)',
-              }}
-            >
-              Add Plan
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<MyLocationIcon />}
-              sx={{
-                borderRadius: '999px',
-                textTransform: 'none',
-                fontWeight: 700,
-                backgroundColor: 'var(--theme-blue-primary)',
-                '&:hover': { backgroundColor: 'var(--theme-blue-overlay)' },
-              }}
-              disabled
-            >
-              Check In
-            </Button>
-          </Box>
         </Box>
 
         {/* Error Message */}

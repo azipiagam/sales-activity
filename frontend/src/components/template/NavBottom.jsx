@@ -8,16 +8,21 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import Fab from '@mui/material/Fab';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
-import { AddAddress, AddPlan, CheckIn } from '../plan/add';
+import { AddAddress, AddPlan, AddVisit, AddFollowUp, CheckIn } from '../plan/add';
+import NavigationPage from './NavigationPage';
 
 export default function NavBottom({ value, onChange }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [openAddPlan, setOpenAddPlan] = useState(false);
+  const [openNavigation, setOpenNavigation] = useState(false);
+  const [openAddVisit, setOpenAddVisit] = useState(false);
+  const [openAddFollowUp, setOpenAddFollowUp] = useState(false);
   const [openAddAddress, setOpenAddAddress] = useState(false);
   const [openCheckIn, setOpenCheckIn] = useState(false);
   const [addressSelection, setAddressSelection] = useState(null);
+  const [previousDialog, setPreviousDialog] = useState(null);
 
   const themeBlueDark = 'var(--theme-blue-overlay)';
   const themeBlue = 'var(--theme-blue-primary)';
@@ -29,14 +34,33 @@ export default function NavBottom({ value, onChange }) {
 
   const handleFabClick = () => {
     setIsExpanded(false);
+    setOpenNavigation(true);
+  };
+
+  const handleCloseNavigation = () => {
+    setOpenNavigation(false);
+  };
+
+  const handleSelectVisit = () => {
+    setOpenNavigation(false);
     setAddressSelection(null);
-    setOpenAddPlan(true);
+    setOpenAddVisit(true);
+  };
+
+  const handleSelectFollowUp = () => {
+    setOpenNavigation(false);
+    setOpenAddFollowUp(true);
+  };
+
+  const handleSelectCheckIn = () => {
+    setIsExpanded(false);
+    setOpenNavigation(false);
+    setOpenCheckIn(true);
   };
 
   const handleAddPlan = () => {
     setIsExpanded(false);
-    setAddressSelection(null);
-    setOpenAddPlan(true);
+    setOpenNavigation(true);
   };
 
   const handleCheckIn = () => {
@@ -44,9 +68,15 @@ export default function NavBottom({ value, onChange }) {
     setOpenCheckIn(true);
   };
 
-  const handleCloseAddPlan = () => {
-    setOpenAddPlan(false);
+  const handleCloseAddVisit = () => {
+    setOpenAddVisit(false);
     setAddressSelection(null);
+    setOpenNavigation(true);
+  };
+
+  const handleCloseAddFollowUp = () => {
+    setOpenAddFollowUp(false);
+    setOpenNavigation(true);
   };
 
   const handleOpenAddAddress = (payload) => {
@@ -58,13 +88,19 @@ export default function NavBottom({ value, onChange }) {
       latitude: Number.isFinite(payload?.latitude) ? payload.latitude : null,
       longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
     });
-    setOpenAddPlan(false);
+    if (openAddVisit) {
+      setPreviousDialog('visit');
+      setOpenAddVisit(false);
+    }
     setOpenAddAddress(true);
   };
 
   const handleBackToAddPlanFromAddress = () => {
     setOpenAddAddress(false);
-    setOpenAddPlan(true);
+    if (previousDialog === 'visit') {
+      setOpenAddVisit(true);
+    }
+    setPreviousDialog(null);
   };
 
   const handleApplyAddress = (payload) => {
@@ -353,12 +389,26 @@ export default function NavBottom({ value, onChange }) {
         </Box>
 
         {/* Add Plan Dialog */}
-        <AddPlan
-          open={openAddPlan}
-          onClose={handleCloseAddPlan}
-          onOpenCheckIn={() => setOpenCheckIn(true)}
+        <NavigationPage
+          open={openNavigation}
+          onClose={handleCloseNavigation}
+          onSelectVisit={handleSelectVisit}
+          onSelectFollowUp={handleSelectFollowUp}
+          onSelectCheckIn={handleSelectCheckIn}
+        />
+
+        <AddVisit
+          open={openAddVisit}
+          onClose={handleCloseAddVisit}
+          onCloseAfterSuccess={() => setOpenAddVisit(false)}
           onOpenAddAddress={handleOpenAddAddress}
           addressSelection={addressSelection}
+        />
+
+        <AddFollowUp
+          open={openAddFollowUp}
+          onClose={handleCloseAddFollowUp}
+          onCloseAfterSuccess={() => setOpenAddFollowUp(false)}
         />
 
         {/* Add Address Dialog */}
@@ -380,8 +430,12 @@ export default function NavBottom({ value, onChange }) {
           open={openCheckIn}
           onClose={() => setOpenCheckIn(false)}
           onOpenAddPlan={() => {
-            setAddressSelection(null);
-            setOpenAddPlan(true);
+            setOpenCheckIn(false);
+            setOpenNavigation(true);
+          }}
+          onOpenNavigation={() => {
+            setOpenCheckIn(false);
+            setOpenNavigation(true);
           }}
         />
       </Box>
