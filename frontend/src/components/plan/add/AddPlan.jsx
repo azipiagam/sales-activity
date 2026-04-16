@@ -561,7 +561,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
         sx: {
           borderTopLeftRadius: fullScreen ? 0 : '20px',
           borderTopRightRadius: fullScreen ? 0 : '20px',
-          maxHeight: fullScreen ? '100%' : '90vh',
+          maxHeight: fullScreen ? '100%' : '96vh',
           width: '100%',
         },
       }}

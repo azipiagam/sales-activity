@@ -17,7 +17,6 @@ import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getCustomerAddresses } from '../add/AddCustomerAddress';
 import HeaderDone from './HeaderDone';
 import MapsDone from './MapsDone';
-import FollowUpStatePanel from './FollowUpStatePanel';
 import CameraDone from './CameraDone';
 import CardDone from './CardDone';
 import PopupValidationDone from './PopupValidationDone';
@@ -221,6 +220,8 @@ export default function DonePage() {
   const [addressLoading, setAddressLoading] = useState(false);
   const [autoLocateAttempted, setAutoLocateAttempted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [hasAutoOpenedCamera, setHasAutoOpenedCamera] = useState(false);
   const [showLocationInfo, setShowLocationInfo] = useState(true);
   const [validationAddressRef, setValidationAddressRef] = useState(null);
   const [validationPopup, setValidationPopup] = useState({
@@ -486,24 +487,35 @@ export default function DonePage() {
     setCurrentLocationRegion({ city: '', state: '' });
     setAddressLoading(false);
     setCameraActive(false);
+    setCameraError('');
+    setHasAutoOpenedCamera(false);
     setShowLocationInfo(true);
     setValidationAddressRef(null);
   }, [taskId]);
+
+  useEffect(() => {
+    if (!taskId || !isFollowUp || hasAutoOpenedCamera) return;
+    setHasAutoOpenedCamera(true);
+    setCameraActive(true);
+  }, [taskId, isFollowUp, hasAutoOpenedCamera]);
 
   const handleBackToPlan = useCallback(() => {
     navigate('/plan', { replace: true });
   }, [navigate]);
 
   const handleOpenCamera = () => {
+    setCameraError('');
     setCameraActive(true);
   };
 
   const handleCameraCapture = (imageData) => {
     setCapturedImage(imageData);
+    setCameraError('');
     setCameraActive(false);
   };
 
   const handleCloseCamera = () => {
+    setCameraError('');
     setCameraActive(false);
   };
 
@@ -899,7 +911,11 @@ export default function DonePage() {
       />
 
       {cameraActive ? (
-        <CameraDone saving={saving} onCapture={handleCameraCapture} onCancel={handleCloseCamera} />
+        <CameraDone
+          saving={saving}
+          onCapture={handleCameraCapture}
+          onCameraErrorChange={setCameraError}
+        />
       ) : (
         <Box
           sx={{
@@ -1109,104 +1125,182 @@ export default function DonePage() {
               </Box>
             </>
           ) : (
-            <FollowUpStatePanel taskName={taskName} planNo={planNo} />
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1,
+                px: { xs: 2, sm: 2.5 },
+                py: { xs: 1.5, sm: 2 },
+              }}
+            >
+              <Box
+                sx={{
+                  width: '100%',
+                  maxWidth: 540,
+                  mx: 'auto',
+                  height: '100%',
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  border: '1px solid rgba(22, 58, 107, 0.15)',
+                  backgroundColor: '#cfdced',
+                  boxShadow: '0 12px 24px rgba(10, 28, 53, 0.18)',
+                  position: 'relative',
+                }}
+              >
+                {capturedImage ? (
+                  <Box
+                    component="img"
+                    src={capturedImage}
+                    alt="Swafoto Follow Up"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      px: 3,
+                      background:
+                        'linear-gradient(160deg, rgba(224, 236, 250, 1) 0%, rgba(201, 219, 241, 1) 100%)',
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: '#27486e',
+                        fontWeight: 700,
+                        fontSize: { xs: '0.9rem', sm: '0.98rem' },
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Belum ada swafoto.
+                      <br />
+                      Ambil foto untuk ditampilkan di latar belakang.
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
           )}
         </Box>
       )}
 
-      {!cameraActive ? (
-        <Box
+      <Box
+        sx={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1250,
+          px: { xs: 0, sm: 1 },
+          pointerEvents: 'none',
+        }}
+      >
+        <Paper
           sx={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1250,
-            px: { xs: 0, sm: 1 },
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
+            mx: 'auto',
+            width: '100%',
+            maxWidth: 540,
+            minHeight: 250,
+            maxHeight: '56dvh',
+            pt: 1.35,
+            px: { xs: 2, sm: 2.5 },
+            pb: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+            borderRadius: { xs: '24px 24px 0 0', sm: '26px 26px 0 0' },
+            border: '1px solid rgba(22, 58, 107, 0.11)',
+            borderBottom: 'none',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 -16px 30px rgba(11, 30, 56, 0.18)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
           }}
         >
-          <Paper
+          <Box
             sx={{
-              pointerEvents: 'auto',
+              width: 56,
+              height: 5,
+              borderRadius: '999px',
+              backgroundColor: 'rgba(22, 58, 107, 0.2)',
               mx: 'auto',
-              width: '100%',
-              maxWidth: 540,
-              minHeight: 250,
-              maxHeight: '56dvh',
-              pt: 1.35,
-              px: { xs: 2, sm: 2.5 },
-              pb: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-              borderRadius: { xs: '24px 24px 0 0', sm: '26px 26px 0 0' },
-              border: '1px solid rgba(22, 58, 107, 0.11)',
-              borderBottom: 'none',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 -16px 30px rgba(11, 30, 56, 0.18)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
+              mb: 1.4,
+              flexShrink: 0,
             }}
-          >
-            <Box
-              sx={{
-                width: 56,
-                height: 5,
-                borderRadius: '999px',
-                backgroundColor: 'rgba(22, 58, 107, 0.2)',
-                mx: 'auto',
-                mb: 1.4,
-                flexShrink: 0,
-              }}
-            />
+          />
 
-            {!currentLocation ? (
+          {cameraActive ? (
+            <>
               <Typography
                 variant="caption"
                 sx={{
                   display: 'block',
-                  color: '#b3261e',
-                  fontWeight: 600,
+                  color: cameraError ? '#b3261e' : '#1b3557',
+                  fontWeight: 700,
                   mb: 1.15,
                 }}
               >
-                Lokasi belum tersedia. Gunakan tombol refresh di header
-                {!isFollowUp ? ' atau Ambil Lokasi Saat Ini pada area map.' : '.'}
+                {cameraError || 'Kamera aktif. Gunakan tombol Ambil Foto di layar kamera.'}
               </Typography>
-            ) : null}
+            </>
+          ) : null}
 
-            <CardDone
-              result={result}
-              onResultChange={setResult}
-              capturedImage={capturedImage}
-              onOpenCamera={handleOpenCamera}
-              onRemoveImage={() => setCapturedImage(null)}
-              disabled={saving}
-            />
-
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleSaveResult}
-              disabled={saving || !currentLocation}
+          {!currentLocation ? (
+            <Typography
+              variant="caption"
               sx={{
-                mt: 1.6,
-                minHeight: 52,
-                textTransform: 'none',
-                borderRadius: '11px',
-                fontWeight: 700,
-                fontSize: '0.98rem',
-                color: '#fff',
-                backgroundColor: '#163a6b',
-                '&:hover': {
-                  backgroundColor: '#1f4e8c',
-                },
+                display: 'block',
+                color: '#b3261e',
+                fontWeight: 600,
+                mb: 1.15,
               }}
             >
-              {saving ? <CircularProgress size={20} color="inherit" /> : 'Done'}
-            </Button>
-          </Paper>
-        </Box>
-      ) : null}
+              Lokasi belum tersedia. Gunakan tombol refresh di header
+              {!isFollowUp ? ' atau Ambil Lokasi Saat Ini pada area map.' : '.'}
+            </Typography>
+          ) : null}
+
+          <CardDone
+            result={result}
+            onResultChange={setResult}
+            capturedImage={capturedImage}
+            onOpenCamera={handleOpenCamera}
+            onRemoveImage={() => setCapturedImage(null)}
+            disabled={saving}
+          />
+
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleSaveResult}
+            disabled={saving || !currentLocation}
+            sx={{
+              mt: 1.6,
+              minHeight: 52,
+              textTransform: 'none',
+              borderRadius: '11px',
+              fontWeight: 700,
+              fontSize: '0.98rem',
+              color: '#fff',
+              backgroundColor: '#163a6b',
+              '&:hover': {
+                backgroundColor: '#1f4e8c',
+              },
+            }}
+          >
+            {saving ? <CircularProgress size={20} color="inherit" /> : 'Done'}
+          </Button>
+        </Paper>
+      </Box>
 
       <PopupDoneAdditionalAddress
         open={addressValidationPopup.open && addressValidationPopup.addressType === 'additional'}
