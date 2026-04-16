@@ -113,7 +113,10 @@ export default function NavBottom({ value, onChange }) {
       longitude: Number.isFinite(payload?.longitude) ? payload.longitude : null,
     });
     setOpenAddAddress(false);
-    setOpenAddPlan(true);
+    if (previousDialog === 'visit') {
+      setOpenAddVisit(true);
+    }
+    setPreviousDialog(null);
   };
 
   const handleOverlayClick = () => {

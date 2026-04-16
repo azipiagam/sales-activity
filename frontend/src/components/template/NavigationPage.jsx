@@ -7,7 +7,8 @@ import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
@@ -88,36 +89,40 @@ export default function NavigationPage({
           <Box
             sx={{
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignItems: 'center',
-              mb: 2.25,
-              pb: 1.75,
-              borderBottom: '1px solid rgba(31, 78, 140, 0.15)',
-              position: 'relative',
+              mb: 3,
+              pb: 2,
+              borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
+              gap: 1,
             }}
           >
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                color: 'var(--theme-blue-primary)',
-                fontSize: { xs: '1.1rem', sm: '1.25rem' },
-                textAlign: 'center',
-              }}
-            >
-              Select Activity Menu
-            </Typography>
             <IconButton
               onClick={onClose}
               sx={{
-                position: 'absolute',
-                right: 0,
-                color: '#4a5568',
-                '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+                color: '#666',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                },
               }}
             >
-              <CloseIcon />
+              <ArrowBackIcon />
             </IconButton>
+            <Typography
+              variant="h5"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                fontWeight: 700,
+                color: 'var(--theme-blue-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flex: 1,
+              }}
+            >
+              <MenuRoundedIcon sx={{ color: 'var(--theme-blue-primary)' }} />
+              Select Activity Menu
+            </Typography>
           </Box>
 
           <Box sx={{ display: 'grid', gap: 1.25 }}>

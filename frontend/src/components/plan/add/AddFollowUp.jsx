@@ -1,4 +1,5 @@
 import React from 'react';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import AddPlan from './AddPlan';
 
 export default function AddFollowUp(props) {
@@ -7,6 +8,7 @@ export default function AddFollowUp(props) {
       {...props}
       initialTujuan="follow up"
       title="Create Follow Up"
+      headerIcon={PlaylistAddCheckIcon}
       lockTujuan
       disableAddressEdit
       disableGeocoding

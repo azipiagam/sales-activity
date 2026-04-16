@@ -29,7 +29,7 @@ export default function CardDone({
           mb: 1.1,
         }}
       >
-        Hasil (Wajib)
+        Result (Required)
       </Typography>
 
       <Paper
@@ -51,7 +51,7 @@ export default function CardDone({
           multiline
           minRows={3}
           maxRows={5}
-          placeholder="Masukkan hasil kunjungan Anda"
+          placeholder="Enter your visit results here..."
           value={result}
           onChange={(e) => onResultChange(e.target.value)}
           disabled={disabled}
@@ -97,7 +97,7 @@ export default function CardDone({
         }}
       >
         <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
-          Ambil swafoto (opsional)
+          Take a selfie (optional)
         </Box>
       </Button>
       <Typography
@@ -111,7 +111,7 @@ export default function CardDone({
           mb: capturedImage ? 0.7 : 0,
         }}
       >
-        Sebagai bukti kunjungan
+        As proof of visit
       </Typography>
 
       {capturedImage ? (

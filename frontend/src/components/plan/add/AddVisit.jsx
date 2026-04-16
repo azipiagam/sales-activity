@@ -1,4 +1,5 @@
 import React from 'react';
+import AddLocationIcon from '@mui/icons-material/AddLocation';
 import AddPlan from './AddPlan';
 
 export default function AddVisit(props) {
@@ -7,6 +8,7 @@ export default function AddVisit(props) {
       {...props}
       initialTujuan="visit"
       title="Create Visit"
+      headerIcon={AddLocationIcon}
       lockTujuan
       disableAddressEdit={false}
     />

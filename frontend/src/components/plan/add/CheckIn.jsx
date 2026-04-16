@@ -1,5 +1,5 @@
 // React
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 // Material-UI Components
 import Dialog from '@mui/material/Dialog';
@@ -16,23 +16,19 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 
 // Material-UI Icons
-import CloseIcon from '@mui/icons-material/Close';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
-import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-
-// Webcam component
-import Webcam from 'react-webcam';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 
 // Custom imports
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
+import CameraDone from '../Done/CameraDone';
 
 export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation }) {
   // UI State
@@ -49,7 +45,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
   // Camera State
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
-  const [cameraError, setCameraError] = useState(null);
+  const [cameraError, setCameraError] = useState('');
 
   // Address loading state
   const [addressLoading, setAddressLoading] = useState(false);
@@ -58,10 +54,6 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
 
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
-
-  // Refs untuk kamera
-  const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
 
   // Get current location directly
   const handleGetCurrentLocation = useCallback(async () => {
@@ -188,21 +180,16 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
   }, []);
 
   // Fungsi untuk membuka kamera
-  const openCamera = async () => {
-    try {
-      setCameraError(null);
-      setCameraActive(true);
-    } catch (error) {
-      console.error('Error opening camera:', error);
-      setCameraError('Tidak dapat mengakses kamera');
-    }
+  const openCamera = () => {
+    setCameraError('');
+    setCameraActive(true);
   };
 
   // Fungsi untuk menutup kamera
   const closeCamera = () => {
     setCameraActive(false);
     setCapturedImage(null);
-    setCameraError(null);
+    setCameraError('');
   };
 
   // Fungsi untuk kompres gambar
@@ -234,51 +221,23 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
     });
   };
 
-  // Fungsi untuk capture foto
-  const capturePhoto = async () => {
-    if (webcamRef.current) {
-      const imageSrc = webcamRef.current.getScreenshot();
-      if (imageSrc) {
-        try {
-          // Kompres gambar sebelum simpan
-          const compressedImage = await compressImage(imageSrc, 640, 0.20); // 640px max, 20% quality
-          setCapturedImage(compressedImage);
-          setCameraActive(false);
-        } catch (error) {
-          console.error('Error compressing image:', error);
-          // Fallback ke gambar asli jika kompresi gagal
-          setCapturedImage(imageSrc);
-          setCameraActive(false);
-        }
-      }
+  const handleCameraCapture = async (imageData) => {
+    if (!imageData) return;
+    try {
+      const compressedImage = await compressImage(imageData, 640, 0.20); // 640px max, 20% quality
+      setCapturedImage(compressedImage);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      setCapturedImage(imageData);
+    } finally {
+      setCameraError('');
+      setCameraActive(false);
     }
   };
 
   // Fungsi untuk menghapus foto yang sudah di-capture
   const removeCapturedImage = () => {
     setCapturedImage(null);
-  };
-
-  // Fungsi untuk convert base64 ke Blob
-  const dataURLtoBlob = (dataURL) => {
-    const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
-  };
-
-  // Fungsi untuk mendapatkan file dari captured image
-  const getCapturedFile = () => {
-    if (capturedImage) {
-      const blob = dataURLtoBlob(capturedImage);
-      return new File([blob], `check-in-${Date.now()}.jpg`, { type: 'image/jpeg' });
-    }
-    return null;
   };
 
   const handleClose = useCallback(() => {
@@ -293,7 +252,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
     setLoading(false);
     setCameraActive(false);
     setCapturedImage(null);
-    setCameraError(null);
+    setCameraError('');
     setAddressLoading(false);
     onClose();
   }, [onClose]);
@@ -532,7 +491,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
                 </Box>
               ) : address ? (
                 <Typography variant="body2" sx={{ color: '#666', mt: 1 }}>
-                  Alamat: {address}
+                  Address: {address}
                 </Typography>
               ) : null}
 
@@ -556,8 +515,8 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
             Check-in Result
           </Typography>
           <TextareaAutosize
-            minRows={3}
-            placeholder="Masukkan hasil check in..."
+            minRows={5}
+            placeholder="Enter check-in result..."
             value={result}
             onChange={(e) => setResult(e.target.value)}
             disabled={success}
@@ -596,26 +555,54 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
           </Typography>
 
           {/* Tombol Buka Kamera */}
-          {!cameraActive && !capturedImage && (
+          {!cameraActive && (
             <Button
-              variant="outlined"
+              variant="text"
               onClick={openCamera}
-              disabled={success}
-              startIcon={<CameraAltIcon />}
+              disabled={success || loading}
+              startIcon={<PhotoCameraIcon />}
+              endIcon={<ChevronRightRoundedIcon />}
               sx={{
-                mb: 2,
-                borderColor: 'var(--theme-blue-primary)',
-                color: 'var(--theme-blue-primary)',
-                borderRadius: { xs: '8px', sm: '10px' },
+                px: 0.35,
+                py: 1.05,
+                width: '100%',
+                justifyContent: 'space-between',
+                color: '#1b3557',
+                fontSize: '0.92rem',
+                fontWeight: 600,
                 textTransform: 'none',
+                '& .MuiButton-startIcon': {
+                  color: '#1f4e8c',
+                  mr: 1.3,
+                },
+                '& .MuiButton-endIcon': {
+                  color: '#94a8bf',
+                  ml: 1.3,
+                },
                 '&:hover': {
-                  borderColor: 'var(--theme-blue-overlay)',
-                  backgroundColor: 'rgba(31, 78, 140, 0.04)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.06)',
                 },
               }}
             >
-              Buka Kamera
+              <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
+                Take a selfie (optional)
+              </Box>
             </Button>
+          )}
+          {!cameraActive && (
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                color: '#7d90a8',
+                fontSize: '0.74rem',
+                ml: 0.6,
+                mt: -0.2,
+                mb: 0.8,
+              }}
+            >
+              As proof of visit
+            </Typography>
           )}
 
           {/* Error Message */}
@@ -632,48 +619,15 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
             </Typography>
           )}
 
-          {/* Webcam Preview */}
+          {/* Camera Preview (same flow as Done page) */}
           {cameraActive && (
             <Box sx={{ mb: 2 }}>
-              <Webcam
-                audio={false}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                videoConstraints={{
-                  facingMode: { ideal: 'environment' }, // Prioritas kamera belakang
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 }
-                }}
-                style={{
-                  width: '100%',
-                  maxWidth: '400px',
-                  height: 'auto',
-                  borderRadius: '8px',
-                  border: '2px solid var(--theme-blue-primary)',
-                }}
-                onUserMediaError={(error) => {
-                  console.error('Webcam error:', error);
-                  setCameraError('Tidak dapat mengakses kamera');
-                  setCameraActive(false);
-                }}
+              <CameraDone
+                saving={loading}
+                onCapture={handleCameraCapture}
+                onCameraErrorChange={setCameraError}
               />
               <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                <Button
-                  variant="contained"
-                  onClick={capturePhoto}
-                  startIcon={<PhotoCameraIcon />}
-                  sx={{
-                    backgroundColor: '#4CAF50',
-                    color: 'white',
-                    borderRadius: { xs: '6px', sm: '8px' },
-                    textTransform: 'none',
-                    '&:hover': {
-                      backgroundColor: '#45a049',
-                    },
-                  }}
-                >
-                  Ambil Foto
-                </Button>
                 <Button
                   variant="outlined"
                   onClick={closeCamera}
@@ -738,12 +692,6 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               </Box>
             </Box>
           )}
-
-          {/* Canvas untuk capture (hidden) */}
-          <canvas
-            ref={canvasRef}
-            style={{ display: 'none' }}
-          />
         </Box>
 
         {/* Check-in Result */}
@@ -834,7 +782,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
                   },
                 }}
               >
-                Tutup
+                Cancel
               </Button>
               <Button
                 variant="contained"

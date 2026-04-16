@@ -35,7 +35,7 @@ export default function PopupDoneMasterCustomer({
             </Box>
           </Typography>
           <Typography sx={{ color: '#b91c1c', fontWeight: 600, mb: 1 }}>
-            Koordinat terkini akan disimpan sebagai fix address customer.
+            Anda bisa memilih simpan atau jangan simpan alamat utama di langkah berikutnya.
           </Typography>
           <Typography sx={{ color: '#1f2937', fontWeight: 700 }}>Lanjutkan proses?</Typography>
         </Box>
@@ -64,7 +64,7 @@ export default function PopupDoneMasterCustomer({
       title={title}
       message={message}
       type={isOutsideRadius ? 'warning' : 'locationSuccess'}
-      confirmText={isOutsideRadius ? 'Lanjutkan & Simpan' : 'Lanjutkan'}
+      confirmText="Lanjutkan"
       cancelText="Batal"
       showCancel
       disableBackdropClose={disableBackdropClose}

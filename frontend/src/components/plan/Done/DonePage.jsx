@@ -688,7 +688,8 @@ export default function DonePage() {
       if (!isMountedRef.current) return;
       setSaving(true);
       let currentValidationAddressRef = validationAddressRef;
-      let shouldAutoSaveFixAddressFromInitialValidation = false;
+      let shouldSaveFixAddress = false;
+      let hasAskedFixAddressChoice = false;
 
       if (!isFollowUp && !currentValidationAddressRef) {
         currentValidationAddressRef = await loadValidationAddressReference(activeTask);
@@ -707,10 +708,6 @@ export default function DonePage() {
           getTaskAddressId(activeTask) ?? MASTER_ADDRESS_ID
         );
         const usesMasterCustomerAddress = isMasterCustomerSource(addressSource);
-        shouldAutoSaveFixAddressFromInitialValidation =
-          usesMasterCustomerAddress &&
-          Number.isFinite(distanceToCustomerKm) &&
-          distanceToCustomerKm > DISTANCE_LIMIT_KM;
         const isProceed = await showAddressValidationPopup({
           addressType: usesMasterCustomerAddress ? 'master' : 'additional',
           distanceKm: distanceToCustomerKm,
@@ -719,6 +716,24 @@ export default function DonePage() {
 
         if (!isProceed) {
           return;
+        }
+
+        const shouldAskFixAddressChoice =
+          usesMasterCustomerAddress &&
+          Number.isFinite(distanceToCustomerKm) &&
+          distanceToCustomerKm > DISTANCE_LIMIT_KM;
+        if (shouldAskFixAddressChoice) {
+          hasAskedFixAddressChoice = true;
+          shouldSaveFixAddress = await showValidationConfirm(
+            'Ubah alamat utama customer ke alamat terkini?\n\nPilih Simpan untuk update fix address, atau Jangan Simpan untuk melanjutkan tanpa perubahan alamat utama.',
+            {
+              title: 'Update Alamat Utama',
+              type: 'warning',
+              confirmText: 'Simpan',
+              cancelText: 'Jangan Simpan',
+            }
+          );
+          if (!isMountedRef.current) return;
         }
       }
 
@@ -763,19 +778,18 @@ export default function DonePage() {
           currentLocation,
           currentValidationAddressRef
         );
-        let shouldSaveFixAddress = shouldAutoSaveFixAddressFromInitialValidation;
-        if (!shouldSaveFixAddress && needsFixAddressConfirmation) {
+        if (!shouldSaveFixAddress && needsFixAddressConfirmation && !hasAskedFixAddressChoice) {
           const distanceText =
             distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
           shouldSaveFixAddress = await showValidationConfirm(
             distanceText
-              ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nSimpan koordinat saat ini sebagai fix address customer?`
-              : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nSimpan koordinat saat ini sebagai fix address customer?`,
+              ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nUbah alamat utama customer ke alamat terkini?`
+              : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nUbah alamat utama customer ke alamat terkini?`,
             {
-              title: 'Konfirmasi Fix Address',
+              title: 'Update Alamat Utama',
               type: 'warning',
-              confirmText: 'Simpan Fix Address',
-              cancelText: 'Lewati',
+              confirmText: 'Simpan',
+              cancelText: 'Jangan Simpan',
             }
           );
           if (!isMountedRef.current) return;

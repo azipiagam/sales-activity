@@ -17,7 +17,6 @@ import { useTheme } from '@mui/material/styles';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 // Material-UI Icons
-import CloseIcon from '@mui/icons-material/Close';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -237,6 +236,7 @@ export default function AddPlan({
   disableAddressEdit = false,
   disableGeocoding = false,
   centerHeader = false,
+  headerIcon: HeaderIcon = AssignmentIcon,
 }) {
   // UI State
   const [loading, setLoading] = useState(false);
@@ -653,7 +653,7 @@ export default function AddPlan({
               flex: 1,
             }}
           >
-            <AssignmentIcon sx={{ color: 'var(--theme-blue-primary)' }} />
+            {HeaderIcon ? <HeaderIcon sx={{ color: 'var(--theme-blue-primary)' }} /> : null}
             {title}
           </Typography>
         </Box>
@@ -1004,7 +1004,7 @@ export default function AddPlan({
                 fontSize: { xs: '0.8125rem', sm: '0.875rem' },
               }}
             >
-              Alamat: {customerAddress}
+              Address: {customerAddress}
             </Typography>
           )}
 

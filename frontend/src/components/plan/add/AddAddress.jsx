@@ -761,41 +761,143 @@ export default function AddAddress({
     setSubmitting(true);
 
     try {
-      if (customerId && selectedAddress.id !== MASTER_ADDRESS_ID && selectedAddress.address?.trim()) {
+      const normalizedInputAddress = newAddressText.trim();
+      let appliedAddressId = selectedAddress.id || MASTER_ADDRESS_ID;
+      let appliedAddressText = selectedAddress.address?.trim() || '';
+      let appliedLatitude = latitude;
+      let appliedLongitude = longitude;
+
+      if (normalizedInputAddress.length > 0 && normalizedInputAddress.length < 5) {
+        setError('Alamat tambahan minimal 5 karakter.');
+        return;
+      }
+
+      const shouldPersistInputAddress =
+        normalizedInputAddress.length >= 5
+        && customerId
+        && (
+          editingAddressId
+          || selectedAddress.id === MASTER_ADDRESS_ID
+          || selectedAddress.address?.trim().toLowerCase() !== normalizedInputAddress.toLowerCase()
+        );
+
+      if (shouldPersistInputAddress) {
+        if (editingAddressId) {
+          const updatedAddress = await updateCustomerAddress(customerId, editingAddressId, {
+            address: normalizedInputAddress,
+            latitude,
+            longitude,
+          });
+
+          const resolvedAddressText = updatedAddress?.address || normalizedInputAddress;
+          const resolvedLatitude = updatedAddress?.latitude ?? latitude;
+          const resolvedLongitude = updatedAddress?.longitude ?? longitude;
+
+          setAdditionalAddresses((prev) => prev.map((item) => (
+            item.id === editingAddressId
+              ? {
+                  ...item,
+                  address: resolvedAddressText,
+                  latitude: resolvedLatitude,
+                  longitude: resolvedLongitude,
+                }
+              : item
+          )));
+
+          setSelectedAddressId(editingAddressId);
+          setEditingAddressId(null);
+          setNewAddressText('');
+          setLatitude(resolvedLatitude);
+          setLongitude(resolvedLongitude);
+
+          appliedAddressId = editingAddressId;
+          appliedAddressText = resolvedAddressText;
+          appliedLatitude = resolvedLatitude;
+          appliedLongitude = resolvedLongitude;
+        } else {
+          const createdAddress = await createCustomerAddress(customerId, {
+            address: normalizedInputAddress,
+            latitude,
+            longitude,
+          });
+
+          if (!createdAddress?.id) {
+            throw new Error('Gagal menyimpan alamat tambahan.');
+          }
+
+          const resolvedAddressText = createdAddress.address || normalizedInputAddress;
+          const resolvedLatitude = createdAddress.latitude ?? latitude;
+          const resolvedLongitude = createdAddress.longitude ?? longitude;
+
+          setAdditionalAddresses((prev) => [
+            ...prev,
+            {
+              id: createdAddress.id,
+              title: 'Alamat Tambahan',
+              address: resolvedAddressText,
+              latitude: resolvedLatitude,
+              longitude: resolvedLongitude,
+            },
+          ]);
+
+          setSelectedAddressId(createdAddress.id);
+          setEditingAddressId(null);
+          setNewAddressText('');
+          setLatitude(resolvedLatitude);
+          setLongitude(resolvedLongitude);
+
+          appliedAddressId = createdAddress.id;
+          appliedAddressText = resolvedAddressText;
+          appliedLatitude = resolvedLatitude;
+          appliedLongitude = resolvedLongitude;
+        }
+      } else if (customerId && selectedAddress.id !== MASTER_ADDRESS_ID && selectedAddress.address?.trim()) {
         const updatedAddress = await updateCustomerAddress(customerId, selectedAddress.id, {
           address: selectedAddress.address?.trim() || '',
           latitude,
           longitude,
         });
 
+        const resolvedAddressText = updatedAddress?.address || selectedAddress.address?.trim() || '';
+        const resolvedLatitude = updatedAddress?.latitude ?? latitude;
+        const resolvedLongitude = updatedAddress?.longitude ?? longitude;
+
         setAdditionalAddresses((prev) => prev.map((item) => (
           item.id === selectedAddress.id
             ? {
                 ...item,
-                address: updatedAddress?.address || item.address,
-                latitude: updatedAddress?.latitude ?? latitude,
-                longitude: updatedAddress?.longitude ?? longitude,
+                address: resolvedAddressText,
+                latitude: resolvedLatitude,
+                longitude: resolvedLongitude,
               }
             : item
         )));
+
+        appliedAddressText = resolvedAddressText;
+        appliedLatitude = resolvedLatitude;
+        appliedLongitude = resolvedLongitude;
       }
 
+      setError('');
+
       if (onApplyAddress) {
-        const selectedAddressText = selectedAddress.address?.trim() || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        const selectedAddressText = appliedAddressText || `${appliedLatitude.toFixed(6)}, ${appliedLongitude.toFixed(6)}`;
 
         onApplyAddress({
           customerId: customerId || '',
-          addressId: selectedAddress.id || MASTER_ADDRESS_ID,
+          addressId: appliedAddressId,
           address: selectedAddressText,
           originalAddress: primaryAddress.address?.trim() || '',
-          latitude,
-          longitude,
+          latitude: appliedLatitude,
+          longitude: appliedLongitude,
         });
       }
+    } catch (apiError) {
+      setError(apiError?.message || 'Gagal menerapkan alamat.');
     } finally {
       setSubmitting(false);
     }
-  }, [hasCoordinates, selectedAddress, onApplyAddress, customerId, latitude, longitude, primaryAddress.address]);
+  }, [hasCoordinates, selectedAddress, onApplyAddress, customerId, latitude, longitude, primaryAddress.address, newAddressText, editingAddressId]);
 
   return (
     <>
