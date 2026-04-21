@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import { motion } from 'framer-motion';
 import BackgroundMain from './assets/media/Background';
 
 import {
@@ -56,6 +55,8 @@ function AppContent() {
     const trimmed = String(location.pathname || '').replace(/\/+$/, '');
     return trimmed || '/';
   }, [location.pathname]);
+  const isDashboardPage = normalizedPathname === '/';
+  const isPlanMainPage = normalizedPathname === '/plan';
   const isDonePage = normalizedPathname === '/plan/done';
   const [navValue, setNavValue] = useState(location.pathname.startsWith('/plan') ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
@@ -214,47 +215,40 @@ function AppContent() {
               pb: 10,
             }}
           >
-          {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
-          {navValue === 0 ? (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-              }}
-              style={{ width: '100%' }}
-            >
-              <Dashboard
-                refreshKey={refreshKey}
-                periodFilter={dashboardPeriod}
-                onPeriodFilterChange={setDashboardPeriod}
-                provinceFilter={dashboardProvince}
-                onProvinceFilterChange={setDashboardProvince}
-                onProvinceOptionsChange={setDashboardProvinceOptions}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key={isDonePage ? 'plan-done' : 'plan-main'}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-              }}
-              style={{ width: '100%' }}
-            >
-              {isDonePage ? (
-                <DonePage />
-              ) : (
-                <>
-                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                </>
-              )}
-            </motion.div>
+          <Box
+            aria-hidden={!isDashboardPage}
+            sx={{
+              width: '100%',
+              display: isDashboardPage ? 'block' : 'none',
+            }}
+          >
+            <Dashboard
+              refreshKey={refreshKey}
+              periodFilter={dashboardPeriod}
+              onPeriodFilterChange={setDashboardPeriod}
+              provinceFilter={dashboardProvince}
+              onProvinceFilterChange={setDashboardProvince}
+              onProvinceOptionsChange={setDashboardProvinceOptions}
+            />
+          </Box>
+
+          <Box
+            aria-hidden={!isPlanMainPage}
+            sx={{
+              width: '100%',
+              display: isPlanMainPage ? 'block' : 'none',
+            }}
+          >
+            <>
+              <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+              <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+            </>
+          </Box>
+
+          {isDonePage && (
+            <Box sx={{ width: '100%' }}>
+              <DonePage />
+            </Box>
           )}
           </Box>
         </Box>

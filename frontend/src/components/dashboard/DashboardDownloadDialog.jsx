@@ -54,7 +54,7 @@ export default function DashboardDownloadDialog({
 
   const handleConfirm = async () => {
     if (!selectedPeriod) {
-      setErrorMessage('Pilih periode download terlebih dahulu.');
+      setErrorMessage('Pilih periode download PDF terlebih dahulu.');
       return;
     }
 
@@ -120,7 +120,7 @@ export default function DashboardDownloadDialog({
                 lineHeight: 1.2,
               }}
             >
-              Download Dashboard
+              Download Dashboard PDF
             </Typography>
             <Typography
               sx={{
@@ -130,7 +130,7 @@ export default function DashboardDownloadDialog({
                 lineHeight: 1.5,
               }}
             >
-              Pilih periode export terlebih dahulu sebelum file diunduh.
+              Pilih periode export PDF terlebih dahulu sebelum file diunduh.
             </Typography>
           </Box>
         </Box>
@@ -311,7 +311,7 @@ export default function DashboardDownloadDialog({
             },
           }}
         >
-          {isDownloading ? 'Menyiapkan...' : 'Download'}
+          {isDownloading ? 'Menyiapkan PDF...' : 'Download PDF'}
         </Button>
       </DialogActions>
     </Dialog>

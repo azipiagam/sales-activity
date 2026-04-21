@@ -27,7 +27,7 @@ import { apiRequest } from '../../services/api';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import logoPiagam from '../../assets/media/logo-piagam2.png';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
-import { downloadDashboardXls } from '../../utils/dashboardExport';
+import { downloadDashboardPdf } from '../../utils/dashboardExport';
 import DashboardDownloadDialog from '../dashboard/DashboardDownloadDialog';
 import {
   DASHBOARD_PERIOD_OPTIONS,
@@ -193,7 +193,7 @@ export default function Header({
 
       const payload = await response.json();
 
-      downloadDashboardXls({
+      downloadDashboardPdf({
         exportData: payload?.data ?? null,
         periodLabel,
         provinceLabel: provinceValue,
@@ -202,7 +202,7 @@ export default function Header({
 
       return { ok: true };
     } catch (error) {
-      console.error('Error downloading dashboard XLS:', error);
+      console.error('Error downloading dashboard PDF:', error);
       return {
         ok: false,
         message: 'File gagal disiapkan. Coba lagi dalam beberapa saat.',
@@ -508,7 +508,7 @@ export default function Header({
             <IconButton
               onClick={handleHeaderActionClick}
               disabled={isDashboardPage && (isDownloadingDashboard || !sales?.internal_id)}
-              aria-label={isDashboardPage ? 'download dashboard xls' : 'open calendar'}
+              aria-label={isDashboardPage ? 'download dashboard pdf' : 'open calendar'}
               sx={{
                 width: { xs: 40, sm: 44, md: 48 },
                 height: { xs: 40, sm: 44, md: 48 },
