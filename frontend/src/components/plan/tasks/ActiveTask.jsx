@@ -366,7 +366,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleOpenModal = (task) => {
     if (!task?.id) return;
 
-    navigate('/plan/done', {
+    const doneSearchParams = new URLSearchParams({
+      taskId: String(task.id),
+      date: dateStr,
+    });
+
+    navigate(`/plan/done?${doneSearchParams.toString()}`, {
       state: {
         taskId: task.id,
         date: dateStr,

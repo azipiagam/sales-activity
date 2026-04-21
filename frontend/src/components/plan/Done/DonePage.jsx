@@ -19,9 +19,9 @@ import HeaderDone from './HeaderDone';
 import MapsDone from './MapsDone';
 import CameraDone from './CameraDone';
 import CardDone from './CardDone';
+import ValidateOutRange from './ValidateOutRange';
 import PopupValidationDone from './PopupValidationDone';
-import PopupDoneAdditionalAddress from './PopupDone/PopupDoneAdditionalAddress';
-import PopupDoneMasterCustomer from './PopupDone/PopupDoneMasterCustomer';
+import SucceedScreen from './SucceedScreen';
 
 const MASTER_ADDRESS_ID = 'master';
 const DISTANCE_LIMIT_KM = 2;
@@ -37,19 +37,6 @@ const normalizeActivityType = (value) => {
     return ACTIVITY_TYPES.FOLLOW_UP;
   }
   return ACTIVITY_TYPES.VISIT;
-};
-
-const isMasterCustomerSource = (source) => source === 'master' || source === 'fix';
-const isReloadNavigation = () => {
-  if (typeof window === 'undefined') return false;
-
-  const navigationEntries = window.performance?.getEntriesByType?.('navigation');
-  const navigationType = Array.isArray(navigationEntries) ? navigationEntries[0]?.type : null;
-
-  if (navigationType) return navigationType === 'reload';
-
-  // Fallback untuk browser lama yang belum support Navigation Timing Level 2.
-  return window.performance?.navigation?.type === 1;
 };
 
 const normalizeTaskId = (value) => {
@@ -207,6 +194,7 @@ const resolveDistanceToCustomerKm = (task, currentLocation, validationAddressRef
 export default function DonePage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -224,6 +212,7 @@ export default function DonePage() {
   const [hasAutoOpenedCamera, setHasAutoOpenedCamera] = useState(false);
   const [showLocationInfo, setShowLocationInfo] = useState(true);
   const [validationAddressRef, setValidationAddressRef] = useState(null);
+  const [doneSuccess, setDoneSuccess] = useState(null);
   const [validationPopup, setValidationPopup] = useState({
     open: false,
     title: 'Informasi',
@@ -233,41 +222,37 @@ export default function DonePage() {
     cancelText: 'Batal',
     showCancel: false,
   });
-  const [addressValidationPopup, setAddressValidationPopup] = useState({
+  const [outOfRangeDecision, setOutOfRangeDecision] = useState({
     open: false,
-    addressType: 'master',
     distanceKm: null,
-    radiusLimitKm: DISTANCE_LIMIT_KM,
   });
   const isMountedRef = useRef(true);
   const validationPopupResolverRef = useRef(null);
-  const addressValidationResolverRef = useRef(null);
+  const outOfRangeDecisionResolverRef = useRef(null);
 
   const { invalidateCache, fetchPlansByDate, updatePlanInCache, getPlansByDate } = useActivityPlans();
 
   const taskId = useMemo(() => {
-    const sourceTaskId = location.state?.taskId;
+    const sourceTaskId = location.state?.taskId ?? searchParams.get('taskId');
     return normalizeTaskId(sourceTaskId);
-  }, [location.state]);
+  }, [location.state, searchParams]);
 
   const dateToUse = useMemo(() => {
-    const sourceDate = location.state?.date;
+    const sourceDate = location.state?.date ?? searchParams.get('date');
     if (!sourceDate) return new Date();
 
     const parsedDate = parse(sourceDate, 'yyyy-MM-dd', new Date());
     return isValid(parsedDate) ? parsedDate : new Date();
-  }, [location.state]);
+  }, [location.state, searchParams]);
 
   const taskData = location.state?.task;
   const [taskMeta, setTaskMeta] = useState(taskData ?? null);
 
   useEffect(() => {
-    // Done page wajib dibuka dari flow aplikasi (dengan state),
-    // agar refresh/back tidak mengunci user di URL done lama.
-    if (isReloadNavigation() || !location.state?.taskId) {
+    if (!taskId) {
       navigate('/plan', { replace: true });
     }
-  }, [location.state, navigate]);
+  }, [taskId, navigate]);
 
   const activeTask = taskMeta ?? taskData ?? null;
   const taskName = activeTask?.namaCustomer ?? activeTask?.customer_name;
@@ -338,14 +323,14 @@ export default function DonePage() {
     }
   }, []);
 
-  const closeAddressValidationPopup = useCallback((result) => {
+  const closeOutOfRangeDecision = useCallback((result) => {
     if (isMountedRef.current) {
-      setAddressValidationPopup((prev) => ({ ...prev, open: false }));
+      setOutOfRangeDecision((prev) => ({ ...prev, open: false }));
     }
-    if (addressValidationResolverRef.current) {
-      const pendingResolve = addressValidationResolverRef.current;
-      addressValidationResolverRef.current = null;
-      pendingResolve(Boolean(result));
+    if (outOfRangeDecisionResolverRef.current) {
+      const pendingResolve = outOfRangeDecisionResolverRef.current;
+      outOfRangeDecisionResolverRef.current = null;
+      pendingResolve(result);
     }
   }, []);
 
@@ -401,46 +386,30 @@ export default function DonePage() {
     [openValidationPopup]
   );
 
-  const showValidationConfirm = useCallback(
-    (message, options = {}) =>
-      openValidationPopup({
-        title: options.title || 'Konfirmasi',
-        message,
-        type: options.type || 'warning',
-        confirmText: options.confirmText || 'Lanjutkan',
-        cancelText: options.cancelText || 'Batal',
-        showCancel: true,
-      }),
-    [openValidationPopup]
-  );
-
-  const showAddressValidationPopup = useCallback(({ addressType, distanceKm }) => {
+  const showOutOfRangeDecision = useCallback(({ distanceKm }) => {
     if (!isMountedRef.current) {
-      return Promise.resolve(false);
+      return Promise.resolve('cancel');
     }
 
-    if (addressValidationResolverRef.current) {
-      const pendingResolve = addressValidationResolverRef.current;
-      addressValidationResolverRef.current = null;
-      pendingResolve(false);
+    if (outOfRangeDecisionResolverRef.current) {
+      const pendingResolve = outOfRangeDecisionResolverRef.current;
+      outOfRangeDecisionResolverRef.current = null;
+      pendingResolve('cancel');
     }
 
-    const normalizedType = addressType === 'additional' ? 'additional' : 'master';
     const normalizedDistance = Number.isFinite(distanceKm) ? Number(distanceKm) : null;
 
-    setAddressValidationPopup({
+    setOutOfRangeDecision({
       open: true,
-      addressType: normalizedType,
       distanceKm: normalizedDistance,
-      radiusLimitKm: DISTANCE_LIMIT_KM,
     });
 
     return new Promise((resolve) => {
       if (!isMountedRef.current) {
-        resolve(false);
+        resolve('cancel');
         return;
       }
-      addressValidationResolverRef.current = resolve;
+      outOfRangeDecisionResolverRef.current = resolve;
     });
   }, []);
 
@@ -455,9 +424,9 @@ export default function DonePage() {
         validationPopupResolverRef.current(false);
         validationPopupResolverRef.current = null;
       }
-      if (addressValidationResolverRef.current) {
-        addressValidationResolverRef.current(false);
-        addressValidationResolverRef.current = null;
+      if (outOfRangeDecisionResolverRef.current) {
+        outOfRangeDecisionResolverRef.current('cancel');
+        outOfRangeDecisionResolverRef.current = null;
       }
     },
     []
@@ -491,6 +460,8 @@ export default function DonePage() {
     setHasAutoOpenedCamera(false);
     setShowLocationInfo(true);
     setValidationAddressRef(null);
+    setDoneSuccess(null);
+    setOutOfRangeDecision({ open: false, distanceKm: null });
   }, [taskId]);
 
   useEffect(() => {
@@ -686,7 +657,6 @@ export default function DonePage() {
 
     try {
       if (!isMountedRef.current) return;
-      setSaving(true);
       let currentValidationAddressRef = validationAddressRef;
       let shouldSaveFixAddress = false;
       let hasAskedFixAddressChoice = false;
@@ -703,40 +673,20 @@ export default function DonePage() {
           currentLocation,
           currentValidationAddressRef
         );
-        const addressSource = normalizeAddressSource(
-          currentValidationAddressRef?.source,
-          getTaskAddressId(activeTask) ?? MASTER_ADDRESS_ID
-        );
-        const usesMasterCustomerAddress = isMasterCustomerSource(addressSource);
-        const isProceed = await showAddressValidationPopup({
-          addressType: usesMasterCustomerAddress ? 'master' : 'additional',
-          distanceKm: distanceToCustomerKm,
-        });
-        if (!isMountedRef.current) return;
-
-        if (!isProceed) {
-          return;
-        }
-
-        const shouldAskFixAddressChoice =
-          usesMasterCustomerAddress &&
-          Number.isFinite(distanceToCustomerKm) &&
-          distanceToCustomerKm > DISTANCE_LIMIT_KM;
-        if (shouldAskFixAddressChoice) {
+        if (Number.isFinite(distanceToCustomerKm) && distanceToCustomerKm > DISTANCE_LIMIT_KM) {
           hasAskedFixAddressChoice = true;
-          shouldSaveFixAddress = await showValidationConfirm(
-            'Ubah alamat utama customer ke alamat terkini?\n\nPilih Simpan untuk update fix address, atau Jangan Simpan untuk melanjutkan tanpa perubahan alamat utama.',
-            {
-              title: 'Update Alamat Utama',
-              type: 'warning',
-              confirmText: 'Simpan',
-              cancelText: 'Jangan Simpan',
-            }
-          );
+          const outOfRangeChoice = await showOutOfRangeDecision({
+            distanceKm: distanceToCustomerKm,
+          });
           if (!isMountedRef.current) return;
+          if (outOfRangeChoice === 'cancel') {
+            return;
+          }
+          shouldSaveFixAddress = outOfRangeChoice === 'save';
         }
       }
 
+      setSaving(true);
       const resultText = result.trim() || '-';
 
       updatePlanInCache(taskId, {
@@ -779,20 +729,14 @@ export default function DonePage() {
           currentValidationAddressRef
         );
         if (!shouldSaveFixAddress && needsFixAddressConfirmation && !hasAskedFixAddressChoice) {
-          const distanceText =
-            distanceKm !== null && Number.isFinite(distanceKm) ? distanceKm.toFixed(2) : null;
-          shouldSaveFixAddress = await showValidationConfirm(
-            distanceText
-              ? `Jarak hasil kunjungan ${distanceText} KM dari koordinat customer (lebih dari ${DISTANCE_LIMIT_KM} KM).\n\nUbah alamat utama customer ke alamat terkini?`
-              : `Jarak hasil kunjungan lebih dari ${DISTANCE_LIMIT_KM} KM dari koordinat customer.\n\nUbah alamat utama customer ke alamat terkini?`,
-            {
-              title: 'Update Alamat Utama',
-              type: 'warning',
-              confirmText: 'Simpan',
-              cancelText: 'Jangan Simpan',
-            }
-          );
+          const outOfRangeChoice = await showOutOfRangeDecision({
+            distanceKm: distanceKm ?? null,
+          });
           if (!isMountedRef.current) return;
+          if (outOfRangeChoice === 'cancel') {
+            return;
+          }
+          shouldSaveFixAddress = outOfRangeChoice === 'save';
         }
 
         if (shouldSaveFixAddress) {
@@ -853,8 +797,15 @@ export default function DonePage() {
       fetchPlansByDate(dateToUse, true).catch((err) => {
         console.error('Error refreshing after done:', err);
       });
-
-      handleBackToPlan();
+      setDoneSuccess({
+        customerName: taskName,
+        address: customerAddress,
+        completedAt:
+          donePayload?.completed_at ??
+          donePayload?.result_saved_at ??
+          donePayload?.saved_at ??
+          new Date().toISOString(),
+      });
     } catch (err) {
       console.error('Error saving result:', err);
       if (isMountedRef.current) {
@@ -900,6 +851,40 @@ export default function DonePage() {
         <Button variant="contained" onClick={handleBackToPlan} sx={{ textTransform: 'none' }}>
           Kembali ke Plan
         </Button>
+      </Box>
+    );
+  }
+
+  if (doneSuccess) {
+    return (
+      <SucceedScreen
+        customerName={doneSuccess.customerName}
+        address={doneSuccess.address}
+        completedAt={doneSuccess.completedAt}
+        onViewHistory={handleBackToPlan}
+      />
+    );
+  }
+
+  if (outOfRangeDecision.open && !isFollowUp) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100dvh',
+          width: '100%',
+          backgroundColor: '#f7f7f5',
+        }}
+      >
+        <ValidateOutRange
+          customerName={taskName}
+          address={customerAddress}
+          distanceKm={outOfRangeDecision.distanceKm}
+          radiusLimitKm={DISTANCE_LIMIT_KM}
+          loading={false}
+          onConfirmWithoutSave={() => closeOutOfRangeDecision('without_save')}
+          onConfirmAndSave={() => closeOutOfRangeDecision('save')}
+          onCancel={() => closeOutOfRangeDecision('cancel')}
+        />
       </Box>
     );
   }
@@ -1315,24 +1300,6 @@ export default function DonePage() {
           </Button>
         </Paper>
       </Box>
-
-      <PopupDoneAdditionalAddress
-        open={addressValidationPopup.open && addressValidationPopup.addressType === 'additional'}
-        distanceKm={addressValidationPopup.distanceKm}
-        radiusLimitKm={addressValidationPopup.radiusLimitKm}
-        disableBackdropClose={saving}
-        onConfirm={() => closeAddressValidationPopup(true)}
-        onCancel={() => closeAddressValidationPopup(false)}
-      />
-
-      <PopupDoneMasterCustomer
-        open={addressValidationPopup.open && addressValidationPopup.addressType === 'master'}
-        distanceKm={addressValidationPopup.distanceKm}
-        radiusLimitKm={addressValidationPopup.radiusLimitKm}
-        disableBackdropClose={saving}
-        onConfirm={() => closeAddressValidationPopup(true)}
-        onCancel={() => closeAddressValidationPopup(false)}
-      />
 
       <PopupValidationDone
         open={validationPopup.open}
