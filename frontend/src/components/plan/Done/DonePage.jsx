@@ -225,6 +225,7 @@ export default function DonePage() {
   const [outOfRangeDecision, setOutOfRangeDecision] = useState({
     open: false,
     distanceKm: null,
+    loading: false,
   });
   const isMountedRef = useRef(true);
   const validationPopupResolverRef = useRef(null);
@@ -325,7 +326,11 @@ export default function DonePage() {
 
   const closeOutOfRangeDecision = useCallback((result) => {
     if (isMountedRef.current) {
-      setOutOfRangeDecision((prev) => ({ ...prev, open: false }));
+      setOutOfRangeDecision((prev) => ({
+        ...prev,
+        open: false,
+        loading: result === 'save' || result === 'without_save',
+      }));
     }
     if (outOfRangeDecisionResolverRef.current) {
       const pendingResolve = outOfRangeDecisionResolverRef.current;
@@ -402,6 +407,7 @@ export default function DonePage() {
     setOutOfRangeDecision({
       open: true,
       distanceKm: normalizedDistance,
+      loading: false,
     });
 
     return new Promise((resolve) => {
@@ -461,7 +467,7 @@ export default function DonePage() {
     setShowLocationInfo(true);
     setValidationAddressRef(null);
     setDoneSuccess(null);
-    setOutOfRangeDecision({ open: false, distanceKm: null });
+    setOutOfRangeDecision({ open: false, distanceKm: null, loading: false });
   }, [taskId]);
 
   useEffect(() => {
@@ -817,6 +823,7 @@ export default function DonePage() {
     } finally {
       if (isMountedRef.current) {
         setSaving(false);
+        setOutOfRangeDecision((prev) => ({ ...prev, loading: false }));
       }
     }
   };
@@ -866,7 +873,7 @@ export default function DonePage() {
     );
   }
 
-  if (outOfRangeDecision.open && !isFollowUp) {
+  if ((outOfRangeDecision.open || outOfRangeDecision.loading) && !isFollowUp) {
     return (
       <Box
         sx={{
@@ -880,10 +887,23 @@ export default function DonePage() {
           address={customerAddress}
           distanceKm={outOfRangeDecision.distanceKm}
           radiusLimitKm={DISTANCE_LIMIT_KM}
-          loading={false}
+          loading={outOfRangeDecision.loading}
           onConfirmWithoutSave={() => closeOutOfRangeDecision('without_save')}
           onConfirmAndSave={() => closeOutOfRangeDecision('save')}
           onCancel={() => closeOutOfRangeDecision('cancel')}
+        />
+
+        <PopupValidationDone
+          open={validationPopup.open}
+          title={validationPopup.title}
+          message={validationPopup.message}
+          type={validationPopup.type}
+          confirmText={validationPopup.confirmText}
+          cancelText={validationPopup.cancelText}
+          showCancel={validationPopup.showCancel}
+          disableBackdropClose={saving}
+          onConfirm={() => closeValidationPopup(true)}
+          onCancel={() => closeValidationPopup(false)}
         />
       </Box>
     );

@@ -1,6 +1,7 @@
 ﻿import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
@@ -26,6 +27,27 @@ export default function ValidateOutRange({
   const initials = useMemo(() => toInitials(customerName), [customerName]);
   const hasDistance = Number.isFinite(distanceKm);
   const distanceLabel = hasDistance ? `${distanceKm.toFixed(2)} KM` : '-';
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100dvh',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(10, 18, 34, 0.7)',
+        }}
+      >
+        <CircularProgress
+          size={52}
+          thickness={4.5}
+          sx={{ color: '#FFFFFF' }}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ minHeight: '100dvh', width: '100%', backgroundColor: '#e9e7e2' }}>
@@ -205,7 +227,7 @@ export default function ValidateOutRange({
                 },
               }}
             >
-              Ya, dan simpan lokasi baru
+              Ya, dan simpan lokasi baru ini
             </Button>
 
             <Button
@@ -221,7 +243,7 @@ export default function ValidateOutRange({
                 color: '#7c7c7c',
               }}
             >
-              Tidak, aku salah
+              Tidak, aku salah lokasi
             </Button>
           </Box>
         </Paper>
