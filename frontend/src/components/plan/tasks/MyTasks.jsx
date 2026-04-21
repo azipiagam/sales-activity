@@ -224,24 +224,25 @@ export default function MyTasks({ selectedDate }) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-  const sharedCardShadow = 'rgba(10, 25, 47, 0.12)';
+  const sharedCardShadow = 'rgba(10, 25, 47, 0.08)';
 
   const createCardTone = (baseRgb) => ({
-    accent: `rgba(${baseRgb}, 0.28)`,
-    labelColor: `rgba(${baseRgb}, 0.82)`,
-    textColor: `rgba(${baseRgb}, 0.95)`,
-    borderColor: `rgba(${baseRgb}, 0.2)`,
-    ringColor: `rgba(${baseRgb}, 0.34)`,
-    orbColor: `rgba(${baseRgb}, 0.11)`,
+    accent: `rgba(${baseRgb}, 0.16)`,
+    labelColor: `rgba(${baseRgb}, 0.72)`,
+    textColor: `rgba(${baseRgb}, 0.9)`,
+    borderColor: `rgba(${baseRgb}, 0.12)`,
+    selectedBorderColor: `rgba(${baseRgb}, 0.22)`,
+    ringColor: `rgba(${baseRgb}, 0.12)`,
+    orbColor: `rgba(${baseRgb}, 0.08)`,
     iconColor: `rgb(${baseRgb})`,
     shadowColor: sharedCardShadow,
-    selectedBackground: `linear-gradient(142deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.34) 100%)`,
-    background: `linear-gradient(142deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.2) 100%)`,
+    selectedBackground: `linear-gradient(145deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.16) 68%, rgba(255, 255, 255, 0.96) 100%)`,
+    background: `linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(${baseRgb}, 0.09) 72%, rgba(255, 255, 255, 0.95) 100%)`,
   });
 
-  const blueCardTone = createCardTone('31, 102, 170');
-  const greenCardTone = createCardTone('52, 148, 98');
-  const yellowCardTone = createCardTone('208, 148, 43');
+  const blueCardTone = createCardTone('31, 78, 140');
+  const greenCardTone = createCardTone('74, 140, 114');
+  const yellowCardTone = createCardTone('244, 169, 64');
 
   const taskCards = [
     {
@@ -299,12 +300,12 @@ export default function MyTasks({ selectedDate }) {
                 alignItems: 'flex-start',
                 position: 'relative',
                 overflow: 'hidden',
-                border: isSelected ? `2px solid ${card.accent}` : `1px solid ${card.borderColor}`,
+                border: isSelected ? `1px solid ${card.selectedBorderColor}` : `1px solid ${card.borderColor}`,
                 boxShadow: isSelected
-                  ? `0 12px 24px ${card.shadowColor}, 0 0 0 3px ${card.ringColor}, inset 0 0 0 1px rgba(255, 255, 255, 0.7)`
-                  : `0 8px 18px ${card.shadowColor}`,
+                  ? `0 10px 22px ${card.shadowColor}, 0 0 0 1px ${card.ringColor}, inset 0 0 0 1px rgba(255, 255, 255, 0.72)`
+                  : `0 6px 16px ${card.shadowColor}`,
                 cursor: 'pointer',
-                transform: isSelected ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+                transform: isSelected ? 'translateY(-1px)' : 'translateY(0)',
                 transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease',
                 '&::before': {
                   content: '""',
@@ -312,7 +313,7 @@ export default function MyTasks({ selectedDate }) {
                   inset: 0,
                   background:
                     'radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 58%)',
-                  opacity: isSelected ? 0.86 : 0.55,
+                  opacity: isSelected ? 0.76 : 0.48,
                   transition: 'opacity 0.22s ease',
                   pointerEvents: 'none',
                 },
@@ -328,11 +329,11 @@ export default function MyTasks({ selectedDate }) {
                   pointerEvents: 'none',
                 },
                 '&:hover': {
-                  transform: isSelected ? 'translateY(-5px) scale(1.03)' : 'translateY(-4px) scale(1.01)',
-                  boxShadow: `0 12px 24px ${card.shadowColor}`,
+                  transform: isSelected ? 'translateY(-3px)' : 'translateY(-2px)',
+                  boxShadow: `0 10px 22px ${card.shadowColor}`,
                 },
                 '&:hover::before': {
-                  opacity: isSelected ? 0.94 : 0.72,
+                  opacity: isSelected ? 0.82 : 0.62,
                 },
               }}
             >
@@ -342,19 +343,19 @@ export default function MyTasks({ selectedDate }) {
                     position: 'absolute',
                     top: 6,
                     right: 6,
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: card.iconColor,
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    boxShadow: '0 4px 10px rgba(15, 23, 42, 0.18)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+                    boxShadow: '0 4px 10px rgba(15, 23, 42, 0.1)',
                     zIndex: 2,
                   }}
                 >
-                  <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+                  <CheckCircleRoundedIcon sx={{ fontSize: 15 }} />
                 </Box>
               )}
               <Box sx={{ position: 'relative', zIndex: 1 }}>
@@ -364,9 +365,9 @@ export default function MyTasks({ selectedDate }) {
                     color: card.labelColor,
                     fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
                     letterSpacing: '0.02em',
-                    fontWeight: 700,
-                    mb: 1,
-                    textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)',
+                    fontWeight: 600,
+                    mb: 0.75,
+                    textShadow: '0 1px 1px rgba(255, 255, 255, 0.22)',
                   }}
                 >
                   {card.label}
@@ -391,9 +392,9 @@ export default function MyTasks({ selectedDate }) {
                     sx={{
                       color: card.textColor,
                       fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                      fontWeight: 800,
+                      fontWeight: 700,
                       lineHeight: 1,
-                      textShadow: '0 1px 2px rgba(255, 255, 255, 0.35)',
+                      textShadow: '0 1px 2px rgba(255, 255, 255, 0.22)',
                     }}
                   >
                     {card.value}

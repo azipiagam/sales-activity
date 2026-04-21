@@ -294,6 +294,7 @@ export default function DonePage() {
     () => (String(currentAddress || '').trim() || DEFAULT_CURRENT_ADDRESS),
     [currentAddress]
   );
+  const showLocationLoadingOverlay = locationLoading && !currentLocation && !validationPopup.open;
 
   const distanceToCustomerKm = useMemo(() => {
     if (isFollowUp) return null;
@@ -521,6 +522,7 @@ export default function DonePage() {
     } catch (err) {
       console.error('Error getting current location:', err);
       if (isMountedRef.current) {
+        setLocationLoading(false);
         await showValidationAlert(`Error: ${err.message}`, {
           title: 'Gagal Mengambil Lokasi',
           type: 'error',
@@ -1333,6 +1335,57 @@ export default function DonePage() {
         onConfirm={() => closeValidationPopup(true)}
         onCancel={() => closeValidationPopup(false)}
       />
+
+      {showLocationLoadingOverlay ? (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1400,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(10, 18, 34, 0.7)',
+            px: 3,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 1.5,
+              textAlign: 'center',
+            }}
+          >
+            <CircularProgress
+              size={52}
+              thickness={4.5}
+              sx={{ color: '#FFFFFF' }}
+            />
+            <Box>
+              <Typography
+                sx={{
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                }}
+              >
+                Mengambil lokasi Anda
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  mt: 0.4,
+                  color: 'rgba(255, 255, 255, 0.82)',
+                }}
+              >
+                Mohon tunggu sebentar agar halaman Done siap digunakan.
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      ) : null}
     </Box>
   );
 }

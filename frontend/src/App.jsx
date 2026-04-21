@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
+import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundMain from './assets/media/Background';
 
 import {
@@ -215,41 +216,54 @@ function AppContent() {
               pb: 10,
             }}
           >
-          <Box
-            aria-hidden={!isDashboardPage}
-            sx={{
-              width: '100%',
-              display: isDashboardPage ? 'block' : 'none',
-            }}
-          >
-            <Dashboard
-              refreshKey={refreshKey}
-              periodFilter={dashboardPeriod}
-              onPeriodFilterChange={setDashboardPeriod}
-              provinceFilter={dashboardProvince}
-              onProvinceFilterChange={setDashboardProvince}
-              onProvinceOptionsChange={setDashboardProvinceOptions}
-            />
-          </Box>
+            <AnimatePresence mode="wait">
+              {isDashboardPage && (
+                <motion.div
+                  key="dashboard"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <Dashboard
+                    refreshKey={refreshKey}
+                    periodFilter={dashboardPeriod}
+                    onPeriodFilterChange={setDashboardPeriod}
+                    provinceFilter={dashboardProvince}
+                    onProvinceFilterChange={setDashboardProvince}
+                    onProvinceOptionsChange={setDashboardProvinceOptions}
+                  />
+                </motion.div>
+              )}
 
-          <Box
-            aria-hidden={!isPlanMainPage}
-            sx={{
-              width: '100%',
-              display: isPlanMainPage ? 'block' : 'none',
-            }}
-          >
-            <>
-              <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-              <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-            </>
-          </Box>
+              {isPlanMainPage && (
+                <motion.div
+                  key="plan"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                </motion.div>
+              )}
 
-          {isDonePage && (
-            <Box sx={{ width: '100%' }}>
-              <DonePage />
-            </Box>
-          )}
+              {isDonePage && (
+                <motion.div
+                  key="done"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <DonePage />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Box>
         </Box>
 
