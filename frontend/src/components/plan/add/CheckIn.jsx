@@ -400,7 +400,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
             }}
           >
             <MyLocationIcon sx={{ color: 'var(--theme-blue-primary)' }} />
-            Check In
+            Prospek
           </Typography>
         </Box>
 

@@ -87,16 +87,20 @@ export default function FilterTaskPlan() {
                 px: { xs: 0.5, sm: 0.75 },
                 width: '100%',
                 whiteSpace: 'nowrap',
-                border: '1px solid rgba(203, 213, 225, 0.9)',
+                border: isSelected
+                  ? '1.5px solid var(--theme-blue-primary)'
+                  : '1px solid rgba(203, 213, 225, 0.9)',
                 color: isSelected ? tone.activeText : tone.inactiveText,
                 backgroundColor: '#FFFFFF',
-                boxShadow: 'none',
+                boxShadow: isSelected ? '0 0 0 1px rgba(31, 78, 140, 0.18)' : 'none',
                 '& .MuiButton-startIcon': {
                   mr: IconComponent ? 0.2 : 0,
                 },
                 '&:hover': {
                   backgroundColor: '#FFFFFF',
-                  borderColor: 'rgba(148, 163, 184, 0.95)',
+                  borderColor: isSelected
+                    ? 'var(--theme-blue-primary)'
+                    : 'rgba(148, 163, 184, 0.95)',
                 },
               }}
             >

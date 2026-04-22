@@ -257,8 +257,8 @@ class ActivityPlanController extends Controller
     {
         $request->validate([
             'result'    => 'nullable|string',
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude'  => 'nullable|numeric|required_with:longitude',
+            'longitude' => 'nullable|numeric|required_with:latitude',
             'accuracy'  => 'nullable|numeric',
             'photo'     => 'nullable|string', // base64
         ]);

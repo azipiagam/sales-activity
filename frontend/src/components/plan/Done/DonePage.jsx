@@ -22,6 +22,7 @@ import CardDone from './CardDone';
 import ValidateOutRange from './ValidateOutRange';
 import PopupValidationDone from './PopupValidationDone';
 import SucceedScreen from './SucceedScreen';
+import FollowUpPage from './FollowUpPage';
 
 const MASTER_ADDRESS_ID = 'master';
 const DISTANCE_LIMIT_KM = 2;
@@ -223,13 +224,12 @@ export default function DonePage() {
     showCancel: false,
   });
   const [outOfRangeDecision, setOutOfRangeDecision] = useState({
-    open: false,
+    confirmed: false,
+    decision: null,
     distanceKm: null,
-    loading: false,
   });
   const isMountedRef = useRef(true);
   const validationPopupResolverRef = useRef(null);
-  const outOfRangeDecisionResolverRef = useRef(null);
 
   const { invalidateCache, fetchPlansByDate, updatePlanInCache, getPlansByDate } = useActivityPlans();
 
@@ -294,12 +294,19 @@ export default function DonePage() {
     () => (String(currentAddress || '').trim() || DEFAULT_CURRENT_ADDRESS),
     [currentAddress]
   );
-  const showLocationLoadingOverlay = locationLoading && !currentLocation && !validationPopup.open;
+  const showLocationLoadingOverlay =
+    !isFollowUp && locationLoading && !currentLocation && !validationPopup.open;
 
   const distanceToCustomerKm = useMemo(() => {
     if (isFollowUp) return null;
     return resolveDistanceToCustomerKm(activeTask, currentLocation, validationAddressRef);
   }, [isFollowUp, activeTask, currentLocation, validationAddressRef]);
+  const isOutsideRadius = useMemo(() => {
+    if (!Number.isFinite(distanceToCustomerKm)) return false;
+    return distanceToCustomerKm > DISTANCE_LIMIT_KM;
+  }, [distanceToCustomerKm]);
+  const requiresOutOfRangeValidation = !isFollowUp && isOutsideRadius;
+  const shouldShowOutOfRangeValidation = requiresOutOfRangeValidation && !outOfRangeDecision.confirmed;
 
   const isInsideRadius = useMemo(() => {
     if (!Number.isFinite(distanceToCustomerKm)) return null;
@@ -322,21 +329,6 @@ export default function DonePage() {
       const pendingResolve = validationPopupResolverRef.current;
       validationPopupResolverRef.current = null;
       pendingResolve(Boolean(result));
-    }
-  }, []);
-
-  const closeOutOfRangeDecision = useCallback((result) => {
-    if (isMountedRef.current) {
-      setOutOfRangeDecision((prev) => ({
-        ...prev,
-        open: false,
-        loading: result === 'save' || result === 'without_save',
-      }));
-    }
-    if (outOfRangeDecisionResolverRef.current) {
-      const pendingResolve = outOfRangeDecisionResolverRef.current;
-      outOfRangeDecisionResolverRef.current = null;
-      pendingResolve(result);
     }
   }, []);
 
@@ -392,33 +384,17 @@ export default function DonePage() {
     [openValidationPopup]
   );
 
-  const showOutOfRangeDecision = useCallback(({ distanceKm }) => {
-    if (!isMountedRef.current) {
-      return Promise.resolve('cancel');
-    }
-
-    if (outOfRangeDecisionResolverRef.current) {
-      const pendingResolve = outOfRangeDecisionResolverRef.current;
-      outOfRangeDecisionResolverRef.current = null;
-      pendingResolve('cancel');
-    }
-
-    const normalizedDistance = Number.isFinite(distanceKm) ? Number(distanceKm) : null;
-
-    setOutOfRangeDecision({
-      open: true,
-      distanceKm: normalizedDistance,
-      loading: false,
-    });
-
-    return new Promise((resolve) => {
-      if (!isMountedRef.current) {
-        resolve('cancel');
-        return;
-      }
-      outOfRangeDecisionResolverRef.current = resolve;
-    });
-  }, []);
+  const handleOutOfRangeDecision = useCallback(
+    (decision) => {
+      const normalizedDistance = Number.isFinite(distanceToCustomerKm) ? Number(distanceToCustomerKm) : null;
+      setOutOfRangeDecision({
+        confirmed: true,
+        decision,
+        distanceKm: normalizedDistance,
+      });
+    },
+    [distanceToCustomerKm]
+  );
 
   useEffect(() => {
     setTaskMeta(taskData ?? null);
@@ -430,10 +406,6 @@ export default function DonePage() {
       if (validationPopupResolverRef.current) {
         validationPopupResolverRef.current(false);
         validationPopupResolverRef.current = null;
-      }
-      if (outOfRangeDecisionResolverRef.current) {
-        outOfRangeDecisionResolverRef.current('cancel');
-        outOfRangeDecisionResolverRef.current = null;
       }
     },
     []
@@ -468,8 +440,35 @@ export default function DonePage() {
     setShowLocationInfo(true);
     setValidationAddressRef(null);
     setDoneSuccess(null);
-    setOutOfRangeDecision({ open: false, distanceKm: null, loading: false });
+    setOutOfRangeDecision({ confirmed: false, decision: null, distanceKm: null });
   }, [taskId]);
+
+  useEffect(() => {
+    if (!requiresOutOfRangeValidation) {
+      setOutOfRangeDecision((prev) => {
+        if (!prev.confirmed && !prev.decision && prev.distanceKm === null) {
+          return prev;
+        }
+        return {
+          confirmed: false,
+          decision: null,
+          distanceKm: null,
+        };
+      });
+      return;
+    }
+
+    const normalizedDistance = Number.isFinite(distanceToCustomerKm) ? Number(distanceToCustomerKm) : null;
+    setOutOfRangeDecision((prev) => {
+      if (prev.distanceKm === normalizedDistance) {
+        return prev;
+      }
+      return {
+        ...prev,
+        distanceKm: normalizedDistance,
+      };
+    });
+  }, [requiresOutOfRangeValidation, distanceToCustomerKm]);
 
   useEffect(() => {
     if (!taskId || !isFollowUp || hasAutoOpenedCamera) return;
@@ -488,11 +487,6 @@ export default function DonePage() {
 
   const handleCameraCapture = (imageData) => {
     setCapturedImage(imageData);
-    setCameraError('');
-    setCameraActive(false);
-  };
-
-  const handleCloseCamera = () => {
     setCameraError('');
     setCameraActive(false);
   };
@@ -545,11 +539,11 @@ export default function DonePage() {
   };
 
   useEffect(() => {
-    if (taskId && !autoLocateAttempted && !currentLocation && !locationLoading) {
+    if (!isFollowUp && taskId && !autoLocateAttempted && !currentLocation && !locationLoading) {
       setAutoLocateAttempted(true);
       handleGetCurrentLocation();
     }
-  }, [taskId, autoLocateAttempted, currentLocation, locationLoading]);
+  }, [isFollowUp, taskId, autoLocateAttempted, currentLocation, locationLoading]);
 
   useEffect(() => {
     if (!taskId || taskMeta) return;
@@ -653,7 +647,13 @@ export default function DonePage() {
 
   const handleSaveResult = async () => {
     if (!taskId || !isMountedRef.current) return;
-    if (!currentLocation?.latitude || !currentLocation?.longitude) {
+    const latitude = Number(currentLocation?.latitude);
+    const longitude = Number(currentLocation?.longitude);
+    const hasCurrentCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+    const accuracyRaw = Number(currentLocation?.accuracy);
+    const accuracy = Number.isFinite(accuracyRaw) ? accuracyRaw : null;
+
+    if (!isFollowUp && !hasCurrentCoordinates) {
       if (isMountedRef.current) {
         await showValidationAlert('Silakan ambil lokasi saat ini terlebih dahulu.', {
           title: 'Lokasi Belum Tersedia',
@@ -682,39 +682,47 @@ export default function DonePage() {
           currentValidationAddressRef
         );
         if (Number.isFinite(distanceToCustomerKm) && distanceToCustomerKm > DISTANCE_LIMIT_KM) {
-          hasAskedFixAddressChoice = true;
-          const outOfRangeChoice = await showOutOfRangeDecision({
-            distanceKm: distanceToCustomerKm,
-          });
-          if (!isMountedRef.current) return;
-          if (outOfRangeChoice === 'cancel') {
+          if (!outOfRangeDecision.confirmed || !outOfRangeDecision.decision) {
+            await showValidationAlert(
+              'Silakan konfirmasi dulu lokasi di luar radius pada bottom sheet sebelum menyimpan done.',
+              {
+                title: 'Konfirmasi Lokasi Diperlukan',
+                type: 'warning',
+              }
+            );
             return;
           }
-          shouldSaveFixAddress = outOfRangeChoice === 'save';
+          hasAskedFixAddressChoice = true;
+          shouldSaveFixAddress = outOfRangeDecision.decision === 'save';
         }
       }
 
       setSaving(true);
       const resultText = result.trim() || '-';
-
-      updatePlanInCache(taskId, {
+      const doneCachePayload = {
         status: 'done',
         result: resultText,
-        result_location_lat: currentLocation.latitude,
-        result_location_lng: currentLocation.longitude,
-        result_location_accuracy: currentLocation.accuracy,
+        result_location_lat: hasCurrentCoordinates ? latitude : null,
+        result_location_lng: hasCurrentCoordinates ? longitude : null,
+        result_location_accuracy: hasCurrentCoordinates ? accuracy : null,
         result_saved_at: new Date().toISOString(),
-      });
+      };
+      const doneRequestPayload = {
+        result: resultText,
+        photo: capturedImage || null,
+      };
+
+      if (hasCurrentCoordinates) {
+        doneRequestPayload.latitude = latitude;
+        doneRequestPayload.longitude = longitude;
+        doneRequestPayload.accuracy = accuracy;
+      }
+
+      updatePlanInCache(taskId, doneCachePayload);
 
       const response = await apiRequest(`activity-plans/${taskId}/done`, {
         method: 'PUT',
-        body: JSON.stringify({
-          result: resultText,
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          accuracy: currentLocation.accuracy,
-          photo: capturedImage || null,
-        }),
+        body: JSON.stringify(doneRequestPayload),
       });
       if (!isMountedRef.current) return;
 
@@ -736,15 +744,12 @@ export default function DonePage() {
           currentLocation,
           currentValidationAddressRef
         );
-        if (!shouldSaveFixAddress && needsFixAddressConfirmation && !hasAskedFixAddressChoice) {
-          const outOfRangeChoice = await showOutOfRangeDecision({
-            distanceKm: distanceKm ?? null,
-          });
-          if (!isMountedRef.current) return;
-          if (outOfRangeChoice === 'cancel') {
-            return;
-          }
-          shouldSaveFixAddress = outOfRangeChoice === 'save';
+        const backendDistanceKm = Number.isFinite(distanceKm) ? distanceKm : null;
+        if (!hasAskedFixAddressChoice && needsFixAddressConfirmation && backendDistanceKm !== null) {
+          setOutOfRangeDecision((prev) => ({
+            ...prev,
+            distanceKm: backendDistanceKm,
+          }));
         }
 
         if (shouldSaveFixAddress) {
@@ -763,8 +768,8 @@ export default function DonePage() {
           } else {
             const normalizedCurrentAddress = String(currentAddress || '').trim();
             const fixAddressPayload = {
-              lat: currentLocation.latitude,
-              lng: currentLocation.longitude,
+              lat: latitude,
+              lng: longitude,
               address:
                 normalizedCurrentAddress && normalizedCurrentAddress !== DEFAULT_CURRENT_ADDRESS
                   ? normalizedCurrentAddress
@@ -825,7 +830,6 @@ export default function DonePage() {
     } finally {
       if (isMountedRef.current) {
         setSaving(false);
-        setOutOfRangeDecision((prev) => ({ ...prev, loading: false }));
       }
     }
   };
@@ -875,39 +879,32 @@ export default function DonePage() {
     );
   }
 
-  if ((outOfRangeDecision.open || outOfRangeDecision.loading) && !isFollowUp) {
+  if (isFollowUp) {
     return (
-      <Box
-        sx={{
-          minHeight: '100dvh',
-          width: '100%',
-          backgroundColor: '#f7f7f5',
-        }}
-      >
-        <ValidateOutRange
-          customerName={taskName}
-          address={customerAddress}
-          distanceKm={outOfRangeDecision.distanceKm}
-          radiusLimitKm={DISTANCE_LIMIT_KM}
-          loading={outOfRangeDecision.loading}
-          onConfirmWithoutSave={() => closeOutOfRangeDecision('without_save')}
-          onConfirmAndSave={() => closeOutOfRangeDecision('save')}
-          onCancel={() => closeOutOfRangeDecision('cancel')}
-        />
-
-        <PopupValidationDone
-          open={validationPopup.open}
-          title={validationPopup.title}
-          message={validationPopup.message}
-          type={validationPopup.type}
-          confirmText={validationPopup.confirmText}
-          cancelText={validationPopup.cancelText}
-          showCancel={validationPopup.showCancel}
-          disableBackdropClose={saving}
-          onConfirm={() => closeValidationPopup(true)}
-          onCancel={() => closeValidationPopup(false)}
-        />
-      </Box>
+      <FollowUpPage
+        taskName={taskName}
+        planNo={planNo}
+        tujuan={activeTask?.tujuan}
+        onBack={handleBackToPlan}
+        onRefreshLocation={handleGetCurrentLocation}
+        refreshLoading={locationLoading}
+        refreshDisabled={locationLoading || saving}
+        cameraActive={cameraActive}
+        saving={saving}
+        onCameraCapture={handleCameraCapture}
+        onCameraErrorChange={setCameraError}
+        capturedImage={capturedImage}
+        cameraError={cameraError}
+        result={result}
+        onResultChange={setResult}
+        onOpenCamera={handleOpenCamera}
+        onRemoveImage={() => setCapturedImage(null)}
+        onSaveResult={handleSaveResult}
+        validationPopup={validationPopup}
+        onConfirmValidationPopup={() => closeValidationPopup(true)}
+        onCancelValidationPopup={() => closeValidationPopup(false)}
+        showLocationLoadingOverlay={showLocationLoadingOverlay}
+      />
     );
   }
 
@@ -946,8 +943,7 @@ export default function DonePage() {
             overflow: 'hidden',
           }}
         >
-          {!isFollowUp ? (
-            <>
+          <>
               <Box
                 sx={{
                   position: 'absolute',
@@ -1145,73 +1141,6 @@ export default function DonePage() {
                 </Box>
               </Box>
             </>
-          ) : (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 1,
-                px: { xs: 2, sm: 2.5 },
-                py: { xs: 1.5, sm: 2 },
-              }}
-            >
-              <Box
-                sx={{
-                  width: '100%',
-                  maxWidth: 540,
-                  mx: 'auto',
-                  height: '100%',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  border: '1px solid rgba(22, 58, 107, 0.15)',
-                  backgroundColor: '#cfdced',
-                  boxShadow: '0 12px 24px rgba(10, 28, 53, 0.18)',
-                  position: 'relative',
-                }}
-              >
-                {capturedImage ? (
-                  <Box
-                    component="img"
-                    src={capturedImage}
-                    alt="Swafoto Follow Up"
-                    sx={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      px: 3,
-                      background:
-                        'linear-gradient(160deg, rgba(224, 236, 250, 1) 0%, rgba(201, 219, 241, 1) 100%)',
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        color: '#27486e',
-                        fontWeight: 700,
-                        fontSize: { xs: '0.9rem', sm: '0.98rem' },
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      Belum ada swafoto.
-                      <br />
-                      Ambil foto untuk ditampilkan di latar belakang.
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Box>
-          )}
         </Box>
       )}
 
@@ -1259,67 +1188,85 @@ export default function DonePage() {
             }}
           />
 
-          {cameraActive ? (
+          {shouldShowOutOfRangeValidation ? (
+            <ValidateOutRange
+              distanceKm={outOfRangeDecision.distanceKm}
+              radiusLimitKm={DISTANCE_LIMIT_KM}
+              onConfirmWithoutSave={() => handleOutOfRangeDecision('without_save')}
+              onConfirmAndSave={() => handleOutOfRangeDecision('save')}
+              onCancel={() => {
+                setOutOfRangeDecision((prev) => ({
+                  ...prev,
+                  confirmed: false,
+                  decision: null,
+                }));
+                handleGetCurrentLocation();
+              }}
+            />
+          ) : (
             <>
-              <Typography
-                variant="caption"
+              {cameraActive ? (
+                <>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      color: cameraError ? '#b3261e' : '#1b3557',
+                      fontWeight: 700,
+                      mb: 1.15,
+                    }}
+                  >
+                    {cameraError || 'Kamera aktif. Gunakan tombol Ambil Foto di layar kamera.'}
+                  </Typography>
+                </>
+              ) : null}
+
+              {!currentLocation ? (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    color: '#b3261e',
+                    fontWeight: 600,
+                    mb: 1.15,
+                  }}
+                >
+                  Lokasi belum tersedia. Gunakan tombol refresh di header atau Ambil Lokasi Saat Ini pada area map.
+                </Typography>
+              ) : null}
+
+              <CardDone
+                result={result}
+                onResultChange={setResult}
+                capturedImage={capturedImage}
+                onOpenCamera={handleOpenCamera}
+                onRemoveImage={() => setCapturedImage(null)}
+                disabled={saving}
+              />
+
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleSaveResult}
+                disabled={saving || !currentLocation}
                 sx={{
-                  display: 'block',
-                  color: cameraError ? '#b3261e' : '#1b3557',
+                  mt: 1.6,
+                  minHeight: 52,
+                  textTransform: 'none',
+                  borderRadius: '11px',
                   fontWeight: 700,
-                  mb: 1.15,
+                  fontSize: '0.98rem',
+                  color: '#fff',
+                  backgroundColor: '#163a6b',
+                  '&:hover': {
+                    backgroundColor: '#1f4e8c',
+                  },
                 }}
               >
-                {cameraError || 'Kamera aktif. Gunakan tombol Ambil Foto di layar kamera.'}
-              </Typography>
+                {saving ? <CircularProgress size={20} color="inherit" /> : 'Submit'}
+              </Button>
             </>
-          ) : null}
-
-          {!currentLocation ? (
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                color: '#b3261e',
-                fontWeight: 600,
-                mb: 1.15,
-              }}
-            >
-              Lokasi belum tersedia. Gunakan tombol refresh di header
-              {!isFollowUp ? ' atau Ambil Lokasi Saat Ini pada area map.' : '.'}
-            </Typography>
-          ) : null}
-
-          <CardDone
-            result={result}
-            onResultChange={setResult}
-            capturedImage={capturedImage}
-            onOpenCamera={handleOpenCamera}
-            onRemoveImage={() => setCapturedImage(null)}
-            disabled={saving}
-          />
-
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleSaveResult}
-            disabled={saving || !currentLocation}
-            sx={{
-              mt: 1.6,
-              minHeight: 52,
-              textTransform: 'none',
-              borderRadius: '11px',
-              fontWeight: 700,
-              fontSize: '0.98rem',
-              color: '#fff',
-              backgroundColor: '#163a6b',
-              '&:hover': {
-                backgroundColor: '#1f4e8c',
-              },
-            }}
-          >
-            {saving ? <CircularProgress size={20} color="inherit" /> : 'Done'}
-          </Button>
+          )}
         </Paper>
       </Box>
 

@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ActivityPlanService
 {
@@ -123,12 +124,35 @@ class ActivityPlanService
             throw new \Exception("Activity plan not found");
         }
 
+        $normalizedActivityType = strtolower(trim((string) ($plan->tujuan ?? '')));
+        $isFollowUp = in_array($normalizedActivityType, ['follow up', 'follow_up', 'followup'], true);
+
+        $hasLatitude = $latitude !== null && $latitude !== '' && is_numeric($latitude);
+        $hasLongitude = $longitude !== null && $longitude !== '' && is_numeric($longitude);
+
+        if (($hasLatitude && !$hasLongitude) || (!$hasLatitude && $hasLongitude)) {
+            throw ValidationException::withMessages([
+                'latitude' => ['Latitude and longitude must be provided together.'],
+                'longitude' => ['Latitude and longitude must be provided together.'],
+            ]);
+        }
+
+        if (!$isFollowUp && (!$hasLatitude || !$hasLongitude)) {
+            throw ValidationException::withMessages([
+                'latitude' => ['Latitude and longitude are required for Visit activity.'],
+                'longitude' => ['Latitude and longitude are required for Visit activity.'],
+            ]);
+        }
+
+        $normalizedLatitude = $hasLatitude ? (float) $latitude : null;
+        $normalizedLongitude = $hasLongitude ? (float) $longitude : null;
+
         // ── Distance calculation ──────────────────────────────────────────────
         $distanceMeter = $this->calculateDistance(
             $plan->customer_location_lat ?? null,
             $plan->customer_location_lng ?? null,
-            $latitude,
-            $longitude
+            $normalizedLatitude,
+            $normalizedLongitude
         );
 
         // ── Fix-address confirmation flag ─────────────────────────────────────
@@ -187,8 +211,8 @@ class ActivityPlanService
             ->update([
                 'status'                    => 'done',
                 'result'                    => $result,
-                'result_location_lat'       => $latitude,
-                'result_location_lng'       => $longitude,
+                'result_location_lat'       => $normalizedLatitude,
+                'result_location_lng'       => $normalizedLongitude,
                 'result_location_accuracy'  => $distanceMeter,
                 'result_location_timestamp' => $now,
                 'result_saved_at'           => $now,
