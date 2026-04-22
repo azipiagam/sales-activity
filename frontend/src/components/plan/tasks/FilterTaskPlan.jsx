@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
-import MyLocationIcon from '@mui/icons-material/MyLocation';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 
 const TASK_TYPE_FILTER_OPTIONS = [
@@ -26,7 +26,7 @@ const TASK_TYPE_FILTER_OPTIONS = [
   {
     key: 'prospek',
     label: 'Prospek',
-    icon: MyLocationIcon,
+    icon: PersonSearchIcon,
   },
 ];
 

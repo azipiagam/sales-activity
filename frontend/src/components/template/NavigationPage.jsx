@@ -11,8 +11,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddLocationIcon from '@mui/icons-material/AddLocation';
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
-import MyLocationIcon from '@mui/icons-material/MyLocation';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 
 const menuButtonSx = {
   justifyContent: 'flex-start',
@@ -149,7 +149,7 @@ export default function NavigationPage({
               fullWidth
               onClick={onSelectFollowUp}
               sx={menuButtonSx}
-              startIcon={<PlaylistAddCheckIcon />}
+              startIcon={<ForumOutlinedIcon />}
               endIcon={<ChevronRightIcon />}
             >
               <Box sx={menuTextSx}>
@@ -167,7 +167,7 @@ export default function NavigationPage({
               fullWidth
               onClick={onSelectCheckIn}
               sx={menuButtonSx}
-              startIcon={<MyLocationIcon />}
+              startIcon={<PersonSearchIcon />}
               endIcon={<ChevronRightIcon />}
             >
               <Box sx={menuTextSx}>
@@ -175,7 +175,7 @@ export default function NavigationPage({
                   Prospek
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: '#667085', lineHeight: 1.2, textAlign: 'left' }}>
-                  Record Presence At Current Location
+                  Prospect New Customer Direct Visit
                 </Typography>
               </Box>
             </Button>

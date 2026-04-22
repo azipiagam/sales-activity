@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
 import { apiRequest } from '../../services/api';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
-import logoPiagam from '../../assets/media/logo-piagam2.png';
+import logoPiagam from '../../assets/media/logo-piagam2.svg';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
 import { downloadDashboardPdf } from '../../utils/dashboardExport';
 import DashboardDownloadDialog from '../dashboard/DashboardDownloadDialog';

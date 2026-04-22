@@ -301,8 +301,8 @@ export default function DateCarousel({
               onClick={() => handleDateClick(date)}
               aria-pressed={selected}
               sx={{
-                minWidth: { xs: '38px', sm: '42px', md: '46px' },
-                width: { xs: '38px', sm: '42px', md: '46px' },
+                minWidth: { xs: '42px', sm: '46px', md: '50px' },
+                width: { xs: '42px', sm: '46px', md: '50px' },
                 flexShrink: 0,
                 flexGrow: 0,
                 display: 'flex',
@@ -354,7 +354,7 @@ export default function DateCarousel({
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: { xs: '0.55rem', sm: '0.6rem', md: '0.65rem' },
+                  fontSize: { xs: '0.58rem', sm: '0.64rem', md: '0.7rem' },
                   fontWeight: 600,
                   mb: { xs: 0.15, sm: 0.25 },
                   color: selected ? selectedDateText : 'rgba(235, 244, 255, 0.88)',
@@ -366,7 +366,7 @@ export default function DateCarousel({
               <Typography
                 variant="h6"
                 sx={{
-                  fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1.05rem' },
+                  fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' },
                   fontWeight: 700,
                   color: selected ? selectedDateText : textOnBluePrimary,
                   lineHeight: 1.1,

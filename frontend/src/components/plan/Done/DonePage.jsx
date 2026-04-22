@@ -192,6 +192,11 @@ const resolveDistanceToCustomerKm = (task, currentLocation, validationAddressRef
   );
 };
 
+const resolveValidationAddressSource = (task, validationAddressRef) => {
+  const customerAddressId = getTaskAddressId(task);
+  return normalizeAddressSource(validationAddressRef?.source, customerAddressId ?? MASTER_ADDRESS_ID);
+};
+
 export default function DonePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -305,7 +310,14 @@ export default function DonePage() {
     if (!Number.isFinite(distanceToCustomerKm)) return false;
     return distanceToCustomerKm > DISTANCE_LIMIT_KM;
   }, [distanceToCustomerKm]);
-  const requiresOutOfRangeValidation = !isFollowUp && isOutsideRadius;
+  const isPrimaryCustomerAddress = useMemo(
+    () => resolveValidationAddressSource(activeTask, validationAddressRef) !== 'custom',
+    [activeTask, validationAddressRef]
+  );
+  const customerLocationLabel = isPrimaryCustomerAddress
+    ? 'Lokasi Customer (Alamat Utama)'
+    : 'Lokasi Customer (Alamat Alternative)';
+  const requiresOutOfRangeValidation = !isFollowUp && isOutsideRadius && isPrimaryCustomerAddress;
   const shouldShowOutOfRangeValidation = requiresOutOfRangeValidation && !outOfRangeDecision.confirmed;
 
   const isInsideRadius = useMemo(() => {
@@ -676,12 +688,18 @@ export default function DonePage() {
       }
 
       if (!isFollowUp) {
+        const shouldValidateOutOfRange =
+          resolveValidationAddressSource(activeTask, currentValidationAddressRef) !== 'custom';
         const distanceToCustomerKm = resolveDistanceToCustomerKm(
           activeTask,
           currentLocation,
           currentValidationAddressRef
         );
-        if (Number.isFinite(distanceToCustomerKm) && distanceToCustomerKm > DISTANCE_LIMIT_KM) {
+        if (
+          shouldValidateOutOfRange &&
+          Number.isFinite(distanceToCustomerKm) &&
+          distanceToCustomerKm > DISTANCE_LIMIT_KM
+        ) {
           if (!outOfRangeDecision.confirmed || !outOfRangeDecision.decision) {
             await showValidationAlert(
               'Silakan konfirmasi dulu lokasi di luar radius pada bottom sheet sebelum menyimpan done.',
@@ -1025,7 +1043,7 @@ export default function DonePage() {
                               variant="caption"
                               sx={{ display: 'block', color: '#1b3557', fontWeight: 700, mb: 0.25 }}
                             >
-                              Lokasi Customer (Target)
+                              {customerLocationLabel}
                             </Typography>
                             <Typography
                               variant="caption"

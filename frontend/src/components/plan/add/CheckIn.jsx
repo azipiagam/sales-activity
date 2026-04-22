@@ -21,7 +21,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
-import MyLocationIcon from '@mui/icons-material/MyLocation';
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 
@@ -387,19 +387,19 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
           >
             <ArrowBackIcon />
           </IconButton>
-          <Typography
-            variant="h5"
-            sx={{
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-              fontWeight: 700,
-              color: 'var(--theme-blue-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              flex: 1,
-            }}
-          >
-            <MyLocationIcon sx={{ color: 'var(--theme-blue-primary)' }} />
+            <Typography
+              variant="h5"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                fontWeight: 700,
+                color: 'var(--theme-blue-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flex: 1,
+              }}
+            >
+            <PersonSearchIcon sx={{ color: 'var(--theme-blue-primary)' }} />
             Prospek
           </Typography>
         </Box>
