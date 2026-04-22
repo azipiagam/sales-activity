@@ -63,7 +63,6 @@ function AppContent() {
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dashboardPeriod, setDashboardPeriod] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [dashboardProvince, setDashboardProvince] = useState('Semua Provinsi');
@@ -137,7 +136,7 @@ function AppContent() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const headerHeight = { xs: '150px', sm: '157px', md: '170px' };
+  const headerHeight = { xs: '122px', sm: '128px', md: '138px' };
 
   useEffect(() => {
     if (Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0) {
@@ -180,7 +179,6 @@ function AppContent() {
               onPickerDateChange={handlePickerDateChange}
               selectedDate={selectedDate}
               onDateChange={setSelectedDate}
-              onDateCarouselLoadingChange={setIsDateCarouselLoading}
               onRefresh={handleRefresh}
               dashboardPeriod={dashboardPeriod}
               onDashboardPeriodChange={setDashboardPeriod}
@@ -188,9 +186,6 @@ function AppContent() {
               onDashboardProvinceChange={setDashboardProvince}
               dashboardProvinceOptions={dashboardProvinceOptions}
             />
-
-            {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
-            {isDateCarouselLoading && <LoadingManager type="moveDate" />}
           </>
         )}
 
@@ -246,8 +241,8 @@ function AppContent() {
                   transition={{ duration: 0.3 }}
                   style={{ width: '100%' }}
                 >
-                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
+                  <MyTasks selectedDate={selectedDate} />
+                  <ActiveTask selectedDate={selectedDate} />
                 </motion.div>
               )}
 

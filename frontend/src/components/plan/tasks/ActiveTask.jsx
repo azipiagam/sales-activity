@@ -17,7 +17,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
-import Chip from '@mui/material/Chip';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -84,7 +83,28 @@ const normalizeTujuan = (tujuan) => {
   return ACTIVITY_TYPES.VISIT;
 };
 
-export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
+const getDisplayStatusLabel = (task) => {
+  const normalizedStatus = String(task?.status || '').toLowerCase().trim();
+  const normalizedPurpose = normalizeTujuan(task?.tujuan);
+
+  if (normalizedStatus === 'in progress') {
+    return normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP ? 'Belum follow up' : 'Belum dikunjungi';
+  }
+
+  if (normalizedStatus === 'done') {
+    return 'Selesai';
+  }
+
+  const fallbackStatusMap = {
+    deleted: 'Cancel',
+    missed: 'Missed',
+    rescheduled: 'Rescheduled',
+  };
+
+  return fallbackStatusMap[normalizedStatus] || 'In Progress';
+};
+
+export default function ActiveTask({ selectedDate }) {
   const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
@@ -672,8 +692,8 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
 
 
-  // Show loading state (but not if DateCarousel is loading - it has priority)
-  if (loading && !isDateCarouselLoading) {
+  // Show loading state while fetching the selected date.
+  if (loading) {
     return <LoadingManager type="skeleton" />;
   }
 
@@ -751,10 +771,9 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background:
-                'radial-gradient(circle at 30% 30%, rgba(31, 78, 140, 0.24), rgba(31, 78, 140, 0.1) 68%, rgba(22, 58, 107, 0.05) 100%)',
-              border: '1px solid rgba(31, 78, 140, 0.2)',
-              boxShadow: '0 16px 34px rgba(22, 58, 107, 0.16)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              boxShadow: '0 16px 34px rgba(15, 23, 42, 0.08)',
             }}
           >
             <TaskOutlinedIcon
@@ -794,6 +813,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const isCustomerNameExpanded = expandedCustomerNameId === activeTask.id;
         const summaryLabel = isExpanded ? 'Plan No' : 'Additional Information';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
+        const displayStatusLabel = getDisplayStatusLabel(activeTask);
         const cardTone = {
           accent: 'var(--theme-blue-primary)',
           text: 'var(--theme-blue-overlay)',
@@ -804,68 +824,53 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const statusToneMap = {
           done: {
             ...cardTone,
-            icon: TaskAltIcon,
           },
           missed: {
             ...cardTone,
-            icon: WarningIcon,
           },
           rescheduled: {
             ...cardTone,
-            icon: EventIcon,
           },
           deleted: {
             ...cardTone,
-            icon: CancelIcon,
           },
           'in progress': {
             ...cardTone,
-            icon: AutorenewIcon,
           },
         };
         const tone = statusToneMap[activeTask.status] || statusToneMap['in progress'];
-        const StatusIcon = tone.icon;
-        const statusChipMap = {
-          done: 'Done',
-          deleted: 'Cancel',
-          missed: 'Missed',
-          rescheduled: 'Rescheduled',
-          'in progress': 'In Progress',
-        };
-        const statusChipToneMap = {
+        const statusTextColorMap = {
           done: {
-            backgroundColor: 'rgba(46, 125, 50, 0.14)',
             color: '#2e7d32',
-            border: '1px solid rgba(46, 125, 50, 0.28)',
           },
           missed: {
-            backgroundColor: 'rgba(239, 83, 80, 0.14)',
             color: '#d6524f',
-            border: '1px solid rgba(239, 83, 80, 0.28)',
           },
           rescheduled: {
-            backgroundColor: 'rgba(255, 167, 38, 0.16)',
             color: '#d2871e',
-            border: '1px solid rgba(255, 167, 38, 0.3)',
           },
           deleted: {
-            backgroundColor: 'rgba(120, 144, 156, 0.16)',
             color: '#607d8b',
-            border: '1px solid rgba(120, 144, 156, 0.28)',
           },
           'in progress': {
-            backgroundColor: 'rgba(255, 193, 7, 0.18)',
             color: '#b7791f',
-            border: '1px solid rgba(255, 193, 7, 0.34)',
           },
         };
-        const statusChipTone = statusChipToneMap[activeTask.status] || statusChipToneMap['in progress'];
+        const statusTextTone = statusTextColorMap[activeTask.status] || statusTextColorMap['in progress'];
+        const statusIconMap = {
+          done: TaskAltIcon,
+          missed: WarningIcon,
+          rescheduled: EventIcon,
+          deleted: CancelIcon,
+          'in progress': AutorenewIcon,
+        };
+        const StatusIcon = statusIconMap[activeTask.status] || statusIconMap['in progress'];
 
         return (
         <Box
           key={`task-${activeTask.id}-${activeTask.status}-${activeTask.visitDate.getTime()}`}
           sx={{
-            background: `linear-gradient(135deg, ${tone.tint} 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)`,
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '10px', sm: '12px', md: '14px' },
             padding: { xs: 1.75, sm: 2.25, md: 2.75 },
             border: `1px solid ${tone.border}`,
@@ -880,7 +885,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               content: '""',
               position: 'absolute',
               inset: 0,
-              background: `linear-gradient(90deg, ${tone.stripe} 0%, rgba(255, 255, 255, 0) 42%)`,
+              background: 'transparent',
               pointerEvents: 'none',
             },
             '&:hover': {
@@ -972,40 +977,15 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   </ClickAwayListener>
                 </Box>
 
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 0.5,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Chip
-                    icon={<StatusIcon />}
-                    label={statusChipMap[activeTask.status] || 'In Progress'}
-                    size="small"
+                {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
+                  <Box
                     sx={{
-                      backgroundColor: statusChipTone.backgroundColor,
-                      color: statusChipTone.color,
-                      border: statusChipTone.border,
-                      fontWeight: 600,
-                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                      height: '28px',
-                      px: 0.25,
-                      '& .MuiChip-label': {
-                        px: 0.5,
-                      },
-                      '& .MuiChip-icon': {
-                        color: 'inherit',
-                        fontSize: '1rem',
-                        ml: 0.75,
-                        mr: -0.25,
-                      },
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      flexShrink: 0,
                     }}
-                  />
-
-                  {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
+                  >
                     <IconButton
                       onClick={(e) => handleOpenMenu(e, activeTask.id)}
                       size="small"
@@ -1020,16 +1000,84 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     >
                       <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                     </IconButton>
-                  )}
-                </Box>
+                  </Box>
+                )}
               </Box>
+
+              {!isExpanded && (
+                <Box
+                  sx={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    <StatusIcon
+                      sx={{
+                        fontSize: { xs: '1rem', sm: '1.1rem' },
+                        color: statusTextTone.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                        color: statusTextTone.color,
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {displayStatusLabel}
+                    </Typography>
+                  </Box>
+                  <Button
+                    onClick={() => toggleTaskDetails(activeTask.id)}
+                    variant="text"
+                    size="small"
+                    endIcon={<KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                      color: tone.text,
+                      px: 0,
+                      minWidth: 'auto',
+                      alignSelf: 'center',
+                      justifyContent: 'flex-end',
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                    aria-expanded={isExpanded}
+                    aria-label="Klik untuk melihat detail task"
+                  >
+                    View Detail
+                  </Button>
+                </Box>
+              )}
 
               <Box
                 sx={{
                   width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
+                  justifyContent: isExpanded ? 'space-between' : 'flex-start',
                   gap: 1,
                 }}
               >
@@ -1061,36 +1109,32 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     {summaryValue}
                   </Typography>
                 </Box>
-                <Button
-                  onClick={() => toggleTaskDetails(activeTask.id)}
-                  variant="text"
-                  size="small"
-                  endIcon={
-                    isExpanded ? (
-                      <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                    ) : (
-                      <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                    )
-                  }
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                    color: tone.text,
-                    px: 0,
-                    minWidth: 'auto',
-                    alignSelf: 'flex-end',
-                    justifyContent: 'flex-end',
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                      textDecoration: 'underline',
-                    },
-                  }}
-                  aria-expanded={isExpanded}
-                  aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
-                >
-                  {isExpanded ? 'Hide Detail' : 'View Detail'}
-                </Button>
+                {isExpanded && (
+                  <Button
+                    onClick={() => toggleTaskDetails(activeTask.id)}
+                    variant="text"
+                    size="small"
+                    endIcon={<KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                      color: tone.text,
+                      px: 0,
+                      minWidth: 'auto',
+                      alignSelf: 'flex-end',
+                      justifyContent: 'flex-end',
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        textDecoration: 'underline',
+                      },
+                    }}
+                    aria-expanded={isExpanded}
+                    aria-label="Klik untuk menyembunyikan detail task"
+                  >
+                    Hide Detail
+                  </Button>
+                )}
               </Box>
             </Box>
 
@@ -1210,7 +1254,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     },
                   }}
                 >
-                  Done
+                  Check-In Sekarang
                 </Button>
               )}
             </Box>

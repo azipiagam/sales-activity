@@ -233,11 +233,11 @@ export default function MyTasks({ selectedDate }) {
     borderColor: `rgba(${baseRgb}, 0.12)`,
     selectedBorderColor: `rgba(${baseRgb}, 0.22)`,
     ringColor: `rgba(${baseRgb}, 0.12)`,
-    orbColor: `rgba(${baseRgb}, 0.08)`,
+    orbColor: 'rgba(255, 255, 255, 0.9)',
     iconColor: `rgb(${baseRgb})`,
     shadowColor: sharedCardShadow,
-    selectedBackground: `linear-gradient(145deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.16) 68%, rgba(255, 255, 255, 0.96) 100%)`,
-    background: `linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(${baseRgb}, 0.09) 72%, rgba(255, 255, 255, 0.95) 100%)`,
+    selectedBackground: '#FFFFFF',
+    background: '#FFFFFF',
   });
 
   const blueCardTone = createCardTone('31, 78, 140');
@@ -247,19 +247,19 @@ export default function MyTasks({ selectedDate }) {
   const taskCards = [
     {
       key: 'plan',
-      label: 'Plan',
+      label: 'Total',
       value: stats.plan,
       ...blueCardTone,
     },
     {
       key: 'done',
-      label: 'Done',
+      label: 'Selesai',
       value: stats.done,
       ...greenCardTone,
     },
     {
       key: 'more',
-      label: 'To Do',
+      label: 'Belum',
       value: stats.more,
       ...yellowCardTone,
     },
@@ -292,8 +292,8 @@ export default function MyTasks({ selectedDate }) {
               sx={{
                 background: isSelected ? card.selectedBackground : card.background,
                 borderRadius: { xs: '12px', sm: '14px', md: '16px' },
-                padding: { xs: 2, sm: 2.5, md: 3 },
-                minHeight: { xs: '88px', sm: '96px', md: '104px' },
+                padding: { xs: 1.5, sm: 1.75, md: 2 },
+                minHeight: { xs: '72px', sm: '80px', md: '88px' },
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',

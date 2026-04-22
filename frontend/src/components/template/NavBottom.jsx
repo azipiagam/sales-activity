@@ -24,7 +24,8 @@ export default function NavBottom({ value, onChange }) {
   const [addressSelection, setAddressSelection] = useState(null);
   const [previousDialog, setPreviousDialog] = useState(null);
 
-  const themeBlueDark = 'var(--theme-blue-overlay)';
+  const headerBaseColor = '#163a6b';
+  const themeBlueDark = headerBaseColor;
   const themeBlue = 'var(--theme-blue-primary)';
   const themeBlueDarkRgb = '22, 58, 107';
   const themeBlueRgb = '31, 78, 140';
@@ -170,11 +171,11 @@ export default function NavBottom({ value, onChange }) {
             }}
             sx={{
               borderTop: '1px solid',
-              borderColor: 'rgba(255, 255, 255, 0.24)',
-              background: `linear-gradient(135deg, ${themeBlueDark} 0%, ${themeBlue} 62%, ${themeBlueLight} 100%)`,
-              borderTopLeftRadius: '20px',
-              borderTopRightRadius: '20px',
-              boxShadow: `0 -10px 24px rgba(${themeBlueDarkRgb}, 0.35)`,
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              backgroundColor: headerBaseColor,
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+              boxShadow: '0 -10px 28px rgba(10, 28, 53, 0.3)',
               width: '100%',
               '& .MuiBottomNavigationAction-root': {
                 color: 'rgba(255, 255, 255, 0.9)',
@@ -190,7 +191,7 @@ export default function NavBottom({ value, onChange }) {
                 '&.Mui-selected': {
                   color: themeGold,
                   backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                  borderRadius: '12px',
+                  borderRadius: 0,
                 },
               },
             }}

@@ -172,7 +172,7 @@ export default function NavigationPage({
             >
               <Box sx={menuTextSx}>
                 <Typography sx={{ fontWeight: 700, color: '#1f4e8c', lineHeight: 1.2, textAlign: 'left' }}>
-                  Check In
+                  Prospek
                 </Typography>
                 <Typography sx={{ fontSize: '0.8rem', color: '#667085', lineHeight: 1.2, textAlign: 'left' }}>
                   Record Presence At Current Location
