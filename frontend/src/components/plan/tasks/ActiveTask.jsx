@@ -11,7 +11,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
 import EditIcon from '@mui/icons-material/Edit';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -73,6 +72,14 @@ const sortTasksByStatusAndDate = (tasks, selectedFilter) => {
 const ACTIVITY_TYPES = {
   VISIT: 'Visit',
   FOLLOW_UP: 'Follow Up',
+  PROSPEK: 'Prospek',
+};
+
+const TASK_TYPE_FILTER = {
+  ALL: 'all',
+  VISIT: 'visit',
+  FOLLOW_UP: 'follow_up',
+  PROSPEK: 'prospek',
 };
 
 const normalizeTujuan = (tujuan) => {
@@ -83,12 +90,97 @@ const normalizeTujuan = (tujuan) => {
   return ACTIVITY_TYPES.VISIT;
 };
 
+const isCheckInTask = (task = {}) => {
+  const normalizedCustomerName = String(task?.customer_name ?? task?.namaCustomer ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  const normalizedAdditionalInfo = String(task?.keterangan_tambahan ?? task?.tambahan ?? '')
+    .toLowerCase()
+    .trim();
+
+  return normalizedCustomerName === 'checkin' || normalizedAdditionalInfo === 'checkin di tempat';
+};
+
+const resolveTaskActivityType = (task = {}) => {
+  const normalizedPurpose = String(task?.tujuan || '').toLowerCase().trim();
+  if (
+    normalizedPurpose === 'prospek' ||
+    normalizedPurpose === 'prospect' ||
+    normalizedPurpose === 'check in' ||
+    normalizedPurpose === 'check-in' ||
+    normalizedPurpose === 'checkin'
+  ) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  if (isCheckInTask(task)) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  return normalizeTujuan(task?.tujuan);
+};
+
+const filterTasksByStatus = (tasks, selectedFilter) => {
+  if (selectedFilter === 'done') {
+    return tasks.filter((task) => task.status === 'done');
+  }
+
+  if (selectedFilter === 'more') {
+    return tasks.filter(
+      (task) =>
+        task.status === 'in progress' || task.status === 'rescheduled' || task.status === 'missed'
+    );
+  }
+
+  if (selectedFilter === 'plan') {
+    return tasks.filter(
+      (task) =>
+        task.status === 'done' ||
+        task.status === 'in progress' ||
+        task.status === 'rescheduled' ||
+        task.status === 'missed'
+    );
+  }
+
+  return tasks;
+};
+
+const filterTasksByType = (tasks, selectedTaskTypeFilter) => {
+  if (!selectedTaskTypeFilter || selectedTaskTypeFilter === TASK_TYPE_FILTER.ALL) {
+    return tasks;
+  }
+
+  return tasks.filter((task) => {
+    const normalizedPurpose = resolveTaskActivityType(task);
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.VISIT) {
+      return normalizedPurpose === ACTIVITY_TYPES.VISIT;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.FOLLOW_UP) {
+      return normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.PROSPEK) {
+      return normalizedPurpose === ACTIVITY_TYPES.PROSPEK;
+    }
+
+    return true;
+  });
+};
+
 const getDisplayStatusLabel = (task) => {
   const normalizedStatus = String(task?.status || '').toLowerCase().trim();
-  const normalizedPurpose = normalizeTujuan(task?.tujuan);
+  const normalizedPurpose = resolveTaskActivityType(task);
 
   if (normalizedStatus === 'in progress') {
-    return normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP ? 'Belum follow up' : 'Belum dikunjungi';
+    if (normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP) {
+      return 'Belum follow up';
+    }
+    if (normalizedPurpose === ACTIVITY_TYPES.PROSPEK) {
+      return 'Belum check in';
+    }
+    return 'Belum dikunjungi';
   }
 
   if (normalizedStatus === 'done') {
@@ -122,9 +214,17 @@ export default function ActiveTask({ selectedDate }) {
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
-  const [expandedCustomerNameId, setExpandedCustomerNameId] = useState(null);
 
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
+  const {
+    fetchPlansByDate,
+    getPlansByDate,
+    isLoading,
+    getError,
+    invalidateCache,
+    updatePlanInCache,
+    selectedFilter,
+    selectedTaskTypeFilter,
+  } = useActivityPlans();
   const safeMenuAnchor = menuAnchor?.isConnected ? menuAnchor : null;
   
   const dateToUse = selectedDate || new Date();
@@ -220,7 +320,7 @@ export default function ActiveTask({ selectedDate }) {
           }
           
           // Format tujuan
-          const formattedTujuan = normalizeTujuan(taskData.tujuan);
+          const formattedTujuan = resolveTaskActivityType(taskData);
           
         return {
           id: taskData.id,
@@ -238,29 +338,15 @@ export default function ActiveTask({ selectedDate }) {
         };
         });
         
-        // Filter tasks based on selectedFilter
-        let filteredTasks = processedTasks;
-        if (selectedFilter === 'done') {
-          filteredTasks = processedTasks.filter(t => t.status === 'done');
-        } else if (selectedFilter === 'more') {
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-          );
-        } else if (selectedFilter === 'plan') {
-          // Show all (done + in progress + rescheduled + missed)
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'done' || 
-            t.status === 'in progress' || 
-            t.status === 'rescheduled' || 
-            t.status === 'missed'
-          );
-        }
+        let filteredTasks = filterTasksByStatus(processedTasks, selectedFilter);
+        filteredTasks = filterTasksByType(filteredTasks, selectedTaskTypeFilter);
         
         sortTasksByStatusAndDate(filteredTasks, selectedFilter);
         
         console.log('[ActiveTask] Final processedTasks (fetchActiveTask):', {
           count: filteredTasks.length,
           selectedFilter,
+          selectedTaskTypeFilter,
           tasks: filteredTasks.map(t => ({
             id: t.id,
             plan_no: t.idPlan,
@@ -278,7 +364,7 @@ export default function ActiveTask({ selectedDate }) {
       console.error('Error fetching active task:', err);
       setActiveTasks([]);
     }
-  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter]);
+  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter, selectedTaskTypeFilter]);
 
   // Gabungkan kedua useEffect menjadi satu untuk menghindari race conditions
   useEffect(() => {
@@ -321,7 +407,7 @@ export default function ActiveTask({ selectedDate }) {
           status = 'missed';
         }
 
-        const formattedTujuan = normalizeTujuan(taskData.tujuan);
+        const formattedTujuan = resolveTaskActivityType(taskData);
 
         return {
           id: taskData.id,
@@ -339,22 +425,8 @@ export default function ActiveTask({ selectedDate }) {
         };
       });
 
-      // Filter tasks based on selectedFilter
-      let filteredTasks = processedTasks;
-      if (selectedFilter === 'done') {
-        filteredTasks = processedTasks.filter(t => t.status === 'done');
-      } else if (selectedFilter === 'more') {
-        filteredTasks = processedTasks.filter(t =>
-          t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-        );
-      } else if (selectedFilter === 'plan') {
-        filteredTasks = processedTasks.filter(t =>
-          t.status === 'done' ||
-          t.status === 'in progress' ||
-          t.status === 'rescheduled' ||
-          t.status === 'missed'
-        );
-      }
+      let filteredTasks = filterTasksByStatus(processedTasks, selectedFilter);
+      filteredTasks = filterTasksByType(filteredTasks, selectedTaskTypeFilter);
 
       sortTasksByStatusAndDate(filteredTasks, selectedFilter);
 
@@ -362,7 +434,7 @@ export default function ActiveTask({ selectedDate }) {
     } else {
       setActiveTasks([]);
     }
-  }, [dateToUse, selectedFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
+  }, [dateToUse, selectedFilter, selectedTaskTypeFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
 
   useEffect(() => {
     const handlePlanCreated = async () => {
@@ -727,12 +799,21 @@ export default function ActiveTask({ selectedDate }) {
 
   // Show no active task state
   if (activeTasks.length === 0) {
-    const emptyTaskLabel =
+    const emptyTaskLabelByStatus =
       selectedFilter === 'done'
         ? 'Belum ada task selesai'
         : selectedFilter === 'more'
         ? 'Belum ada task yang perlu dikerjakan'
         : 'Task kosong';
+    const taskTypeLabelMap = {
+      [TASK_TYPE_FILTER.VISIT]: 'Visit',
+      [TASK_TYPE_FILTER.FOLLOW_UP]: 'Follow Up',
+      [TASK_TYPE_FILTER.PROSPEK]: 'Prospek',
+    };
+    const selectedTaskTypeLabel = taskTypeLabelMap[selectedTaskTypeFilter];
+    const emptyTaskLabel = selectedTaskTypeLabel
+      ? `${emptyTaskLabelByStatus} untuk tipe ${selectedTaskTypeLabel}`
+      : emptyTaskLabelByStatus;
 
     return (
       <Container
@@ -808,12 +889,15 @@ export default function ActiveTask({ selectedDate }) {
     >
       {activeTasks.map((activeTask, index) => {
         const isExpanded = Boolean(expandedTaskById?.[activeTask.id]);
-        const isDoneTask = activeTask.status === 'done';
         const isDeletedTask = activeTask.status === 'deleted';
-        const isCustomerNameExpanded = expandedCustomerNameId === activeTask.id;
+        const taskActivityType = resolveTaskActivityType(activeTask);
         const summaryLabel = isExpanded ? 'Plan No' : 'Additional Information';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
         const displayStatusLabel = getDisplayStatusLabel(activeTask);
+        const primaryActionLabel =
+          activeTask.status === 'in progress' && taskActivityType === ACTIVITY_TYPES.FOLLOW_UP
+            ? 'Isi Hasil'
+            : 'Check-In Sekarang';
         const cardTone = {
           accent: 'var(--theme-blue-primary)',
           text: 'var(--theme-blue-overlay)',
@@ -943,141 +1027,107 @@ export default function ActiveTask({ selectedDate }) {
                       }}
                     />
                   )}
-                  <ClickAwayListener
-                    onClickAway={() => {
-                      if (expandedCustomerNameId === activeTask.id) {
-                        setExpandedCustomerNameId(null);
-                      }
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        variant="h6"
-                        onClick={() => {
-                          setExpandedCustomerNameId((prev) => (prev === activeTask.id ? null : activeTask.id));
-                        }}
-                        title={activeTask.namaCustomer || ''}
-                        sx={{
-                          fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
-                          fontWeight: 700,
-                          color: tone.text,
-                          lineHeight: 1.4,
-                          overflow: isCustomerNameExpanded ? 'visible' : 'hidden',
-                          textOverflow: isCustomerNameExpanded ? 'clip' : 'ellipsis',
-                          whiteSpace: isCustomerNameExpanded ? 'normal' : 'nowrap',
-                          wordBreak: 'break-word',
-                          maxWidth: '100%',
-                          cursor: 'pointer',
-                        }}
-                        aria-expanded={isCustomerNameExpanded}
-                      >
-                        {activeTask.namaCustomer}
-                      </Typography>
-                    </Box>
-                  </ClickAwayListener>
-                </Box>
-
-                {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <IconButton
-                      onClick={(e) => handleOpenMenu(e, activeTask.id)}
-                      size="small"
-                      sx={{
-                        color: '#666',
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                          color: '#333',
-                        },
-                      }}
-                      aria-label="Menu task"
-                    >
-                      <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                    </IconButton>
-                  </Box>
-                )}
-              </Box>
-
-              {!isExpanded && (
-                <Box
-                  sx={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      minWidth: 0,
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    <StatusIcon
-                      sx={{
-                        fontSize: { xs: '1rem', sm: '1.1rem' },
-                        color: statusTextTone.color,
-                        flexShrink: 0,
-                      }}
-                    />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
-                      variant="body1"
+                      variant="h6"
+                      title={activeTask.namaCustomer || ''}
                       sx={{
-                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                        color: statusTextTone.color,
+                        fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' },
                         fontWeight: 700,
-                        lineHeight: 1.2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        color: tone.text,
+                        lineHeight: 1.35,
+                        overflow: 'visible',
+                        textOverflow: 'clip',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        maxWidth: '100%',
                       }}
                     >
-                      {displayStatusLabel}
+                      {activeTask.namaCustomer}
                     </Typography>
                   </Box>
-                  <Button
-                    onClick={() => toggleTaskDetails(activeTask.id)}
-                    variant="text"
-                    size="small"
-                    endIcon={<KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                      color: tone.text,
-                      px: 0,
-                      minWidth: 'auto',
-                      alignSelf: 'center',
-                      justifyContent: 'flex-end',
-                      '&:hover': {
-                        backgroundColor: 'transparent',
-                        textDecoration: 'underline',
-                      },
-                    }}
-                    aria-expanded={isExpanded}
-                    aria-label="Klik untuk melihat detail task"
-                  >
-                    View Detail
-                  </Button>
                 </Box>
-              )}
+              </Box>
 
               <Box
                 sx={{
                   width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: isExpanded ? 'space-between' : 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  <StatusIcon
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.1rem' },
+                      color: statusTextTone.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      color: statusTextTone.color,
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {displayStatusLabel}
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={() => toggleTaskDetails(activeTask.id)}
+                  variant="text"
+                  size="small"
+                  endIcon={
+                    isExpanded ? (
+                      <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    ) : (
+                      <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    )
+                  }
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                    color: tone.text,
+                    px: 0,
+                    minWidth: 'auto',
+                    alignSelf: 'center',
+                    justifyContent: 'flex-end',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      textDecoration: 'underline',
+                    },
+                  }}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
+                >
+                  {isExpanded ? 'Hide Detail' : 'View Detail'}
+                </Button>
+              </Box>
+
+              <Box
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
                   gap: 1,
                 }}
               >
@@ -1109,61 +1159,11 @@ export default function ActiveTask({ selectedDate }) {
                     {summaryValue}
                   </Typography>
                 </Box>
-                {isExpanded && (
-                  <Button
-                    onClick={() => toggleTaskDetails(activeTask.id)}
-                    variant="text"
-                    size="small"
-                    endIcon={<KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                      color: tone.text,
-                      px: 0,
-                      minWidth: 'auto',
-                      alignSelf: 'flex-end',
-                      justifyContent: 'flex-end',
-                      '&:hover': {
-                        backgroundColor: 'transparent',
-                        textDecoration: 'underline',
-                      },
-                    }}
-                    aria-expanded={isExpanded}
-                    aria-label="Klik untuk menyembunyikan detail task"
-                  >
-                    Hide Detail
-                  </Button>
-                )}
               </Box>
             </Box>
 
             {isExpanded && (
               <>
-          {/* Tujuan */}
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-                color: '#999',
-                mb: 0.5,
-              }}
-            >
-              Purpose
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#333',
-                fontWeight: 600,
-              }}
-            >
-              {activeTask.tujuan}
-            </Typography>
-          </Box>
-
           {/* Tambahan */}
           {activeTask.tambahan && (
             <Box sx={{ mb: 2 }}>
@@ -1221,13 +1221,29 @@ export default function ActiveTask({ selectedDate }) {
             <Box
               sx={{
                 display: 'flex',
-                justifyContent: 'flex-end',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
                 gap: { xs: 1, sm: 1.5 },
                 mt: 3,
                 pt: 2,
                 borderTop: '1px dashed rgba(0, 0, 0, 0.18)',
               }}
             >
+              <IconButton
+                onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                size="small"
+                sx={{
+                  color: '#666',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                    color: '#333',
+                  },
+                }}
+                aria-label="Menu task"
+              >
+                <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+              </IconButton>
+
               {/* Done button - only show if status is not "missed" */}
               {activeTask.status !== 'missed' && (
                 <Button
@@ -1235,6 +1251,7 @@ export default function ActiveTask({ selectedDate }) {
                   disabled={saving}
                   startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{
+                    ml: 'auto',
                     color: 'white',
                     backgroundColor: 'var(--theme-blue-primary)',
                     textTransform: 'none',
@@ -1254,7 +1271,7 @@ export default function ActiveTask({ selectedDate }) {
                     },
                   }}
                 >
-                  Check-In Sekarang
+                  {primaryActionLabel}
                 </Button>
               )}
             </Box>
@@ -1610,44 +1627,6 @@ export default function ActiveTask({ selectedDate }) {
             >
               <CloseIcon />
             </IconButton>
-          </Box>
-
-          <Box sx={{ mb: 3 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#666',
-                mb: 1.5,
-                fontWeight: 500,
-              }}
-            >
-              Purpose
-            </Typography>
-            <TextField
-              select
-              fullWidth
-              value={editTujuan}
-              onChange={(event) => setEditTujuan(normalizeTujuan(event.target.value))}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: { xs: '8px', sm: '10px' },
-                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                  '& fieldset': {
-                    borderColor: '#ddd',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'var(--theme-blue-primary)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--theme-blue-primary)',
-                  },
-                },
-              }}
-            >
-              <MenuItem value={ACTIVITY_TYPES.VISIT}>Visit</MenuItem>
-              <MenuItem value={ACTIVITY_TYPES.FOLLOW_UP}>Follow Up</MenuItem>
-            </TextField>
           </Box>
 
           <Box sx={{ mb: 3 }}>

@@ -8,6 +8,7 @@ import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
+import FilterTaskPlan from './FilterTaskPlan';
 
 const fadeOut = keyframes`
   from {
@@ -27,13 +28,126 @@ const fadeIn = keyframes`
   }
 `;
 
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+  PROSPEK: 'Prospek',
+};
+
+const TASK_TYPE_FILTER = {
+  ALL: 'all',
+  VISIT: 'visit',
+  FOLLOW_UP: 'follow_up',
+  PROSPEK: 'prospek',
+};
+
+const normalizeStatus = (status) => String(status || '').toLowerCase().trim();
+
+const normalizeTujuan = (tujuan) => {
+  const normalized = String(tujuan || '').toLowerCase().trim();
+  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+    return ACTIVITY_TYPES.FOLLOW_UP;
+  }
+  return ACTIVITY_TYPES.VISIT;
+};
+
+const isCheckInTask = (task = {}) => {
+  const normalizedCustomerName = String(task?.customer_name ?? task?.namaCustomer ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  const normalizedAdditionalInfo = String(task?.keterangan_tambahan ?? task?.tambahan ?? '')
+    .toLowerCase()
+    .trim();
+
+  return normalizedCustomerName === 'checkin' || normalizedAdditionalInfo === 'checkin di tempat';
+};
+
+const resolveTaskActivityType = (task = {}) => {
+  const normalizedPurpose = String(task?.tujuan || '').toLowerCase().trim();
+
+  if (
+    normalizedPurpose === 'prospek' ||
+    normalizedPurpose === 'prospect' ||
+    normalizedPurpose === 'check in' ||
+    normalizedPurpose === 'check-in' ||
+    normalizedPurpose === 'checkin'
+  ) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  if (isCheckInTask(task)) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  return normalizeTujuan(task?.tujuan);
+};
+
+const filterTasksByType = (tasks = [], selectedTaskTypeFilter = TASK_TYPE_FILTER.ALL) => {
+  if (!selectedTaskTypeFilter || selectedTaskTypeFilter === TASK_TYPE_FILTER.ALL) {
+    return tasks;
+  }
+
+  return tasks.filter((task) => {
+    const taskType = resolveTaskActivityType(task);
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.VISIT) {
+      return taskType === ACTIVITY_TYPES.VISIT;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.FOLLOW_UP) {
+      return taskType === ACTIVITY_TYPES.FOLLOW_UP;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.PROSPEK) {
+      return taskType === ACTIVITY_TYPES.PROSPEK;
+    }
+
+    return true;
+  });
+};
+
+const calculateTaskStats = (tasks = [], currentUserId, selectedTaskTypeFilter = TASK_TYPE_FILTER.ALL) => {
+  if (!currentUserId || !Array.isArray(tasks)) {
+    return { plan: 0, done: 0, more: 0 };
+  }
+
+  const userTasks = tasks.filter((task) => {
+    const status = normalizeStatus(task.status);
+    const isUserTask = task.sales_internal_id === currentUserId;
+    const isValidStatus = status !== 'cancelled' && status !== 'cancel' && status !== 'deleted';
+    return isUserTask && isValidStatus;
+  });
+
+  const taskByType = filterTasksByType(userTasks, selectedTaskTypeFilter);
+
+  const done = taskByType.filter((task) => normalizeStatus(task.status) === 'done').length;
+  const inProgress = taskByType.filter((task) => normalizeStatus(task.status) === 'in progress').length;
+  const rescheduled = taskByType.filter((task) => normalizeStatus(task.status) === 'rescheduled').length;
+  const missed = taskByType.filter((task) => normalizeStatus(task.status) === 'missed').length;
+
+  return {
+    plan: done + inProgress + rescheduled + missed,
+    done,
+    more: inProgress + rescheduled + missed,
+  };
+};
+
 export default function MyTasks({ selectedDate }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
   const isMountedRef = useRef(true);
   const timeoutIdsRef = useRef(new Set());
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
+  const {
+    fetchPlansByDate,
+    getPlansByDate,
+    isLoading,
+    getError,
+    dataByDate,
+    selectedFilter,
+    setSelectedFilter,
+    selectedTaskTypeFilter,
+  } = useActivityPlans();
 
   const clearAllTimeouts = useCallback(() => {
     timeoutIdsRef.current.forEach((timeoutId) => {
@@ -83,54 +197,14 @@ export default function MyTasks({ selectedDate }) {
         const currentUser = getSales();
         const currentUserId = currentUser?.internal_id;
 
-        if (!currentUserId) {
-          if (isMounted) {
-            setStats({ plan: 0, done: 0, more: 0 });
-          }
-          return;
-        }
-
         let data = getPlansByDate(dateToUse);
         
         if (!data) {
           data = await fetchPlansByDate(dateToUse);
         }
 
-        if (isMounted && data) {
-          // Filter tasks berdasarkan user yang login dan status yang valid
-          const allTasks = Array.isArray(data) 
-            ? data.filter(task => {
-                const normalizedStatus = (task.status || '').toLowerCase().trim();
-                const isUserTask = task.sales_internal_id === currentUserId;
-                const isValidStatus = normalizedStatus !== 'cancelled' && 
-                                     normalizedStatus !== 'cancel' &&
-                                     normalizedStatus !== 'deleted';
-                return isUserTask && isValidStatus;
-              })
-            : [];
-
-          const inProgress = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'in progress';
-          }).length;
-          
-          const rescheduled = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'rescheduled';
-          }).length;
-          
-          const done = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'done';
-          }).length;
-
-          const plan = done + inProgress + rescheduled;
-          const more = inProgress + rescheduled;
-
-          setStats({ plan, done, more });
-        } else if (isMounted) {
-
-          setStats({ plan: 0, done: 0, more: 0 });
+        if (isMounted) {
+          setStats(calculateTaskStats(data, currentUserId, selectedTaskTypeFilter));
         }
       } catch (err) {
         if (isMounted) {
@@ -146,55 +220,20 @@ export default function MyTasks({ selectedDate }) {
     return () => {
       isMounted = false;
     };
-  }, [fetchPlansByDate, getPlansByDate, dateToUse]);
+  }, [fetchPlansByDate, getPlansByDate, dateToUse, selectedTaskTypeFilter]);
 
   useEffect(() => {
     // Get current logged in user
     const currentUser = getSales();
     const currentUserId = currentUser?.internal_id;
 
-    if (!currentUserId) {
-      setStats({ plan: 0, done: 0, more: 0 });
-      return;
-    }
-
     const data = getPlansByDate(dateToUse);
     if (data) {
-      // Filter tasks berdasarkan user yang login dan status yang valid
-      const allTasks = Array.isArray(data) 
-        ? data.filter(task => {
-            const normalizedStatus = (task.status || '').toLowerCase().trim();
-            const isUserTask = task.sales_internal_id === currentUserId;
-            const isValidStatus = normalizedStatus !== 'cancelled' && 
-                                 normalizedStatus !== 'cancel' &&
-                                 normalizedStatus !== 'deleted';
-            return isUserTask && isValidStatus;
-          })
-        : [];
-
-      const inProgress = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'in progress';
-      }).length;
-      
-      const rescheduled = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'rescheduled';
-      }).length;
-      
-      const done = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'done';
-      }).length;
-
-      const plan = done + inProgress + rescheduled;
-      const more = inProgress + rescheduled;
-
-      setStats({ plan, done, more });
+      setStats(calculateTaskStats(data, currentUserId, selectedTaskTypeFilter));
     } else {
       setStats({ plan: 0, done: 0, more: 0 });
     }
-  }, [getPlansByDate, dateToUse, dataByDate]); 
+  }, [getPlansByDate, dateToUse, dataByDate, selectedTaskTypeFilter]); 
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -405,6 +444,7 @@ export default function MyTasks({ selectedDate }) {
           );
         })}
       </Box>
+      <FilterTaskPlan />
     </Container>
   );
 }

@@ -16,4 +16,4 @@ export {
 export { AddressMap, GoogleMapsProvider, useGoogleMaps } from './plan/maps';
 export { AddPlan, AddVisit, AddFollowUp, CheckIn, DateCarousel } from './plan';
 export { ModalResult } from './plan/shared';
-export { ActiveTask, MyTasks } from './plan/tasks';
+export { ActiveTask, FilterTaskPlan, MyTasks } from './plan/tasks';
