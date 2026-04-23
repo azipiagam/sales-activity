@@ -62,6 +62,7 @@ export default function TaskDashboard({
   };
 
   const { sales } = useAuth();
+  const salesInternalId = sales?.internal_id;
   const stateStatsCacheKey = sales?.internal_id ? `state-stats:${sales.internal_id}` : null;
 
   const [stateStats, setStateStats] = useState(() => {
