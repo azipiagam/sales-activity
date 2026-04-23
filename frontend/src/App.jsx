@@ -17,7 +17,7 @@ import {
 } from './components';
 import Dashboard from './Dashboard';
 import Login from './login/login';
-import { isAuthenticated } from './utils/auth';
+import { isAuthenticated, consumeTokenFromUrl } from './utils/auth';
 import { ActivityPlanProvider } from './contexts/ActivityPlanContext';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import ChangePasswordPage from './login/ChangePasswordPage';
@@ -27,7 +27,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
 import { DEFAULT_DASHBOARD_PERIOD } from './constants/dashboardPeriods';
-import { isAuthenticated, consumeTokenFromUrl } from './utils/auth';
 
 const theme = createTheme({
   palette: {
