@@ -179,7 +179,8 @@ const useCustomerSearch = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (searchInput && searchInput.trim().length >= MIN_SEARCH_LENGTH) {
-        searchCustomers(searchInput);
+      const user = JSON.parse(localStorage.getItem('sales') || '{}');
+      searchCustomers(searchInput, user.internal_id, user.name);
       } else {
         setCustomerOptions([]);
       }
