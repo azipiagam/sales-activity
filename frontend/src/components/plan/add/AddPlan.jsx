@@ -131,7 +131,7 @@ const useCustomerSearch = () => {
     }
   }, []);
 
-  const searchCustomers = useCallback(async (keyword) => {
+  const searchCustomers = useCallback(async (keyword, salesInternalId, salesName) => {
     if (!keyword || keyword.trim().length < MIN_SEARCH_LENGTH) {
       setCustomerOptions([]);
       return;
@@ -139,7 +139,12 @@ const useCustomerSearch = () => {
 
     try {
       setSearchingCustomers(true);
-      const response = await apiRequest(`customers/search?q=${encodeURIComponent(keyword)}`);
+      const params = new URLSearchParams({
+        q: keyword,
+        sales_internal_id: salesInternalId || '',
+        sales_name: salesName || '',
+      });
+      const response = await apiRequest(`customers/search?${params}`);
 
       if (!response.ok) {
         const errorText = await response.text();
