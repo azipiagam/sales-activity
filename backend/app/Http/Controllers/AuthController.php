@@ -69,21 +69,26 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = auth('api')->user();
-        
+
         if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $userData = [
+        $department = DB::connection('pilargroup')
+            ->table('master_departments')
+            ->where('id', $user->department_id)
+            ->value('name');
+
+        return response()->json([
             'id'           => $user->id,
             'internal_id'  => $user->internal_id,
             'username'     => $user->username,
             'name'         => $user->name,
-            'department'   => $user->department,
+            'department'   => $department,
+            'department_id'=> $user->department_id,
             'job_position' => $user->job_position,
-        ];
-
-        return response()->json($userData);
+            'job_level_id' => $user->job_level_id,
+        ]);
     }
 
     public function logout()
