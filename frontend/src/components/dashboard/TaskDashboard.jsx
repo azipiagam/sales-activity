@@ -308,44 +308,16 @@ export default function TaskDashboard({
     <Card
       elevation={0}
       sx={{
-        background:
-          'linear-gradient(135deg, rgba(31, 78, 140, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)',
+        background: '#FFFFFF',
         borderRadius: { xs: '16px', sm: '20px' },
         padding: { xs: '20px', sm: '24px' },
         boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)',
-        border: '1px solid rgba(31, 78, 140, 0.18)',
+        border: '1px solid rgba(17, 24, 39, 0.08)',
         mb: 3,
         mt: -1,
-        position: 'relative',
-        isolation: 'isolate',
-        overflow: 'hidden',
       }}
     >
-      <DashboardIcon
-        sx={{
-          position: 'absolute',
-          right: { xs: -18, sm: -12, md: -6 },
-          top: { xs: 14, sm: 18, md: 20 },
-          fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
-          color: 'rgba(31, 78, 140, 0.12)',
-          transform: 'rotate(-10deg)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <Box
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(90deg, rgba(31, 78, 140, 0.10) 0%, rgba(255, 255, 255, 0) 42%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <Box sx={{ position: 'relative', zIndex: 1 }}>
+      <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 1 }}>
         <Typography

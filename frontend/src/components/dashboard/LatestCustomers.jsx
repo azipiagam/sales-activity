@@ -168,43 +168,15 @@ export default function LatestCustomers({ refreshKey, periodFilter }) {
       <Card
         elevation={0}
         sx={{
-          background:
-            `linear-gradient(135deg, rgba(${themeBluePrimaryRgb}, 0.08) 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)`,
+          background: '#FFFFFF',
           borderRadius: { xs: '12px', sm: '14px', md: '16px' },
           padding: { xs: '16px', sm: '20px', md: '24px' },
           boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-          border: `1px solid rgba(${themeBluePrimaryRgb}, 0.18)`,
+          border: '1px solid rgba(17, 24, 39, 0.08)',
           width: '100%',
-          position: 'relative',
-          isolation: 'isolate',
-          overflow: 'hidden',
         }}
       >
-        <PeopleIcon
-          sx={{
-            position: 'absolute',
-            right: { xs: -18, sm: -10, md: -4 },
-            top: { xs: 12, sm: 16, md: 18 },
-            fontSize: { xs: '6rem', sm: '7rem', md: '8rem' },
-            color: `rgba(${themeBluePrimaryRgb}, 0.12)`,
-            transform: 'rotate(-10deg)',
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              `linear-gradient(90deg, rgba(${themeBluePrimaryRgb}, 0.10) 0%, rgba(255, 255, 255, 0) 42%)`,
-            pointerEvents: 'none',
-            zIndex: 0,
-          }}
-        />
-
-        <Box sx={{ position: 'relative', zIndex: 1 }}>
+        <Box>
           {/* Header */}
           <Box
             sx={{

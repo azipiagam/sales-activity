@@ -1,25 +1,37 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
 import Webcam from 'react-webcam';
 
-export default function CameraDone({ saving = false, onCapture, onCancel }) {
+export default function CameraDone({
+  saving = false,
+  onCapture,
+  onCameraErrorChange,
+}) {
   const webcamRef = useRef(null);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
 
-  const handleCapture = () => {
+  const handleCapture = useCallback(() => {
     if (!webcamRef.current) return;
     const imageSrc = webcamRef.current.getScreenshot();
     if (!imageSrc) {
-      setCameraError('Gagal mengambil foto. Coba ulangi.');
+      const errorMessage = 'Gagal mengambil foto. Coba ulangi.';
+      setCameraError(errorMessage);
+      if (onCameraErrorChange) {
+        onCameraErrorChange(errorMessage);
+      }
       return;
     }
     setCameraError('');
+    if (onCameraErrorChange) {
+      onCameraErrorChange('');
+    }
     onCapture(imageSrc);
-  };
+  }, [onCapture, onCameraErrorChange]);
 
   return (
     <Box
@@ -50,10 +62,17 @@ export default function CameraDone({ saving = false, onCapture, onCancel }) {
         onUserMedia={() => {
           setCameraReady(true);
           setCameraError('');
+          if (onCameraErrorChange) {
+            onCameraErrorChange('');
+          }
         }}
         onUserMediaError={() => {
+          const errorMessage = 'Tidak bisa mengakses kamera. Pastikan izin kamera aktif.';
           setCameraReady(false);
-          setCameraError('Tidak bisa mengakses kamera. Pastikan izin kamera aktif.');
+          setCameraError(errorMessage);
+          if (onCameraErrorChange) {
+            onCameraErrorChange(errorMessage);
+          }
         }}
         style={{
           width: '100%',
@@ -104,51 +123,34 @@ export default function CameraDone({ saving = false, onCapture, onCancel }) {
       <Box
         sx={{
           position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          p: { xs: 1.5, sm: 2 },
-          display: 'flex',
-          gap: 1.25,
-          background: 'linear-gradient(180deg, rgba(9,14,27,0) 0%, rgba(9,14,27,0.72) 55%)',
+          top: { xs: 14, sm: 16 },
+          right: { xs: 14, sm: 16 },
+          zIndex: 8,
         }}
       >
-        <Button
-          variant="outlined"
-          fullWidth
-          onClick={onCancel}
-          disabled={saving}
-          sx={{
-            textTransform: 'none',
-            color: '#fff',
-            borderColor: 'rgba(255,255,255,0.55)',
-            backdropFilter: 'blur(2px)',
-            '&:hover': {
-              borderColor: '#fff',
-              backgroundColor: 'rgba(255,255,255,0.08)',
-            },
-          }}
-        >
-          Kembali ke Map
-        </Button>
-        <Button
-          variant="contained"
-          fullWidth
+        <IconButton
           onClick={handleCapture}
-          disabled={saving || !cameraReady}
+          disabled={saving || !cameraReady || Boolean(cameraError)}
+          aria-label="Ambil foto"
           sx={{
-            textTransform: 'none',
+            width: 54,
+            height: 54,
             color: '#fff',
             background:
               'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
+            boxShadow: '0 8px 16px rgba(11, 30, 56, 0.25)',
             '&:hover': {
               background:
                 'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
             },
           }}
         >
-          Ambil Foto
-        </Button>
+          {cameraReady ? (
+            <PhotoCameraRoundedIcon sx={{ fontSize: 28 }} />
+          ) : (
+            <CircularProgress size={22} color="inherit" />
+          )}
+        </IconButton>
       </Box>
     </Box>
   );

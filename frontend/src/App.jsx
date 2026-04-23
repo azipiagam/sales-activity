@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundMain from './assets/media/Background';
 
 import {
@@ -52,12 +52,17 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDonePage = location.pathname === '/plan/done';
+  const normalizedPathname = useMemo(() => {
+    const trimmed = String(location.pathname || '').replace(/\/+$/, '');
+    return trimmed || '/';
+  }, [location.pathname]);
+  const isDashboardPage = normalizedPathname === '/';
+  const isPlanMainPage = normalizedPathname === '/plan';
+  const isDonePage = normalizedPathname === '/plan/done';
   const [navValue, setNavValue] = useState(location.pathname.startsWith('/plan') ? 1 : 0);
   const [calendarAnchorEl, setCalendarAnchorEl] = useState(null);
   const [pickerDate, setPickerDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isDateCarouselLoading, setIsDateCarouselLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dashboardPeriod, setDashboardPeriod] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [dashboardProvince, setDashboardProvince] = useState('Semua Provinsi');
@@ -69,18 +74,29 @@ function AppContent() {
     // Pastikan setelah login pertama kali, user selalu melihat Dashboard
     // navValue = 0 → Dashboard
     // navValue = 1 → Plan (My Activity Plan)
-    if (location.pathname.startsWith('/plan')) {
+    if (normalizedPathname.startsWith('/plan')) {
       setNavValue(1);
       return;
     }
 
-    if (location.pathname === '/') {
+    if (normalizedPathname === '/') {
       setNavValue(0);
       return;
     }
 
     navigate('/', { replace: true });
-  }, [location.pathname, navigate]);
+  }, [normalizedPathname, navigate]);
+
+  useEffect(() => {
+    // Bersihkan query parameter dari halaman done ketika user sudah ada di /plan.
+    if (normalizedPathname !== '/plan' || !location.search) return;
+
+    const searchParams = new URLSearchParams(location.search);
+    const hasDoneParams = searchParams.has('taskId') || searchParams.has('date');
+    if (!hasDoneParams) return;
+
+    navigate('/plan', { replace: true });
+  }, [normalizedPathname, location.search, navigate]);
 
   useEffect(() => {
     setCalendarAnchorEl(null);
@@ -120,7 +136,7 @@ function AppContent() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const headerHeight = { xs: '150px', sm: '157px', md: '170px' };
+  const headerHeight = { xs: '122px', sm: '128px', md: '138px' };
 
   useEffect(() => {
     if (Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0) {
@@ -163,7 +179,6 @@ function AppContent() {
               onPickerDateChange={handlePickerDateChange}
               selectedDate={selectedDate}
               onDateChange={setSelectedDate}
-              onDateCarouselLoadingChange={setIsDateCarouselLoading}
               onRefresh={handleRefresh}
               dashboardPeriod={dashboardPeriod}
               onDashboardPeriodChange={setDashboardPeriod}
@@ -171,9 +186,6 @@ function AppContent() {
               onDashboardProvinceChange={setDashboardProvince}
               dashboardProvinceOptions={dashboardProvinceOptions}
             />
-
-            {/* Full-screen loading overlay for DateCarousel actions (iOS Safari can clip fixed children inside the Header) */}
-            {isDateCarouselLoading && <LoadingManager type="moveDate" />}
           </>
         )}
 
@@ -199,48 +211,54 @@ function AppContent() {
               pb: 10,
             }}
           >
-          {/* Keep only enter animation here; exit animations can conflict with MUI portals/modals. */}
-          {navValue === 0 ? (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-              }}
-              style={{ width: '100%' }}
-            >
-              <Dashboard
-                refreshKey={refreshKey}
-                periodFilter={dashboardPeriod}
-                onPeriodFilterChange={setDashboardPeriod}
-                provinceFilter={dashboardProvince}
-                onProvinceFilterChange={setDashboardProvince}
-                onProvinceOptionsChange={setDashboardProvinceOptions}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuart
-              }}
-              style={{ width: '100%' }}
-            >
-              {isDonePage ? (
-                <DonePage />
-              ) : (
-                <>
-                  <MyTasks selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                  <ActiveTask selectedDate={selectedDate} isDateCarouselLoading={isDateCarouselLoading} />
-                </>
+            <AnimatePresence mode="wait">
+              {isDashboardPage && (
+                <motion.div
+                  key="dashboard"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <Dashboard
+                    refreshKey={refreshKey}
+                    periodFilter={dashboardPeriod}
+                    onPeriodFilterChange={setDashboardPeriod}
+                    provinceFilter={dashboardProvince}
+                    onProvinceFilterChange={setDashboardProvince}
+                    onProvinceOptionsChange={setDashboardProvinceOptions}
+                  />
+                </motion.div>
               )}
-            </motion.div>
-          )}
+
+              {isPlanMainPage && (
+                <motion.div
+                  key="plan"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <MyTasks selectedDate={selectedDate} />
+                  <ActiveTask selectedDate={selectedDate} />
+                </motion.div>
+              )}
+
+              {isDonePage && (
+                <motion.div
+                  key="done"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <DonePage />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Box>
         </Box>
 

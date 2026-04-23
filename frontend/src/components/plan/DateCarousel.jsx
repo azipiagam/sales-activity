@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -11,7 +11,6 @@ import { format } from 'date-fns';
 export default function DateCarousel({
   selectedDate: propSelectedDate,
   onDateChange,
-  onLoadingChange,
   height,
 }) {
   const textOnLightAccent = 'var(--text-on-light-accent)';
@@ -20,7 +19,42 @@ export default function DateCarousel({
   const [selectedDate, setSelectedDate] = useState(propSelectedDate || new Date());
   const [isLoading, setIsLoading] = useState(false);
   const userClickTimeRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef(new Set());
   const { isLoading: checkDataLoading } = useActivityPlans();
+
+  const clearAllTimeouts = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    timeoutIdsRef.current.clear();
+  }, []);
+
+  const runTimeout = useCallback((callback, delay) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      if (!isMountedRef.current) return;
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
+
+  const setLoadingState = useCallback(
+    (nextLoading) => {
+      if (!isMountedRef.current) return;
+      setIsLoading(nextLoading);
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+    },
+    [clearAllTimeouts]
+  );
   
   const getMondayOfWeek = (date) => {
     const d = new Date(date);
@@ -109,10 +143,8 @@ export default function DateCarousel({
     currentSelectedDate.setHours(0, 0, 0, 0);
     
     if (clickedDate.getTime() !== currentSelectedDate.getTime()) {
-      setIsLoading(true);
-      if (onLoadingChange) {
-        onLoadingChange(true);
-      }
+      clearAllTimeouts();
+      setLoadingState(true);
       
       const dateStr = format(clickedDate, 'yyyy-MM-dd');
       const cacheKey = `date:${dateStr}`;
@@ -130,20 +162,18 @@ export default function DateCarousel({
       const maxChecks = 50; 
       
       const checkLoading = () => {
+        if (!isMountedRef.current) return;
         checkCount++;
         const dataLoading = checkDataLoading(cacheKey);
         
         if (!dataLoading || checkCount >= maxChecks) {
-          setIsLoading(false);
-          if (onLoadingChange) {
-            onLoadingChange(false);
-          }
+          setLoadingState(false);
         } else {
-          setTimeout(checkLoading, 200);
+          runTimeout(checkLoading, 200);
         }
       };
       
-      setTimeout(() => {
+      runTimeout(() => {
         checkLoading();
       }, 300);
     } else {
@@ -160,24 +190,19 @@ export default function DateCarousel({
   const handlePreviousWeek = () => {
     if (isLoading) return;
 
-    setIsLoading(true);
-    if (onLoadingChange) {
-      onLoadingChange(true);
-    }
+    clearAllTimeouts();
+    setLoadingState(true);
     
 
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const previousMonday = new Date(mondayTime - fiveDaysInMs);
     
-    setTimeout(() => {
+    runTimeout(() => {
       setCurrentWeekMonday(previousMonday);
       
-      setTimeout(() => {
-        setIsLoading(false);
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
+      runTimeout(() => {
+        setLoadingState(false);
       }, 600);
     }, 50);
   };
@@ -185,23 +210,18 @@ export default function DateCarousel({
   const handleNextWeek = () => {
     if (isLoading) return;
 
-    setIsLoading(true);
-    if (onLoadingChange) {
-      onLoadingChange(true);
-    }
+    clearAllTimeouts();
+    setLoadingState(true);
     
     const mondayTime = currentWeekMonday.getTime();
     const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
     const nextMonday = new Date(mondayTime + fiveDaysInMs);
     
-    setTimeout(() => {
+    runTimeout(() => {
       setCurrentWeekMonday(nextMonday);
       
-      setTimeout(() => {
-        setIsLoading(false);
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
+      runTimeout(() => {
+        setLoadingState(false);
       }, 600);
     }, 50);
   };
@@ -267,60 +287,77 @@ export default function DateCarousel({
             minWidth: 0, 
           }}
         >
-        {dates.map((date, index) => {
+        {dates.map((date) => {
           const { day, dayName } = formatDate(date);
           const today = isToday(date);
           const selected = isSelected(date);
           const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 
           return (
-            <Paper
+            <Box
               key={dateKey}
+              component="button"
+              type="button"
               onClick={() => handleDateClick(date)}
+              aria-pressed={selected}
               sx={{
-                minWidth: { xs: '40px', sm: '44px', md: '48px' },
-                width: { xs: '40px', sm: '44px', md: '48px' },
+                minWidth: { xs: '42px', sm: '46px', md: '50px' },
+                width: { xs: '42px', sm: '46px', md: '50px' },
                 flexShrink: 0,
                 flexGrow: 0,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: { xs: '6px 2px', sm: '8px 3px', md: '10px 4px' },
+                px: { xs: 0.25, sm: 0.4 },
+                py: selected ? { xs: 0.7, sm: 0.9, md: 1 } : { xs: 0.2, sm: 0.3 },
                 cursor: 'pointer',
                 background: selected
                   ? 'linear-gradient(145deg, var(--theme-accent-primary), var(--theme-accent-highlight))'
-                  : 'rgba(255,255,255,0.15)',
+                  : 'transparent',
                 color: textOnBluePrimary,
-                borderRadius: { xs: '8px', sm: '10px', md: '12px' },
-                border: selected
-                  ? '1.5px solid rgba(255, 255, 255, 0.55)'
-                  : '1.5px solid rgba(255,255,255,0.2)',
-                backdropFilter: selected ? 'none' : 'blur(10px)',
+                borderRadius: selected ? { xs: '9px', sm: '11px', md: '12px' } : '0px',
+                border: selected ? '1.5px solid rgba(255, 255, 255, 0.62)' : 'none',
+                backdropFilter: 'none',
                 boxShadow: selected
-                  ? '0 5px 14px rgba(244, 169, 64, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.2)'
-                  : '0 1px 4px rgba(0, 0, 0, 0.1)',
+                  ? '0 10px 22px rgba(244, 169, 64, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.25)'
+                  : 'none',
+                transform: selected ? 'translateY(-3px) scale(1.06)' : 'none',
                 transition: 'all 0.2s ease',
-                outline: today && !selected ? `1.5px solid ${textOnLightAccent}` : 'none',
+                outline: 'none',
+                position: 'relative',
+                '&::after': today && !selected
+                  ? {
+                      content: '""',
+                      position: 'absolute',
+                      bottom: -2,
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      backgroundColor: textOnLightAccent,
+                      opacity: 0.95,
+                    }
+                  : {},
                 '&:hover': {
-                  transform: 'translateY(-2px)',
+                  transform: selected ? 'translateY(-4px) scale(1.08)' : 'translateY(-1px)',
                   background: selected
                     ? 'linear-gradient(145deg, var(--theme-accent-highlight), var(--theme-accent-primary))'
-                    : 'rgba(255,255,255,0.25)',
-                  borderColor: selected ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255,255,255,0.3)',
-                  boxShadow: selected
-                    ? '0 8px 18px rgba(244, 169, 64, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.25)'
-                    : '0 3px 8px rgba(0, 0, 0, 0.15)',
+                    : 'transparent',
+                },
+                '&:focus-visible': {
+                  outline: '2px solid rgba(255,255,255,0.6)',
+                  outlineOffset: 2,
+                  borderRadius: selected ? { xs: '9px', sm: '11px', md: '12px' } : '8px',
                 },
               }}
             >
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: { xs: '0.55rem', sm: '0.6rem', md: '0.65rem' },
+                  fontSize: { xs: '0.58rem', sm: '0.64rem', md: '0.7rem' },
                   fontWeight: 600,
                   mb: { xs: 0.15, sm: 0.25 },
-                  color: selected ? selectedDateText : textOnBluePrimary,
+                  color: selected ? selectedDateText : 'rgba(235, 244, 255, 0.88)',
                   lineHeight: 1.1,
                 }}
               >
@@ -329,7 +366,7 @@ export default function DateCarousel({
               <Typography
                 variant="h6"
                 sx={{
-                  fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1.05rem' },
+                  fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' },
                   fontWeight: 700,
                   color: selected ? selectedDateText : textOnBluePrimary,
                   lineHeight: 1.1,
@@ -337,7 +374,7 @@ export default function DateCarousel({
               >
                 {day}
               </Typography>
-            </Paper>
+            </Box>
           );
         })}
         </Box>

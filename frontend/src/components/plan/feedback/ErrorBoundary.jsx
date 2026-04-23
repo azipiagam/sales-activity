@@ -40,7 +40,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      // Log error untuk debugging di production (tidak ditampilkan ke user)
+      // Log error untuk debuggingdi  production (tidak ditampilkan ke user)
       console.error('Application Error:', this.state.error, this.state.errorInfo);
 
       // Return fallback UI yang aman - redirect ke halaman utama atau loading state

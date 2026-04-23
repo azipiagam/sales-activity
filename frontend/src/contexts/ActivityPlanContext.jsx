@@ -16,6 +16,7 @@ export function ActivityPlanProvider({ children }) {
   const [loadingStates, setLoadingStates] = useState(new Map());
   const [errorStates, setErrorStates] = useState(new Map());
   const [selectedFilter, setSelectedFilter] = useState('plan'); // 'plan', 'done', or 'more'
+  const [selectedTaskTypeFilter, setSelectedTaskTypeFilter] = useState('all'); // 'all', 'visit', 'follow_up', or 'prospek'
 
   const fetchPlansByDate = useCallback(async (date, force = false, skipLoading = false) => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -407,6 +408,8 @@ export function ActivityPlanProvider({ children }) {
     removePlanFromCache,
     selectedFilter,
     setSelectedFilter,
+    selectedTaskTypeFilter,
+    setSelectedTaskTypeFilter,
   };
 
   return (

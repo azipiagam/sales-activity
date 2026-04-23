@@ -13,130 +13,163 @@ export default function HeaderDone({
   planNo,
   tujuan,
   onRefreshLocation,
-  showRefreshLocation = false,
   refreshLoading = false,
   refreshDisabled = false,
 }) {
+  const normalizeActivityType = (value) => {
+    const normalized = String(value || '').toLowerCase().trim();
+    if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+      return 'Follow Up';
+    }
+    return 'Visit';
+  };
+
+  const customerName = String(taskName || '').trim() || '-';
+  const activityType = normalizeActivityType(tujuan);
+  const visitCode = String(planNo || '').trim() || '-';
+  const textOnBlueAccent = 'var(--text-on-blue-accent)';
+
   return (
     <Box
       sx={{
         width: '100%',
-        px: { xs: 2, sm: 3 },
-        py: { xs: 1.5, sm: 2 },
-        background: 'linear-gradient(135deg, var(--theme-blue-overlay) 0%, var(--theme-blue-primary) 100%)',
-        boxShadow: '0 8px 24px rgba(22, 58, 107, 0.24)',
+        backgroundColor: '#163a6b',
+        boxShadow: '0 10px 28px rgba(10, 28, 53, 0.3)',
       }}
     >
-      <Box sx={{ position: 'relative', minHeight: 42, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <IconButton
-          onClick={onBack}
+      <Box
+        sx={{
+          mx: 'auto',
+          width: '100%',
+          maxWidth: 540,
+          px: { xs: 2, sm: 2.5 },
+          pt: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+          pb: 1.8,
+          position: 'relative',
+        }}
+      >
+        <Box
           sx={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#fff',
-            backgroundColor: 'rgba(255, 255, 255, 0.12)',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            },
+            minHeight: 48,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.1,
           }}
-          aria-label="Kembali"
         >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: '#fff', textAlign: 'center' }}>
-          Done Result
-        </Typography>
+          <IconButton
+            onClick={onBack}
+            sx={{
+              color: '#f7fbff',
+              backgroundColor: 'rgba(255, 255, 255, 0.14)',
+              width: 38,
+              height: 38,
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.22)',
+              },
+            }}
+            aria-label="Kembali"
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
 
-        {showRefreshLocation ? (
+          <Typography
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: 'center',
+              color: textOnBlueAccent,
+              fontWeight: 800,
+              fontSize: { xs: '0.98rem', sm: '1.08rem' },
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              lineHeight: 1.2,
+            }}
+          >
+            Complete Plan
+          </Typography>
+
           <IconButton
             onClick={onRefreshLocation}
             disabled={refreshDisabled}
             sx={{
-              position: 'absolute',
-              right: 0,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#fff',
-              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              color: '#f7fbff',
+              backgroundColor: 'rgba(255, 255, 255, 0.14)',
+              width: 38,
+              height: 38,
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor: 'rgba(255, 255, 255, 0.22)',
               },
             }}
             aria-label="Perbarui lokasi"
           >
-            {refreshLoading ? <CircularProgress size={20} color="inherit" /> : <RestartAltIcon />}
+            {refreshLoading ? <CircularProgress size={18} color="inherit" /> : <RestartAltIcon fontSize="small" />}
           </IconButton>
-        ) : null}
-      </Box>
+        </Box>
 
-      <Box
-        sx={{
-          mt: 1.5,
-          p: { xs: 1.5, sm: 1.75 },
-          borderRadius: '14px',
-          backgroundColor: '#fff',
-          boxShadow: '0 10px 24px rgba(8, 20, 42, 0.18)',
-          border: '1px solid rgba(31, 78, 140, 0.12)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 1.25,
-        }}
-      >
-        <Box sx={{ width: '100%', minWidth: 0 }}>
+        <Box
+          sx={{
+            mt: 1.2,
+            px: 0.4,
+          }}
+        >
+          <Typography
+            variant="subtitle1"
+            sx={{
+              color: '#f7fbff',
+              fontWeight: 700,
+              lineHeight: 1.25,
+              fontSize: { xs: '1rem', sm: '1.08rem' },
+              letterSpacing: 0.2,
+            }}
+            title={customerName}
+          >
+            {customerName}
+          </Typography>
+
           <Box
             sx={{
+              mt: 0.45,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
-              mb: 0.2,
+              gap: 0.8,
             }}
           >
             <Typography
-              variant="body2"
+              variant="caption"
               sx={{
-                color: '#7a7a7a',
-                fontWeight: 700,
+                color: 'rgba(235, 244, 255, 0.86)',
+                fontWeight: 500,
+                fontSize: { xs: '0.78rem', sm: '0.82rem' },
+                letterSpacing: 0.2,
               }}
             >
-              {planNo || '-'}
+              {visitCode}
             </Typography>
-            <Typography
-              variant="body2"
+
+            <Box
               sx={{
-                color: '#7a7a7a',
-                fontWeight: 700,
-                textAlign: 'right',
+                flexShrink: 0,
+                px: 1.05,
+                py: 0.45,
+                borderRadius: '999px',
+                backgroundColor: '#1f4e8c',
+                border: '1px solid rgba(255, 255, 255, 0.28)',
+                boxShadow: '0 4px 10px rgba(8, 22, 42, 0.24)',
               }}
             >
-              {tujuan || '-'}
-            </Typography>
+              <Typography
+                sx={{
+                  color: textOnBlueAccent,
+                  fontWeight: 700,
+                  fontSize: { xs: '0.72rem', sm: '0.76rem' },
+                  letterSpacing: '0.02em',
+                  lineHeight: 1,
+                }}
+              >
+                {activityType}
+              </Typography>
+            </Box>
           </Box>
-
-          <Box
-            sx={{
-              height: '1px',
-              my: 0.9,
-              borderRadius: '999px',
-              background:
-                'linear-gradient(90deg, rgba(22, 58, 107, 0.08) 0%, rgba(22, 58, 107, 0.28) 50%, rgba(22, 58, 107, 0.08) 100%)',
-            }}
-          />
-
-          <Typography
-            variant="body1"
-            sx={{
-              color: '#1d3557',
-              fontWeight: 700,
-              lineHeight: 1.35,
-              wordBreak: 'break-word',
-            }}
-          >
-            {taskName || '-'}
-          </Typography>
         </Box>
       </Box>
     </Box>

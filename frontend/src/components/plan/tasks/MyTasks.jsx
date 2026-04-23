@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
@@ -8,6 +8,7 @@ import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
+import FilterTaskPlan from './FilterTaskPlan';
 
 const fadeOut = keyframes`
   from {
@@ -27,11 +28,143 @@ const fadeIn = keyframes`
   }
 `;
 
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+  PROSPEK: 'Prospek',
+};
+
+const TASK_TYPE_FILTER = {
+  ALL: 'all',
+  VISIT: 'visit',
+  FOLLOW_UP: 'follow_up',
+  PROSPEK: 'prospek',
+};
+
+const normalizeStatus = (status) => String(status || '').toLowerCase().trim();
+
+const normalizeTujuan = (tujuan) => {
+  const normalized = String(tujuan || '').toLowerCase().trim();
+  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+    return ACTIVITY_TYPES.FOLLOW_UP;
+  }
+  return ACTIVITY_TYPES.VISIT;
+};
+
+const isCheckInTask = (task = {}) => {
+  const normalizedCustomerName = String(task?.customer_name ?? task?.namaCustomer ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  const normalizedAdditionalInfo = String(task?.keterangan_tambahan ?? task?.tambahan ?? '')
+    .toLowerCase()
+    .trim();
+
+  return normalizedCustomerName === 'checkin' || normalizedAdditionalInfo === 'checkin di tempat';
+};
+
+const resolveTaskActivityType = (task = {}) => {
+  const normalizedPurpose = String(task?.tujuan || '').toLowerCase().trim();
+
+  if (
+    normalizedPurpose === 'prospek' ||
+    normalizedPurpose === 'prospect' ||
+    normalizedPurpose === 'check in' ||
+    normalizedPurpose === 'check-in' ||
+    normalizedPurpose === 'checkin'
+  ) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  if (isCheckInTask(task)) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  return normalizeTujuan(task?.tujuan);
+};
+
+const filterTasksByType = (tasks = [], selectedTaskTypeFilter = TASK_TYPE_FILTER.ALL) => {
+  if (!selectedTaskTypeFilter || selectedTaskTypeFilter === TASK_TYPE_FILTER.ALL) {
+    return tasks;
+  }
+
+  return tasks.filter((task) => {
+    const taskType = resolveTaskActivityType(task);
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.VISIT) {
+      return taskType === ACTIVITY_TYPES.VISIT;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.FOLLOW_UP) {
+      return taskType === ACTIVITY_TYPES.FOLLOW_UP;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.PROSPEK) {
+      return taskType === ACTIVITY_TYPES.PROSPEK;
+    }
+
+    return true;
+  });
+};
+
+const calculateTaskStats = (tasks = [], currentUserId, selectedTaskTypeFilter = TASK_TYPE_FILTER.ALL) => {
+  if (!currentUserId || !Array.isArray(tasks)) {
+    return { plan: 0, done: 0, more: 0 };
+  }
+
+  const userTasks = tasks.filter((task) => {
+    const status = normalizeStatus(task.status);
+    const isUserTask = task.sales_internal_id === currentUserId;
+    const isValidStatus = status !== 'cancelled' && status !== 'cancel' && status !== 'deleted';
+    return isUserTask && isValidStatus;
+  });
+
+  const taskByType = filterTasksByType(userTasks, selectedTaskTypeFilter);
+
+  const done = taskByType.filter((task) => normalizeStatus(task.status) === 'done').length;
+  const inProgress = taskByType.filter((task) => normalizeStatus(task.status) === 'in progress').length;
+  const rescheduled = taskByType.filter((task) => normalizeStatus(task.status) === 'rescheduled').length;
+  const missed = taskByType.filter((task) => normalizeStatus(task.status) === 'missed').length;
+
+  return {
+    plan: done + inProgress + rescheduled + missed,
+    done,
+    more: inProgress + rescheduled + missed,
+  };
+};
+
 export default function MyTasks({ selectedDate }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, dataByDate, selectedFilter, setSelectedFilter } = useActivityPlans();
+  const isMountedRef = useRef(true);
+  const timeoutIdsRef = useRef(new Set());
+  const {
+    fetchPlansByDate,
+    getPlansByDate,
+    isLoading,
+    getError,
+    dataByDate,
+    selectedFilter,
+    setSelectedFilter,
+    selectedTaskTypeFilter,
+  } = useActivityPlans();
+
+  const clearAllTimeouts = useCallback(() => {
+    timeoutIdsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    timeoutIdsRef.current.clear();
+  }, []);
+
+  const runTimeout = useCallback((callback, delay) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      if (!isMountedRef.current) return;
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
   
   const dateToUse = useMemo(() => {
     if (selectedDate) {
@@ -49,6 +182,14 @@ export default function MyTasks({ selectedDate }) {
   const error = getError(`date:${dateStr}`);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const fetchStats = async () => {
@@ -56,54 +197,14 @@ export default function MyTasks({ selectedDate }) {
         const currentUser = getSales();
         const currentUserId = currentUser?.internal_id;
 
-        if (!currentUserId) {
-          if (isMounted) {
-            setStats({ plan: 0, done: 0, more: 0 });
-          }
-          return;
-        }
-
         let data = getPlansByDate(dateToUse);
         
         if (!data) {
           data = await fetchPlansByDate(dateToUse);
         }
 
-        if (isMounted && data) {
-          // Filter tasks berdasarkan user yang login dan status yang valid
-          const allTasks = Array.isArray(data) 
-            ? data.filter(task => {
-                const normalizedStatus = (task.status || '').toLowerCase().trim();
-                const isUserTask = task.sales_internal_id === currentUserId;
-                const isValidStatus = normalizedStatus !== 'cancelled' && 
-                                     normalizedStatus !== 'cancel' &&
-                                     normalizedStatus !== 'deleted';
-                return isUserTask && isValidStatus;
-              })
-            : [];
-
-          const inProgress = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'in progress';
-          }).length;
-          
-          const rescheduled = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'rescheduled';
-          }).length;
-          
-          const done = allTasks.filter(t => {
-            const status = (t.status || '').toLowerCase().trim();
-            return status === 'done';
-          }).length;
-
-          const plan = done + inProgress + rescheduled;
-          const more = inProgress + rescheduled;
-
-          setStats({ plan, done, more });
-        } else if (isMounted) {
-
-          setStats({ plan: 0, done: 0, more: 0 });
+        if (isMounted) {
+          setStats(calculateTaskStats(data, currentUserId, selectedTaskTypeFilter));
         }
       } catch (err) {
         if (isMounted) {
@@ -119,69 +220,38 @@ export default function MyTasks({ selectedDate }) {
     return () => {
       isMounted = false;
     };
-  }, [fetchPlansByDate, getPlansByDate, dateToUse]);
+  }, [fetchPlansByDate, getPlansByDate, dateToUse, selectedTaskTypeFilter]);
 
   useEffect(() => {
     // Get current logged in user
     const currentUser = getSales();
     const currentUserId = currentUser?.internal_id;
 
-    if (!currentUserId) {
-      setStats({ plan: 0, done: 0, more: 0 });
-      return;
-    }
-
     const data = getPlansByDate(dateToUse);
     if (data) {
-      // Filter tasks berdasarkan user yang login dan status yang valid
-      const allTasks = Array.isArray(data) 
-        ? data.filter(task => {
-            const normalizedStatus = (task.status || '').toLowerCase().trim();
-            const isUserTask = task.sales_internal_id === currentUserId;
-            const isValidStatus = normalizedStatus !== 'cancelled' && 
-                                 normalizedStatus !== 'cancel' &&
-                                 normalizedStatus !== 'deleted';
-            return isUserTask && isValidStatus;
-          })
-        : [];
-
-      const inProgress = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'in progress';
-      }).length;
-      
-      const rescheduled = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'rescheduled';
-      }).length;
-      
-      const done = allTasks.filter(t => {
-        const status = (t.status || '').toLowerCase().trim();
-        return status === 'done';
-      }).length;
-
-      const plan = done + inProgress + rescheduled;
-      const more = inProgress + rescheduled;
-
-      setStats({ plan, done, more });
+      setStats(calculateTaskStats(data, currentUserId, selectedTaskTypeFilter));
     } else {
       setStats({ plan: 0, done: 0, more: 0 });
     }
-  }, [getPlansByDate, dateToUse, dataByDate]); 
+  }, [getPlansByDate, dateToUse, dataByDate, selectedTaskTypeFilter]); 
 
   useEffect(() => {
     const timer = setInterval(() => {
+      if (!isMountedRef.current) return;
       setIsAnimating(true);
-      setTimeout(() => {
+      runTimeout(() => {
         setCurrentTime(new Date());
-        setTimeout(() => {
+        runTimeout(() => {
           setIsAnimating(false);
         }, 800);
       }, 2400);
     }, 3000);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      clearInterval(timer);
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts, runTimeout]);
 
   const day = String(currentTime.getDate()).padStart(2, '0');
   const month = String(currentTime.getMonth() + 1).padStart(2, '0');
@@ -193,41 +263,42 @@ export default function MyTasks({ selectedDate }) {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   const timeString = `${String(displayHours).padStart(2, '0')}:${minutes} ${ampm}`;
-  const sharedCardShadow = 'rgba(10, 25, 47, 0.12)';
+  const sharedCardShadow = 'rgba(10, 25, 47, 0.08)';
 
   const createCardTone = (baseRgb) => ({
-    accent: `rgba(${baseRgb}, 0.28)`,
-    labelColor: `rgba(${baseRgb}, 0.82)`,
-    textColor: `rgba(${baseRgb}, 0.95)`,
-    borderColor: `rgba(${baseRgb}, 0.2)`,
-    ringColor: `rgba(${baseRgb}, 0.34)`,
-    orbColor: `rgba(${baseRgb}, 0.11)`,
+    accent: `rgba(${baseRgb}, 0.16)`,
+    labelColor: `rgba(${baseRgb}, 0.72)`,
+    textColor: `rgba(${baseRgb}, 0.9)`,
+    borderColor: `rgba(${baseRgb}, 0.12)`,
+    selectedBorderColor: `rgba(${baseRgb}, 0.22)`,
+    ringColor: `rgba(${baseRgb}, 0.12)`,
+    orbColor: 'rgba(255, 255, 255, 0.9)',
     iconColor: `rgb(${baseRgb})`,
     shadowColor: sharedCardShadow,
-    selectedBackground: `linear-gradient(142deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.34) 100%)`,
-    background: `linear-gradient(142deg, rgba(255, 255, 255, 0.99) 0%, rgba(${baseRgb}, 0.2) 100%)`,
+    selectedBackground: '#FFFFFF',
+    background: '#FFFFFF',
   });
 
-  const blueCardTone = createCardTone('31, 102, 170');
-  const greenCardTone = createCardTone('52, 148, 98');
-  const yellowCardTone = createCardTone('208, 148, 43');
+  const blueCardTone = createCardTone('31, 78, 140');
+  const greenCardTone = createCardTone('74, 140, 114');
+  const yellowCardTone = createCardTone('244, 169, 64');
 
   const taskCards = [
     {
       key: 'plan',
-      label: 'Plan',
+      label: 'Total',
       value: stats.plan,
       ...blueCardTone,
     },
     {
       key: 'done',
-      label: 'Done',
+      label: 'Selesai',
       value: stats.done,
       ...greenCardTone,
     },
     {
       key: 'more',
-      label: 'To Do',
+      label: 'Belum',
       value: stats.more,
       ...yellowCardTone,
     },
@@ -260,20 +331,20 @@ export default function MyTasks({ selectedDate }) {
               sx={{
                 background: isSelected ? card.selectedBackground : card.background,
                 borderRadius: { xs: '12px', sm: '14px', md: '16px' },
-                padding: { xs: 2, sm: 2.5, md: 3 },
-                minHeight: { xs: '88px', sm: '96px', md: '104px' },
+                padding: { xs: 1.5, sm: 1.75, md: 2 },
+                minHeight: { xs: '72px', sm: '80px', md: '88px' },
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'flex-start',
                 position: 'relative',
                 overflow: 'hidden',
-                border: isSelected ? `2px solid ${card.accent}` : `1px solid ${card.borderColor}`,
+                border: isSelected ? `1px solid ${card.selectedBorderColor}` : `1px solid ${card.borderColor}`,
                 boxShadow: isSelected
-                  ? `0 12px 24px ${card.shadowColor}, 0 0 0 3px ${card.ringColor}, inset 0 0 0 1px rgba(255, 255, 255, 0.7)`
-                  : `0 8px 18px ${card.shadowColor}`,
+                  ? `0 10px 22px ${card.shadowColor}, 0 0 0 1px ${card.ringColor}, inset 0 0 0 1px rgba(255, 255, 255, 0.72)`
+                  : `0 6px 16px ${card.shadowColor}`,
                 cursor: 'pointer',
-                transform: isSelected ? 'translateY(-2px) scale(1.02)' : 'translateY(0) scale(1)',
+                transform: isSelected ? 'translateY(-1px)' : 'translateY(0)',
                 transition: 'transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease',
                 '&::before': {
                   content: '""',
@@ -281,7 +352,7 @@ export default function MyTasks({ selectedDate }) {
                   inset: 0,
                   background:
                     'radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 58%)',
-                  opacity: isSelected ? 0.86 : 0.55,
+                  opacity: isSelected ? 0.76 : 0.48,
                   transition: 'opacity 0.22s ease',
                   pointerEvents: 'none',
                 },
@@ -297,11 +368,11 @@ export default function MyTasks({ selectedDate }) {
                   pointerEvents: 'none',
                 },
                 '&:hover': {
-                  transform: isSelected ? 'translateY(-5px) scale(1.03)' : 'translateY(-4px) scale(1.01)',
-                  boxShadow: `0 12px 24px ${card.shadowColor}`,
+                  transform: isSelected ? 'translateY(-3px)' : 'translateY(-2px)',
+                  boxShadow: `0 10px 22px ${card.shadowColor}`,
                 },
                 '&:hover::before': {
-                  opacity: isSelected ? 0.94 : 0.72,
+                  opacity: isSelected ? 0.82 : 0.62,
                 },
               }}
             >
@@ -311,19 +382,19 @@ export default function MyTasks({ selectedDate }) {
                     position: 'absolute',
                     top: 6,
                     right: 6,
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: card.iconColor,
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    boxShadow: '0 4px 10px rgba(15, 23, 42, 0.18)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+                    boxShadow: '0 4px 10px rgba(15, 23, 42, 0.1)',
                     zIndex: 2,
                   }}
                 >
-                  <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+                  <CheckCircleRoundedIcon sx={{ fontSize: 15 }} />
                 </Box>
               )}
               <Box sx={{ position: 'relative', zIndex: 1 }}>
@@ -333,9 +404,9 @@ export default function MyTasks({ selectedDate }) {
                     color: card.labelColor,
                     fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
                     letterSpacing: '0.02em',
-                    fontWeight: 700,
-                    mb: 1,
-                    textShadow: '0 1px 1px rgba(255, 255, 255, 0.35)',
+                    fontWeight: 600,
+                    mb: 0.75,
+                    textShadow: '0 1px 1px rgba(255, 255, 255, 0.22)',
                   }}
                 >
                   {card.label}
@@ -360,9 +431,9 @@ export default function MyTasks({ selectedDate }) {
                     sx={{
                       color: card.textColor,
                       fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                      fontWeight: 800,
+                      fontWeight: 700,
                       lineHeight: 1,
-                      textShadow: '0 1px 2px rgba(255, 255, 255, 0.35)',
+                      textShadow: '0 1px 2px rgba(255, 255, 255, 0.22)',
                     }}
                   >
                     {card.value}
@@ -373,6 +444,7 @@ export default function MyTasks({ selectedDate }) {
           );
         })}
       </Box>
+      <FilterTaskPlan />
     </Container>
   );
 }

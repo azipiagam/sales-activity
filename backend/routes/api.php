@@ -9,6 +9,7 @@ use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerAddressController;
+use App\Http\Controllers\FixAddressController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -44,6 +45,9 @@ Route::middleware('auth.sales')->group(function () {
     Route::post('/customers/{customerId}/addresses', [CustomerAddressController::class, 'store']);
     Route::put('/customers/{customerId}/addresses/{addressId}', [CustomerAddressController::class, 'update']);
     Route::delete('/customers/{customerId}/addresses/{addressId}', [CustomerAddressController::class, 'destroy']);
+
+    Route::get('/customers/{customerId}/fix-address', [FixAddressController::class, 'show']);
+    Route::post('/customers/{customerId}/fix-address', [FixAddressController::class, 'upsert']);
     
     // ─── Activity Plans (existing + range) 
     Route::get('activity-plans/all', [ActivityPlanController::class, 'getAllPlans']);
@@ -51,6 +55,7 @@ Route::middleware('auth.sales')->group(function () {
     Route::get('/activity-plans/{id}/check-location', [ActivityPlanController::class, 'checkLocation']);
     Route::get('/activity-plans', [ActivityPlanController::class, 'index']);
     Route::post('/activity-plans', [ActivityPlanController::class, 'store']);
+    Route::put('/activity-plans/{id}', [ActivityPlanController::class, 'update']);
     Route::put('/activity-plans/{id}/done', [ActivityPlanController::class, 'markAsDone']);
     Route::put('/activity-plans/{id}/reschedule', [ActivityPlanController::class, 'reschedule']);
     Route::delete('/activity-plans/{id}', [ActivityPlanController::class, 'destroy']);

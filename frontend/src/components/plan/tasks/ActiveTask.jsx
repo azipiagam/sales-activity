@@ -10,13 +10,12 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import EventIcon from '@mui/icons-material/Event';
 import CancelIcon from '@mui/icons-material/Cancel';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
+import EditIcon from '@mui/icons-material/Edit';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import CircularProgress from '@mui/material/CircularProgress';
 import WarningIcon from '@mui/icons-material/Warning';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
-import Chip from '@mui/material/Chip';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -70,23 +69,162 @@ const sortTasksByStatusAndDate = (tasks, selectedFilter) => {
   });
 };
 
-export default function ActiveTask({ selectedDate, isDateCarouselLoading = false }) {
+const ACTIVITY_TYPES = {
+  VISIT: 'Visit',
+  FOLLOW_UP: 'Follow Up',
+  PROSPEK: 'Prospek',
+};
+
+const TASK_TYPE_FILTER = {
+  ALL: 'all',
+  VISIT: 'visit',
+  FOLLOW_UP: 'follow_up',
+  PROSPEK: 'prospek',
+};
+
+const normalizeTujuan = (tujuan) => {
+  const normalized = String(tujuan || '').toLowerCase().trim();
+  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'followup') {
+    return ACTIVITY_TYPES.FOLLOW_UP;
+  }
+  return ACTIVITY_TYPES.VISIT;
+};
+
+const isCheckInTask = (task = {}) => {
+  const normalizedCustomerName = String(task?.customer_name ?? task?.namaCustomer ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  const normalizedAdditionalInfo = String(task?.keterangan_tambahan ?? task?.tambahan ?? '')
+    .toLowerCase()
+    .trim();
+
+  return normalizedCustomerName === 'checkin' || normalizedAdditionalInfo === 'checkin di tempat';
+};
+
+const resolveTaskActivityType = (task = {}) => {
+  const normalizedPurpose = String(task?.tujuan || '').toLowerCase().trim();
+  if (
+    normalizedPurpose === 'prospek' ||
+    normalizedPurpose === 'prospect' ||
+    normalizedPurpose === 'check in' ||
+    normalizedPurpose === 'check-in' ||
+    normalizedPurpose === 'checkin'
+  ) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  if (isCheckInTask(task)) {
+    return ACTIVITY_TYPES.PROSPEK;
+  }
+
+  return normalizeTujuan(task?.tujuan);
+};
+
+const filterTasksByStatus = (tasks, selectedFilter) => {
+  if (selectedFilter === 'done') {
+    return tasks.filter((task) => task.status === 'done');
+  }
+
+  if (selectedFilter === 'more') {
+    return tasks.filter(
+      (task) =>
+        task.status === 'in progress' || task.status === 'rescheduled' || task.status === 'missed'
+    );
+  }
+
+  if (selectedFilter === 'plan') {
+    return tasks.filter(
+      (task) =>
+        task.status === 'done' ||
+        task.status === 'in progress' ||
+        task.status === 'rescheduled' ||
+        task.status === 'missed'
+    );
+  }
+
+  return tasks;
+};
+
+const filterTasksByType = (tasks, selectedTaskTypeFilter) => {
+  if (!selectedTaskTypeFilter || selectedTaskTypeFilter === TASK_TYPE_FILTER.ALL) {
+    return tasks;
+  }
+
+  return tasks.filter((task) => {
+    const normalizedPurpose = resolveTaskActivityType(task);
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.VISIT) {
+      return normalizedPurpose === ACTIVITY_TYPES.VISIT;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.FOLLOW_UP) {
+      return normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP;
+    }
+
+    if (selectedTaskTypeFilter === TASK_TYPE_FILTER.PROSPEK) {
+      return normalizedPurpose === ACTIVITY_TYPES.PROSPEK;
+    }
+
+    return true;
+  });
+};
+
+const getDisplayStatusLabel = (task) => {
+  const normalizedStatus = String(task?.status || '').toLowerCase().trim();
+  const normalizedPurpose = resolveTaskActivityType(task);
+
+  if (normalizedStatus === 'in progress') {
+    if (normalizedPurpose === ACTIVITY_TYPES.FOLLOW_UP) {
+      return 'Belum follow up';
+    }
+    if (normalizedPurpose === ACTIVITY_TYPES.PROSPEK) {
+      return 'Belum check in';
+    }
+    return 'Belum dikunjungi';
+  }
+
+  if (normalizedStatus === 'done') {
+    return 'Selesai';
+  }
+
+  const fallbackStatusMap = {
+    deleted: 'Cancel',
+    missed: 'Missed',
+    rescheduled: 'Rescheduled',
+  };
+
+  return fallbackStatusMap[normalizedStatus] || 'In Progress';
+};
+
+export default function ActiveTask({ selectedDate }) {
   const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [openRescheduleModal, setOpenRescheduleModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
   const [activeTasks, setActiveTasks] = useState([]);
   const [expandedTaskById, setExpandedTaskById] = useState({});
   const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [currentEditTaskId, setCurrentEditTaskId] = useState(null);
+  const [editTujuan, setEditTujuan] = useState(ACTIVITY_TYPES.VISIT);
+  const [editTambahan, setEditTambahan] = useState('');
   const [actualVisitDate, setActualVisitDate] = useState(new Date());
   const [newVisitDate, setNewVisitDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTaskId, setMenuTaskId] = useState(null);
-  const [expandedCustomerNameId, setExpandedCustomerNameId] = useState(null);
 
-  const { fetchPlansByDate, getPlansByDate, isLoading, getError, invalidateCache, updatePlanInCache, dataByDate, selectedFilter } = useActivityPlans();
+  const {
+    fetchPlansByDate,
+    getPlansByDate,
+    isLoading,
+    getError,
+    invalidateCache,
+    updatePlanInCache,
+    selectedFilter,
+    selectedTaskTypeFilter,
+  } = useActivityPlans();
   const safeMenuAnchor = menuAnchor?.isConnected ? menuAnchor : null;
   
   const dateToUse = selectedDate || new Date();
@@ -182,13 +320,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           }
           
           // Format tujuan
-          let formattedTujuan = 'Visit';
-          if (taskData.tujuan) {
-            formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-            if (formattedTujuan.toLowerCase() === 'follow up') {
-              formattedTujuan = 'Follow Up';
-            }
-          }
+          const formattedTujuan = resolveTaskActivityType(taskData);
           
         return {
           id: taskData.id,
@@ -197,34 +329,24 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           tujuan: formattedTujuan,
           tambahan: taskData.keterangan_tambahan || '',
           result: taskData.result || '',
+          customer_id: taskData.customer_id || '',
+          customer_address_id: taskData.customer_address_id ?? null,
+          customer_location_lat: taskData.customer_location_lat ?? null,
+          customer_location_lng: taskData.customer_location_lng ?? null,
           visitDate: visitDate,
           status: status,
         };
         });
         
-        // Filter tasks based on selectedFilter
-        let filteredTasks = processedTasks;
-        if (selectedFilter === 'done') {
-          filteredTasks = processedTasks.filter(t => t.status === 'done');
-        } else if (selectedFilter === 'more') {
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-          );
-        } else if (selectedFilter === 'plan') {
-          // Show all (done + in progress + rescheduled + missed)
-          filteredTasks = processedTasks.filter(t => 
-            t.status === 'done' || 
-            t.status === 'in progress' || 
-            t.status === 'rescheduled' || 
-            t.status === 'missed'
-          );
-        }
+        let filteredTasks = filterTasksByStatus(processedTasks, selectedFilter);
+        filteredTasks = filterTasksByType(filteredTasks, selectedTaskTypeFilter);
         
         sortTasksByStatusAndDate(filteredTasks, selectedFilter);
         
         console.log('[ActiveTask] Final processedTasks (fetchActiveTask):', {
           count: filteredTasks.length,
           selectedFilter,
+          selectedTaskTypeFilter,
           tasks: filteredTasks.map(t => ({
             id: t.id,
             plan_no: t.idPlan,
@@ -242,7 +364,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
       console.error('Error fetching active task:', err);
       setActiveTasks([]);
     }
-  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter]);
+  }, [selectedDate, dateToUse, fetchPlansByDate, getPlansByDate, selectedFilter, selectedTaskTypeFilter]);
 
   // Gabungkan kedua useEffect menjadi satu untuk menghindari race conditions
   useEffect(() => {
@@ -285,13 +407,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           status = 'missed';
         }
 
-        let formattedTujuan = 'Visit';
-        if (taskData.tujuan) {
-          formattedTujuan = taskData.tujuan.charAt(0).toUpperCase() + taskData.tujuan.slice(1).toLowerCase();
-          if (formattedTujuan.toLowerCase() === 'follow up') {
-            formattedTujuan = 'Follow Up';
-          }
-        }
+        const formattedTujuan = resolveTaskActivityType(taskData);
 
         return {
           id: taskData.id,
@@ -300,27 +416,17 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           tujuan: formattedTujuan,
           tambahan: taskData.keterangan_tambahan || '',
           result: taskData.result || '',
+          customer_id: taskData.customer_id || '',
+          customer_address_id: taskData.customer_address_id ?? null,
+          customer_location_lat: taskData.customer_location_lat ?? null,
+          customer_location_lng: taskData.customer_location_lng ?? null,
           visitDate: visitDate,
           status: status,
         };
       });
 
-      // Filter tasks based on selectedFilter
-      let filteredTasks = processedTasks;
-      if (selectedFilter === 'done') {
-        filteredTasks = processedTasks.filter(t => t.status === 'done');
-      } else if (selectedFilter === 'more') {
-        filteredTasks = processedTasks.filter(t =>
-          t.status === 'in progress' || t.status === 'rescheduled' || t.status === 'missed'
-        );
-      } else if (selectedFilter === 'plan') {
-        filteredTasks = processedTasks.filter(t =>
-          t.status === 'done' ||
-          t.status === 'in progress' ||
-          t.status === 'rescheduled' ||
-          t.status === 'missed'
-        );
-      }
+      let filteredTasks = filterTasksByStatus(processedTasks, selectedFilter);
+      filteredTasks = filterTasksByType(filteredTasks, selectedTaskTypeFilter);
 
       sortTasksByStatusAndDate(filteredTasks, selectedFilter);
 
@@ -328,7 +434,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     } else {
       setActiveTasks([]);
     }
-  }, [dateToUse, selectedFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
+  }, [dateToUse, selectedFilter, selectedTaskTypeFilter, fetchActiveTask, getPlansByDate]); // Hapus dataByDate untuk menghindari infinite loop
 
   useEffect(() => {
     const handlePlanCreated = async () => {
@@ -352,7 +458,12 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleOpenModal = (task) => {
     if (!task?.id) return;
 
-    navigate(`/plan/done?taskId=${task.id}&date=${dateStr}`, {
+    const doneSearchParams = new URLSearchParams({
+      taskId: String(task.id),
+      date: dateStr,
+    });
+
+    navigate(`/plan/done?${doneSearchParams.toString()}`, {
       state: {
         taskId: task.id,
         date: dateStr,
@@ -393,6 +504,28 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
   const handleMenuReschedule = (taskId) => {
     handleCloseMenu();
     handleOpenRescheduleModal(taskId);
+  };
+
+  const handleOpenEditModal = (taskId) => {
+    const task = activeTasks.find((item) => item.id === taskId);
+    if (!task) return;
+
+    setCurrentEditTaskId(taskId);
+    setEditTujuan(normalizeTujuan(task.tujuan));
+    setEditTambahan(task.tambahan || '');
+    setOpenEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setOpenEditModal(false);
+    setCurrentEditTaskId(null);
+    setEditTujuan(ACTIVITY_TYPES.VISIT);
+    setEditTambahan('');
+  };
+
+  const handleMenuEdit = (taskId) => {
+    handleCloseMenu();
+    handleOpenEditModal(taskId);
   };
 
   const handleSaveResult = async () => {
@@ -550,6 +683,53 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     }
   };
 
+  const handleConfirmEdit = async () => {
+    if (!currentEditTaskId) return;
+
+    try {
+      setSaving(true);
+
+      const payload = {
+        tujuan: normalizeTujuan(editTujuan),
+        keterangan_tambahan: (editTambahan || '').trim(),
+      };
+
+      const response = await apiRequest(`activity-plans/${currentEditTaskId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update task');
+      }
+
+      updatePlanInCache(currentEditTaskId, payload);
+      setActiveTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === currentEditTaskId
+            ? {
+                ...task,
+                tujuan: payload.tujuan,
+                tambahan: payload.keterangan_tambahan,
+              }
+            : task
+        )
+      );
+
+      handleCloseEditModal();
+      invalidateCache(dateToUse);
+      fetchPlansByDate(dateToUse, true).catch((err) => {
+        console.error('Error refreshing after edit:', err);
+      });
+    } catch (err) {
+      console.error('Error editing task:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCancelTask = async (taskId) => {
     if (!window.confirm('Apakah Anda yakin ingin membatalkan task ini?')) {
       return;
@@ -584,8 +764,8 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
 
 
-  // Show loading state (but not if DateCarousel is loading - it has priority)
-  if (loading && !isDateCarouselLoading) {
+  // Show loading state while fetching the selected date.
+  if (loading) {
     return <LoadingManager type="skeleton" />;
   }
 
@@ -619,12 +799,21 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
 
   // Show no active task state
   if (activeTasks.length === 0) {
-    const emptyTaskLabel =
+    const emptyTaskLabelByStatus =
       selectedFilter === 'done'
         ? 'Belum ada task selesai'
         : selectedFilter === 'more'
         ? 'Belum ada task yang perlu dikerjakan'
         : 'Task kosong';
+    const taskTypeLabelMap = {
+      [TASK_TYPE_FILTER.VISIT]: 'Visit',
+      [TASK_TYPE_FILTER.FOLLOW_UP]: 'Follow Up',
+      [TASK_TYPE_FILTER.PROSPEK]: 'Prospek',
+    };
+    const selectedTaskTypeLabel = taskTypeLabelMap[selectedTaskTypeFilter];
+    const emptyTaskLabel = selectedTaskTypeLabel
+      ? `${emptyTaskLabelByStatus} untuk tipe ${selectedTaskTypeLabel}`
+      : emptyTaskLabelByStatus;
 
     return (
       <Container
@@ -663,10 +852,9 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background:
-                'radial-gradient(circle at 30% 30%, rgba(31, 78, 140, 0.24), rgba(31, 78, 140, 0.1) 68%, rgba(22, 58, 107, 0.05) 100%)',
-              border: '1px solid rgba(31, 78, 140, 0.2)',
-              boxShadow: '0 16px 34px rgba(22, 58, 107, 0.16)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              boxShadow: '0 16px 34px rgba(15, 23, 42, 0.08)',
             }}
           >
             <TaskOutlinedIcon
@@ -701,11 +889,15 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
     >
       {activeTasks.map((activeTask, index) => {
         const isExpanded = Boolean(expandedTaskById?.[activeTask.id]);
-        const isDoneTask = activeTask.status === 'done';
         const isDeletedTask = activeTask.status === 'deleted';
-        const isCustomerNameExpanded = expandedCustomerNameId === activeTask.id;
-        const summaryLabel = isExpanded ? 'Plan No' : 'Keterangan Tambahan';
+        const taskActivityType = resolveTaskActivityType(activeTask);
+        const summaryLabel = isExpanded ? 'Plan No' : 'Additional Information';
         const summaryValue = isExpanded ? activeTask.idPlan : activeTask.tambahan || '-';
+        const displayStatusLabel = getDisplayStatusLabel(activeTask);
+        const primaryActionLabel =
+          activeTask.status === 'in progress' && taskActivityType === ACTIVITY_TYPES.FOLLOW_UP
+            ? 'Isi Hasil'
+            : 'Check-In Sekarang';
         const cardTone = {
           accent: 'var(--theme-blue-primary)',
           text: 'var(--theme-blue-overlay)',
@@ -716,68 +908,53 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
         const statusToneMap = {
           done: {
             ...cardTone,
-            icon: TaskAltIcon,
           },
           missed: {
             ...cardTone,
-            icon: WarningIcon,
           },
           rescheduled: {
             ...cardTone,
-            icon: EventIcon,
           },
           deleted: {
             ...cardTone,
-            icon: CancelIcon,
           },
           'in progress': {
             ...cardTone,
-            icon: AutorenewIcon,
           },
         };
         const tone = statusToneMap[activeTask.status] || statusToneMap['in progress'];
-        const StatusIcon = tone.icon;
-        const statusChipMap = {
-          done: 'Done',
-          deleted: 'Cancel',
-          missed: 'Missed',
-          rescheduled: 'Rescheduled',
-          'in progress': 'In Progress',
-        };
-        const statusChipToneMap = {
+        const statusTextColorMap = {
           done: {
-            backgroundColor: 'rgba(46, 125, 50, 0.14)',
             color: '#2e7d32',
-            border: '1px solid rgba(46, 125, 50, 0.28)',
           },
           missed: {
-            backgroundColor: 'rgba(239, 83, 80, 0.14)',
             color: '#d6524f',
-            border: '1px solid rgba(239, 83, 80, 0.28)',
           },
           rescheduled: {
-            backgroundColor: 'rgba(255, 167, 38, 0.16)',
             color: '#d2871e',
-            border: '1px solid rgba(255, 167, 38, 0.3)',
           },
           deleted: {
-            backgroundColor: 'rgba(120, 144, 156, 0.16)',
             color: '#607d8b',
-            border: '1px solid rgba(120, 144, 156, 0.28)',
           },
           'in progress': {
-            backgroundColor: 'rgba(255, 193, 7, 0.18)',
             color: '#b7791f',
-            border: '1px solid rgba(255, 193, 7, 0.34)',
           },
         };
-        const statusChipTone = statusChipToneMap[activeTask.status] || statusChipToneMap['in progress'];
+        const statusTextTone = statusTextColorMap[activeTask.status] || statusTextColorMap['in progress'];
+        const statusIconMap = {
+          done: TaskAltIcon,
+          missed: WarningIcon,
+          rescheduled: EventIcon,
+          deleted: CancelIcon,
+          'in progress': AutorenewIcon,
+        };
+        const StatusIcon = statusIconMap[activeTask.status] || statusIconMap['in progress'];
 
         return (
         <Box
           key={`task-${activeTask.id}-${activeTask.status}-${activeTask.visitDate.getTime()}`}
           sx={{
-            background: `linear-gradient(135deg, ${tone.tint} 0%, rgba(255, 255, 255, 0.96) 38%, #FFFFFF 100%)`,
+            backgroundColor: '#FFFFFF',
             borderRadius: { xs: '10px', sm: '12px', md: '14px' },
             padding: { xs: 1.75, sm: 2.25, md: 2.75 },
             border: `1px solid ${tone.border}`,
@@ -792,7 +969,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               content: '""',
               position: 'absolute',
               inset: 0,
-              background: `linear-gradient(90deg, ${tone.stripe} 0%, rgba(255, 255, 255, 0) 42%)`,
+              background: 'transparent',
               pointerEvents: 'none',
             },
             '&:hover': {
@@ -850,89 +1027,26 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                       }}
                     />
                   )}
-                  <ClickAwayListener
-                    onClickAway={() => {
-                      if (expandedCustomerNameId === activeTask.id) {
-                        setExpandedCustomerNameId(null);
-                      }
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        variant="h6"
-                        onClick={() => {
-                          setExpandedCustomerNameId((prev) => (prev === activeTask.id ? null : activeTask.id));
-                        }}
-                        title={activeTask.namaCustomer || ''}
-                        sx={{
-                          fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
-                          fontWeight: 700,
-                          color: tone.text,
-                          lineHeight: 1.4,
-                          overflow: isCustomerNameExpanded ? 'visible' : 'hidden',
-                          textOverflow: isCustomerNameExpanded ? 'clip' : 'ellipsis',
-                          whiteSpace: isCustomerNameExpanded ? 'normal' : 'nowrap',
-                          wordBreak: 'break-word',
-                          maxWidth: '100%',
-                          cursor: 'pointer',
-                        }}
-                        aria-expanded={isCustomerNameExpanded}
-                      >
-                        {activeTask.namaCustomer}
-                      </Typography>
-                    </Box>
-                  </ClickAwayListener>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 0.5,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Chip
-                    icon={<StatusIcon />}
-                    label={statusChipMap[activeTask.status] || 'In Progress'}
-                    size="small"
-                    sx={{
-                      backgroundColor: statusChipTone.backgroundColor,
-                      color: statusChipTone.color,
-                      border: statusChipTone.border,
-                      fontWeight: 600,
-                      fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                      height: '28px',
-                      px: 0.25,
-                      '& .MuiChip-label': {
-                        px: 0.5,
-                      },
-                      '& .MuiChip-icon': {
-                        color: 'inherit',
-                        fontSize: '1rem',
-                        ml: 0.75,
-                        mr: -0.25,
-                      },
-                    }}
-                  />
-
-                  {!isDoneTask && activeTask.status !== 'deleted' && isExpanded && (
-                    <IconButton
-                      onClick={(e) => handleOpenMenu(e, activeTask.id)}
-                      size="small"
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      variant="h6"
+                      title={activeTask.namaCustomer || ''}
                       sx={{
-                        color: '#666',
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                          color: '#333',
-                        },
+                        fontSize: { xs: '0.95rem', sm: '1.05rem', md: '1.15rem' },
+                        fontWeight: 700,
+                        color: tone.text,
+                        lineHeight: 1.35,
+                        overflow: 'visible',
+                        textOverflow: 'clip',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'anywhere',
+                        maxWidth: '100%',
                       }}
-                      aria-label="Menu task"
                     >
-                      <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                    </IconButton>
-                  )}
+                      {activeTask.namaCustomer}
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
 
@@ -942,6 +1056,78 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  <StatusIcon
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.1rem' },
+                      color: statusTextTone.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      color: statusTextTone.color,
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {displayStatusLabel}
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={() => toggleTaskDetails(activeTask.id)}
+                  variant="text"
+                  size="small"
+                  endIcon={
+                    isExpanded ? (
+                      <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    ) : (
+                      <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
+                    )
+                  }
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                    color: tone.text,
+                    px: 0,
+                    minWidth: 'auto',
+                    alignSelf: 'center',
+                    justifyContent: 'flex-end',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      textDecoration: 'underline',
+                    },
+                  }}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
+                >
+                  {isExpanded ? 'Hide Detail' : 'View Detail'}
+                </Button>
+              </Box>
+
+              <Box
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
                   gap: 1,
                 }}
               >
@@ -973,65 +1159,11 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     {summaryValue}
                   </Typography>
                 </Box>
-                <Button
-                  onClick={() => toggleTaskDetails(activeTask.id)}
-                  variant="text"
-                  size="small"
-                  endIcon={
-                    isExpanded ? (
-                      <KeyboardArrowUpIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                    ) : (
-                      <KeyboardArrowDownIcon sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }} />
-                    )
-                  }
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-                    color: tone.text,
-                    px: 0,
-                    minWidth: 'auto',
-                    alignSelf: 'flex-end',
-                    justifyContent: 'flex-end',
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                      textDecoration: 'underline',
-                    },
-                  }}
-                  aria-expanded={isExpanded}
-                  aria-label={isExpanded ? 'Klik untuk menyembunyikan detail task' : 'Klik untuk melihat detail task'}
-                >
-                  {isExpanded ? 'Hide Detail' : 'View Detail'}
-                </Button>
               </Box>
             </Box>
 
             {isExpanded && (
               <>
-          {/* Tujuan */}
-          <Box sx={{ mb: 2 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '0.9375rem' },
-                color: '#999',
-                mb: 0.5,
-              }}
-            >
-              Tujuan
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                color: '#333',
-                fontWeight: 600,
-              }}
-            >
-              {activeTask.tujuan}
-            </Typography>
-          </Box>
-
           {/* Tambahan */}
           {activeTask.tambahan && (
             <Box sx={{ mb: 2 }}>
@@ -1043,7 +1175,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   mb: 0.5,
                 }}
               >
-                Tambahan
+                Additional Notes 
               </Typography>
               <Typography
                 variant="body1"
@@ -1089,13 +1221,29 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
             <Box
               sx={{
                 display: 'flex',
-                justifyContent: 'flex-end',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
                 gap: { xs: 1, sm: 1.5 },
                 mt: 3,
                 pt: 2,
                 borderTop: '1px dashed rgba(0, 0, 0, 0.18)',
               }}
             >
+              <IconButton
+                onClick={(e) => handleOpenMenu(e, activeTask.id)}
+                size="small"
+                sx={{
+                  color: '#666',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                    color: '#333',
+                  },
+                }}
+                aria-label="Menu task"
+              >
+                <MoreVertIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+              </IconButton>
+
               {/* Done button - only show if status is not "missed" */}
               {activeTask.status !== 'missed' && (
                 <Button
@@ -1103,6 +1251,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                   disabled={saving}
                   startIcon={<CheckCircleIcon sx={{ color: 'white' }} />}
                   sx={{
+                    ml: 'auto',
                     color: 'white',
                     backgroundColor: 'var(--theme-blue-primary)',
                     textTransform: 'none',
@@ -1122,7 +1271,7 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
                     },
                   }}
                 >
-                  Done
+                  {primaryActionLabel}
                 </Button>
               )}
             </Box>
@@ -1162,6 +1311,25 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
           
           return (
             <>
+              {task.status !== 'missed' && (
+                <MenuItem
+                  onClick={() => handleMenuEdit(menuTaskId)}
+                  disabled={saving}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    '&:hover': {
+                      backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <EditIcon sx={{ fontSize: '1.25rem', color: 'var(--theme-blue-primary)' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="Edit" />
+                </MenuItem>
+              )}
               {task.status !== 'missed' && (
                 <MenuItem
                   onClick={() => handleMenuReschedule(menuTaskId)}
@@ -1401,6 +1569,155 @@ export default function ActiveTask({ selectedDate, isDateCarouselLoading = false
               }}
             >
               {saving ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        open={openEditModal}
+        onClose={handleCloseEditModal}
+        aria-labelledby="edit-modal-title"
+        aria-describedby="edit-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '90%', sm: '500px', md: '560px' },
+            maxWidth: '90vw',
+            bgcolor: 'background.paper',
+            borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+            boxShadow: 24,
+            p: { xs: 3, sm: 4 },
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 3,
+            }}
+          >
+            <Typography
+              id="edit-modal-title"
+              variant="h6"
+              component="h2"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                fontWeight: 700,
+                color: '#333',
+              }}
+            >
+              Edit Task
+            </Typography>
+            <IconButton
+              onClick={handleCloseEditModal}
+              sx={{
+                color: '#666',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  color: '#333',
+                },
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                color: '#666',
+                mb: 1.5,
+                fontWeight: 500,
+              }}
+            >
+              Additional Information
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              minRows={4}
+              value={editTambahan}
+              onChange={(event) => setEditTambahan(event.target.value)}
+              placeholder="Enter additional information..."
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: { xs: '8px', sm: '10px' },
+                  fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                  alignItems: 'flex-start',
+                  '& fieldset': {
+                    borderColor: '#ddd',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--theme-blue-primary)',
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: { xs: 1.5, sm: 2 },
+              mt: 3,
+            }}
+          >
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleCloseEditModal}
+              sx={{
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                fontWeight: 600,
+                borderColor: 'var(--theme-blue-primary)',
+                color: 'var(--theme-blue-primary)',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: 'var(--theme-blue-overlay)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleConfirmEdit}
+              disabled={saving}
+              sx={{
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+                fontWeight: 600,
+                backgroundColor: 'var(--theme-blue-primary)',
+                color: 'white',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                '&:hover': {
+                  backgroundColor: 'var(--theme-blue-overlay)',
+                  color: 'white',
+                },
+                '&:disabled': {
+                  backgroundColor: '#ccc',
+                  color: '#666',
+                },
+              }}
+            >
+              {saving ? <CircularProgress size={24} color="inherit" /> : 'Save'}
             </Button>
           </Box>
         </Box>

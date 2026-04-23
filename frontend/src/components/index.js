@@ -1,11 +1,10 @@
 export {
   Dashboard,
-  Header,
   LatestCustomerDetail,
   LatestCustomers,
-  NavBottom,
   TaskDashboard,
 } from './dashboard';
+export { Header, NavBottom } from './template';
 export { AlertDialog, ErrorBoundary } from './plan/feedback';
 export {
   LoadingManager,
@@ -15,6 +14,6 @@ export {
   SkeletonLoading,
 } from './plan/loading';
 export { AddressMap, GoogleMapsProvider, useGoogleMaps } from './plan/maps';
-export { AddPlan, CheckIn, DateCarousel } from './plan';
+export { AddPlan, AddVisit, AddFollowUp, CheckIn, DateCarousel } from './plan';
 export { ModalResult } from './plan/shared';
-export { ActiveTask, MyTasks } from './plan/tasks';
+export { ActiveTask, FilterTaskPlan, MyTasks } from './plan/tasks';

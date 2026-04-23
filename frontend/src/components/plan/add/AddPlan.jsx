@@ -17,12 +17,10 @@ import { useTheme } from '@mui/material/styles';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 // Material-UI Icons
-import CloseIcon from '@mui/icons-material/Close';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import AddIcon from '@mui/icons-material/Add';
-import MyLocationIcon from '@mui/icons-material/MyLocation';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 // Custom imports
 import { apiRequest } from '../../../services/api';
@@ -226,13 +224,28 @@ const useLocationHandler = () => {
   };
 };
 
-export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress, addressSelection }) {
+export default function AddPlan({
+  open,
+  onClose,
+  onCloseAfterSuccess,
+  onOpenAddAddress,
+  addressSelection,
+  initialTujuan = '',
+  title = 'Create Activity Plan',
+  lockTujuan = false,
+  disableAddressEdit = false,
+  disableGeocoding = false,
+  centerHeader = false,
+  headerIcon: HeaderIcon = AssignmentIcon,
+}) {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showLoadingPlan, setShowLoadingPlan] = useState(false);
   const [geocodingLoading, setGeocodingLoading] = useState(false);
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '', fieldType: '' });
   const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
+  const [confirmationDialog, setConfirmationDialog] = useState({ open: false, message: '' });
+  const [saveAddressDialog, setSaveAddressDialog] = useState({ open: false, message: '' });
 
   // Refs
   const geocodingTimeoutRef = useRef(null);
@@ -270,6 +283,13 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       updateField('date', getTodayDateString());
     }
   }, [open, updateField]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initialTujuan === 'visit' || initialTujuan === 'follow up') {
+      updateField('tujuan', initialTujuan);
+    }
+  }, [open, initialTujuan, updateField]);
 
   useEffect(() => {
     if (!open || !addressSelection) return;
@@ -327,8 +347,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       setInputValue(customerName);
       setSearchInput('');
 
-      // Geocode the customer address if it exists
-      if (fullAddress && fullAddress.trim()) {
+      // Geocode the customer address if it exists and geocoding is not disabled
+      if (fullAddress && fullAddress.trim() && !disableGeocoding) {
         setGeocodingLoading(true);
         try {
           const geocodingResult = await getCoordinatesFromAddressEnhanced(fullAddress);
@@ -374,8 +394,9 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
 
 
   const handleTujuanClick = useCallback((tujuan) => {
+    if (lockTujuan) return;
     updateField('tujuan', tujuan);
-  }, [updateField]);
+  }, [lockTujuan, updateField]);
 
 
   const handleCreatePlan = async () => {
@@ -404,16 +425,23 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       return;
     }
 
-    // Validasi koordinat
-    if (!latitude || !longitude) {
-      setErrorDialog({ open: true, message: 'Lokasi belum ditentukan. Geser marker pada peta untuk menentukan lokasi.', fieldType: 'location' });
-      return;
+    // Validasi koordinat hanya untuk visit
+    if (formData.tujuan === 'visit') {
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        setErrorDialog({ open: true, message: 'Lokasi belum ditentukan. Geser marker pada peta untuk menentukan lokasi.', fieldType: 'location' });
+        return;
+      }
+
+      if (isDefaultLocation(latitude, longitude)) {
+        setConfirmationDialog({ open: true, message: 'Lokasi di luar jangkauan. Lanjutkan?' });
+        return;
+      }
     }
 
-    if (isDefaultLocation(latitude, longitude)) {
-      setErrorDialog({ open: true, message: 'Lokasi masih default. Geser marker ke lokasi yang sesuai.', fieldType: 'location' });
-      return;
-    }
+    proceedToCreatePlan();
+  };
+
+  const proceedToCreatePlan = async () => {
     setLoading(true);
     setShowLoadingPlan(true);
 
@@ -474,7 +502,11 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       setSuccessDialog({ open: true, message: 'Activity plan berhasil dibuat!' });
 
       // Close drawer immediately
-      onClose();
+      if (typeof onCloseAfterSuccess === 'function') {
+        onCloseAfterSuccess();
+      } else {
+        onClose();
+      }
 
       // Invalidate cache and refresh data for the plan date
       if (formData.date) {
@@ -500,6 +532,18 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
     }
   };
 
+  const handleConfirmContinue = useCallback(() => {
+    setConfirmationDialog({ open: false });
+    setSaveAddressDialog({ open: true, message: 'Simpan alamat atau tidak?' });
+  }, []);
+
+  const handleConfirmSaveAddress = useCallback((save) => {
+    setSaveAddressDialog({ open: false });
+    // If save, logic to save address can be added here
+    // For now, proceed to create plan
+    proceedToCreatePlan();
+  }, []);
+
   const handleClose = useCallback(() => {
     // Clear any pending geocoding timeout
     if (geocodingTimeoutRef.current) {
@@ -512,6 +556,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
     resetLocation();
     setErrorDialog({ open: false, message: '', fieldType: '' });
     setSuccessDialog({ open: false, message: '' });
+    setConfirmationDialog({ open: false, message: '' });
+    setSaveAddressDialog({ open: false, message: '' });
     setLoading(false);
     setShowLoadingPlan(false);
     setGeocodingLoading(false);
@@ -520,12 +566,8 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
     onClose();
   }, [resetForm, resetLocation, onClose]);
 
-  const handleSwitchToCheckIn = useCallback(() => {
-    handleClose();
-    if (onOpenCheckIn) onOpenCheckIn();
-  }, [handleClose, onOpenCheckIn]);
-
   const handleOpenAddressPage = useCallback(() => {
+    if (disableAddressEdit) return;
     if (!onOpenAddAddress) return;
     if (!formData.customerId) {
       setErrorDialog({ open: true, message: 'Pilih customer terlebih dahulu sebelum mengatur alamat.', fieldType: 'customer' });
@@ -542,7 +584,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
       latitude: Number.isFinite(latitude) ? latitude : null,
       longitude: Number.isFinite(longitude) ? longitude : null,
     });
-  }, [onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, formData.customerId, formData.customerAddressId, buildFullAddress]);
+  }, [disableAddressEdit, onOpenAddAddress, customerAddress, latitude, longitude, formData.customer, formData.customerId, formData.customerAddressId, buildFullAddress]);
 
   return (
     <Dialog
@@ -561,7 +603,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
         sx: {
           borderTopLeftRadius: fullScreen ? 0 : '20px',
           borderTopRightRadius: fullScreen ? 0 : '20px',
-          maxHeight: fullScreen ? '100%' : '90vh',
+          maxHeight: fullScreen ? '100%' : '96vh',
           width: '100%',
         },
       }}
@@ -579,27 +621,14 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             alignItems: 'center',
             mb: 3,
             pb: 2,
             borderBottom: '1px solid rgba(31, 78, 140, 0.1)',
+            gap: 1,
           }}
         >
-          <Typography
-            variant="h5"
-            sx={{
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
-              fontWeight: 700,
-              color: 'var(--theme-blue-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <AssignmentIcon sx={{ color: 'var(--theme-blue-primary)' }} />
-            Create Activity Plan
-          </Typography>
           <IconButton
             onClick={handleClose}
             sx={{
@@ -609,51 +638,24 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
               },
             }}
           >
-            <CloseIcon />
+            <ArrowBackIcon />
           </IconButton>
-        </Box>
-
-        <Box sx={{ mb: 3 }}>
-          <Box
+          <Typography
+            variant="h5"
             sx={{
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+              fontWeight: 700,
+              color: 'var(--theme-blue-primary)',
               display: 'flex',
+              alignItems: 'center',
+              justifyContent: centerHeader ? 'center' : 'flex-start',
               gap: 1,
-              p: 0.5,
-              borderRadius: '999px',
-              backgroundColor: 'rgba(31, 78, 140, 0.12)',
-              border: '1px solid rgba(31, 78, 140, 0.2)',
+              flex: 1,
             }}
           >
-            <Button
-              variant="contained"
-              fullWidth
-              startIcon={<AddIcon />}
-              sx={{
-                borderRadius: '999px',
-                textTransform: 'none',
-                fontWeight: 700,
-                backgroundColor: 'var(--theme-blue-primary)',
-                '&:hover': { backgroundColor: 'var(--theme-blue-overlay)' },
-              }}
-              disabled
-            >
-              Add Plan
-            </Button>
-            <Button
-              variant="text"
-              fullWidth
-              onClick={handleSwitchToCheckIn}
-              startIcon={<MyLocationIcon />}
-              sx={{
-                borderRadius: '999px',
-                textTransform: 'none',
-                fontWeight: 700,
-                color: 'var(--theme-blue-overlay)',
-              }}
-            >
-              Check In
-            </Button>
-          </Box>
+            {HeaderIcon ? <HeaderIcon sx={{ color: 'var(--theme-blue-primary)' }} /> : null}
+            {title}
+          </Typography>
         </Box>
 
         {/* Error Dialog */}
@@ -672,6 +674,118 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
           message={successDialog.message}
           severity="success"
         />
+
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={confirmationDialog.open}
+          onClose={() => setConfirmationDialog({ open: false })}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              borderRadius: '12px',
+              p: 2,
+            },
+          }}
+        >
+          <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Konfirmasi
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {confirmationDialog.message}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => setConfirmationDialog({ open: false })}
+                sx={{
+                  borderColor: 'var(--theme-blue-primary)',
+                  color: 'var(--theme-blue-primary)',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    borderColor: 'var(--theme-blue-overlay)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                  },
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleConfirmContinue}
+                sx={{
+                  backgroundColor: 'var(--theme-blue-primary)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    backgroundColor: 'var(--theme-blue-overlay)',
+                  },
+                }}
+              >
+                Lanjutkan
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+
+        {/* Save Address Dialog */}
+        <Dialog
+          open={saveAddressDialog.open}
+          onClose={() => setSaveAddressDialog({ open: false })}
+          fullWidth
+          maxWidth="sm"
+          PaperProps={{
+            sx: {
+              borderRadius: '12px',
+              p: 2,
+            },
+          }}
+        >
+          <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Konfirmasi Alamat
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {saveAddressDialog.message}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => handleConfirmSaveAddress(false)}
+                sx={{
+                  borderColor: 'var(--theme-blue-primary)',
+                  color: 'var(--theme-blue-primary)',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    borderColor: 'var(--theme-blue-overlay)',
+                    backgroundColor: 'rgba(31, 78, 140, 0.08)',
+                  },
+                }}
+              >
+                Tidak
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => handleConfirmSaveAddress(true)}
+                sx={{
+                  backgroundColor: 'var(--theme-blue-primary)',
+                  color: 'white',
+                  borderRadius: '8px',
+                  px: 3,
+                  '&:hover': {
+                    backgroundColor: 'var(--theme-blue-overlay)',
+                  },
+                }}
+              >
+                Ya
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
 
         {/* Date Input */}
         <Box sx={{ mb: 3 }}>
@@ -759,7 +873,7 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Cari atau pilih Customer (minimal 2 karakter)"
+                placeholder="Search or select Customer (minimum 2 characters)"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: { xs: '8px', sm: '10px' },
@@ -854,89 +968,59 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
               fontWeight: 600,
             }}
           >
-            Alamat dan Maps
+            Customer Address
           </Typography>
 
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={handleOpenAddressPage}
-            startIcon={geocodingLoading ? <CircularProgress size={18} /> : <LocationOnIcon />}
-            sx={{
-              py: { xs: 1.25, sm: 1.5 },
-              borderColor: 'var(--theme-blue-primary)',
-              color: 'var(--theme-blue-primary)',
-              borderRadius: { xs: '8px', sm: '10px' },
-              textTransform: 'none',
-              fontWeight: 700,
-              justifyContent: 'flex-start',
-              '&:hover': {
-                borderColor: 'var(--theme-blue-overlay)',
-                backgroundColor: 'rgba(31, 78, 140, 0.06)',
-              },
-            }}
-          >
-            Buka halaman alamat & maps
-          </Button>
+          {!disableAddressEdit && (
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={handleOpenAddressPage}
+              startIcon={geocodingLoading ? <CircularProgress size={18} /> : <LocationOnIcon />}
+              sx={{
+                py: { xs: 1.25, sm: 1.5 },
+                borderColor: 'var(--theme-blue-primary)',
+                color: 'var(--theme-blue-primary)',
+                borderRadius: { xs: '8px', sm: '10px' },
+                textTransform: 'none',
+                fontWeight: 700,
+                justifyContent: 'flex-start',
+                '&:hover': {
+                  borderColor: 'var(--theme-blue-overlay)',
+                  backgroundColor: 'rgba(31, 78, 140, 0.06)',
+                },
+              }}
+            >
+              Open Address & Maps Page
+            </Button>
+          )}
 
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 1,
-              color: '#666',
-              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-            }}
-          >
-            {customerAddress?.trim() ? `Alamat: ${customerAddress}` : 'Alamat belum diatur.'}
-          </Typography>
+          {customerAddress?.trim() && (
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 1,
+                color: '#666',
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              }}
+            >
+              Address: {customerAddress}
+            </Typography>
+          )}
 
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 0.75,
-              color: latitude && longitude ? '#1f4e8c' : '#d32f2f',
-              fontWeight: 600,
-              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-            }}
-          >
-            {latitude && longitude
-              ? `Koordinat: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
-              : 'Koordinat belum diatur.'}
-          </Typography>
-        </Box>
-
-        {/* Tujuan */}
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-              color: '#666',
-              mb: 1.5,
-              fontWeight: 600,
-            }}
-          >
-            Tujuan
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: { xs: 1.5, sm: 2 },
-            }}
-          >
-            <ActivityTypeButton
-              type="visit"
-              label="Visit"
-              selected={formData.tujuan === 'visit'}
-              onClick={handleTujuanClick}
-            />
-            <ActivityTypeButton
-              type="follow up"
-              label="Follow Up"
-              selected={formData.tujuan === 'follow up'}
-              onClick={handleTujuanClick}
-            />
-          </Box>
+          {latitude && longitude && (
+            <Typography
+              variant="body2"
+              sx={{
+                mt: 0.75,
+                color: '#1f4e8c',
+                fontWeight: 600,
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              }}
+            >
+              Koordinat: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+            </Typography>
+          )}
         </Box>
 
         {/* Keterangan Tambahan */}
@@ -950,11 +1034,11 @@ export default function AddPlan({ open, onClose, onOpenCheckIn, onOpenAddAddress
               fontWeight: 600,
             }}
           >
-            Keterangan Tambahan
+            Additional Notes (Optional)
           </Typography>
           <TextareaAutosize
-            minRows={4}
-            placeholder="Masukkan keterangan tambahan..."
+            minRows={5}
+            placeholder="Enter additional information..."
             value={formData.keterangan}
             onChange={handleInputChange('keterangan')}
             style={{

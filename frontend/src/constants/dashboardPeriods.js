@@ -1,12 +1,12 @@
-export const DEFAULT_DASHBOARD_PERIOD = 'Bulan ini';
+export const DEFAULT_DASHBOARD_PERIOD = 'This Month';
 
 export const DASHBOARD_PERIOD_OPTIONS = [
-  'Semua',
-  'Hari Ini',
-  '7 Hari Terakhir',
-  '30 Hari Terakhir',
-  'Bulan ini',
-  'Bulan lalu',
+  'All Periods',
+  'Today',
+  '7 Days Ago',
+  '30 Days Ago',
+  'This Month',
+  'Last Month',
 ];
 
 export const DASHBOARD_EXPORT_PERIOD_OPTIONS = [
@@ -24,19 +24,36 @@ export const DASHBOARD_EXPORT_PERIOD_OPTIONS = [
   },
 ];
 
-const PERIOD_KEY_BY_LABEL = {
-  Semua: 'all_time',
-  'Hari Ini': 'daily',
-  '7 Hari Terakhir': 'weekly',
-  '30 Hari Terakhir': 'last_30_days',
-  'Bulan ini': 'monthly',
-  'Bulan Kemarin': 'previous_month',
-  'Bulan lalu': 'previous_month',
-  'Satu Tahun': 'yearly',
-  Mingguan: 'weekly',
-  Bulanan: 'monthly',
+const normalizePeriodLabel = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+const PERIOD_ALIASES = {
+  all_time: ['All Periods', 'All Time', 'Semua'],
+  daily: ['Today', 'Hari Ini'],
+  weekly: ['7 Days Ago', 'Last 7 Days', '7 Hari Terakhir', 'Mingguan'],
+  last_30_days: ['30 Days Ago', 'Last 30 Days', '30 Hari Terakhir'],
+  monthly: ['This Month', 'Bulan ini', 'Bulanan'],
+  previous_month: ['Last Month', 'Bulan Kemarin', 'Bulan lalu'],
+  yearly: ['One Year', 'Satu Tahun'],
 };
 
+const PERIOD_KEY_BY_LABEL = Object.entries(PERIOD_ALIASES).reduce(
+  (accumulator, [periodKey, labels]) => {
+    labels.forEach((label) => {
+      accumulator[normalizePeriodLabel(label)] = periodKey;
+    });
+    return accumulator;
+  },
+  {}
+);
+
 export function getDashboardPeriodKey(periodLabel) {
-  return PERIOD_KEY_BY_LABEL[periodLabel] || PERIOD_KEY_BY_LABEL[DEFAULT_DASHBOARD_PERIOD];
+  return (
+    PERIOD_KEY_BY_LABEL[normalizePeriodLabel(periodLabel)] ||
+    PERIOD_KEY_BY_LABEL[normalizePeriodLabel(DEFAULT_DASHBOARD_PERIOD)] ||
+    'monthly'
+  );
 }

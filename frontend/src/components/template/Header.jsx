@@ -25,10 +25,10 @@ import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
 import { apiRequest } from '../../services/api';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
-import logoPiagam from '../../assets/media/logo-piagam2.png';
+import logoPiagam from '../../assets/media/logo-piagam2.svg';
 // import backgroundHeader from '../../assets/media/bgh1.svg';
-import { downloadDashboardXls } from '../../utils/dashboardExport';
-import DashboardDownloadDialog from './DashboardDownloadDialog';
+import { downloadDashboardPdf } from '../../utils/dashboardExport';
+import DashboardDownloadDialog from '../dashboard/DashboardDownloadDialog';
 import {
   DASHBOARD_PERIOD_OPTIONS,
   DEFAULT_DASHBOARD_PERIOD,
@@ -43,7 +43,6 @@ export default function Header({
   onPickerDateChange,
   selectedDate,
   onDateChange,
-  onDateCarouselLoadingChange,
   onRefresh,
   dashboardPeriod,
   onDashboardPeriodChange,
@@ -51,10 +50,8 @@ export default function Header({
   onDashboardProvinceChange,
   dashboardProvinceOptions,
 }) {
-  const themeBlueOverlay = 'var(--theme-blue-overlay)';
-  const themeBluePrimary = 'var(--theme-blue-primary)';
-  const headerGradient =
-    `linear-gradient(135deg, ${themeBlueOverlay} 0%, ${themeBluePrimary} 100%)`;
+  const headerBaseColor = '#163a6b';
+  const themeBlueOverlay = headerBaseColor;
   const textOnBluePrimary = 'var(--text-on-blue-primary)';
   const textOnBlueAccent = 'var(--text-on-blue-accent)';
   const planDoneAccent = 'var(--plan-done-accent)';
@@ -85,16 +82,16 @@ export default function Header({
   const periodOptions = DASHBOARD_PERIOD_OPTIONS;
   const provinceOptions = Array.isArray(dashboardProvinceOptions) && dashboardProvinceOptions.length > 0
     ? dashboardProvinceOptions
-    : ['Semua Provinsi'];
+    : ['All States'];
 
-  const bottomControlHeight = { xs: 64, sm: 70, md: 74 };
+  const bottomControlHeight = { xs: 52, sm: 56, md: 60 };
   
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour >= 5 && hour < 12) return 'Selamat Pagi';
-    if (hour >= 12 && hour < 15) return 'Selamat Siang';
-    if (hour >= 15 && hour < 19) return 'Selamat Sore';
-    return 'Selamat Malam';
+    if (hour >= 5 && hour < 12) return 'Good Morning !';
+    if (hour >= 12 && hour < 15) return 'Good Afternoon !';
+    if (hour >= 15 && hour < 19) return 'Good Evening !';
+    return 'Good Night';
   };
   
   useEffect(() => {
@@ -193,7 +190,7 @@ export default function Header({
 
       const payload = await response.json();
 
-      downloadDashboardXls({
+      downloadDashboardPdf({
         exportData: payload?.data ?? null,
         periodLabel,
         provinceLabel: provinceValue,
@@ -202,7 +199,7 @@ export default function Header({
 
       return { ok: true };
     } catch (error) {
-      console.error('Error downloading dashboard XLS:', error);
+      console.error('Error downloading dashboard PDF:', error);
       return {
         ok: false,
         message: 'File gagal disiapkan. Coba lagi dalam beberapa saat.',
@@ -257,10 +254,8 @@ export default function Header({
           left: 0,
           right: 0,
           zIndex: 1000,
-          background: headerGradient,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)',
-          borderBottomLeftRadius: { xs: '28px', sm: '32px', md: '36px' },
-          borderBottomRightRadius: { xs: '28px', sm: '32px', md: '36px' },
+          backgroundColor: headerBaseColor,
+          boxShadow: '0 10px 28px rgba(10, 28, 53, 0.3)',
           overflow: 'hidden',
           '&::before': {
             content: '""',
@@ -291,9 +286,9 @@ export default function Header({
           aria-hidden="true"
           sx={{
             position: 'absolute',
-            top: { xs: -58, sm: -82, md: -104 },
-            left: { xs: -54, sm: -44, md: -32 },
-            width: { xs: 188, sm: 248, md: 320 },
+            top: { xs: -50, sm: -72, md: -90 },
+            left: { xs: -52, sm: -42, md: -28 },
+            width: { xs: 170, sm: 220, md: 280 },
             height: 'auto',
             opacity: 0.24,
             pointerEvents: 'none',
@@ -306,12 +301,12 @@ export default function Header({
           sx={{
             position: 'relative',
             overflow: 'hidden',
-            minHeight: { xs: '70px', sm: '75px', md: '80px' },
+            minHeight: { xs: '58px', sm: '62px', md: '66px' },
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            px: { xs: 2.5, sm: 3 },
-            py: { xs: 1.5, sm: 2 },
+            px: { xs: 2, sm: 2.5 },
+            py: { xs: 1, sm: 1.2 },
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -479,7 +474,7 @@ export default function Header({
                 alignItems: 'center',
                 gap: 0.75,
                 px: { sm: 1.5, md: 2 },
-                py: 0.75,
+                py: 0.6,
                 borderRadius: '8px',
                 backgroundColor: 'rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(10px)',
@@ -508,10 +503,10 @@ export default function Header({
             <IconButton
               onClick={handleHeaderActionClick}
               disabled={isDashboardPage && (isDownloadingDashboard || !sales?.internal_id)}
-              aria-label={isDashboardPage ? 'download dashboard xls' : 'open calendar'}
+              aria-label={isDashboardPage ? 'download dashboard pdf' : 'open calendar'}
               sx={{
-                width: { xs: 40, sm: 44, md: 48 },
-                height: { xs: 40, sm: 44, md: 48 },
+                width: { xs: 36, sm: 40, md: 42 },
+                height: { xs: 36, sm: 40, md: 42 },
                 backgroundColor: 'rgba(255,255,255,0.15)',
                 border: '2px solid rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(10px)',
@@ -535,14 +530,14 @@ export default function Header({
                 <FileDownloadOutlinedIcon
                   sx={{
                     color: 'white',
-                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                    fontSize: { xs: '18px', sm: '20px', md: '22px' },
                   }}
                 />
               ) : (
                 <CalendarTodayIcon
                   sx={{
                     color: 'white',
-                    fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                    fontSize: { xs: '18px', sm: '20px', md: '22px' },
                   }}
                 />
               )}
@@ -552,8 +547,8 @@ export default function Header({
             <IconButton
               onClick={handleReset}
               sx={{
-                width: { xs: 40, sm: 44, md: 48 },
-                height: { xs: 40, sm: 44, md: 48 },
+                width: { xs: 36, sm: 40, md: 42 },
+                height: { xs: 36, sm: 40, md: 42 },
                 backgroundColor: 'rgba(255,255,255,0.15)',
                 border: '2px solid rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(10px)',
@@ -572,7 +567,7 @@ export default function Header({
               <RefreshIcon
                 sx={{
                   color: 'white',
-                  fontSize: { xs: '20px', sm: '22px', md: '24px' },
+                  fontSize: { xs: '18px', sm: '20px', md: '22px' },
                 }}
               />
             </IconButton>
@@ -583,7 +578,7 @@ export default function Header({
         <Divider
           sx={{
             borderColor: 'rgba(255,255,255,0.15)',
-            mx: { xs: 2.5, sm: 3 },
+            mx: { xs: 2, sm: 2.5 },
             opacity: 0.6,
           }}
         />
@@ -592,8 +587,8 @@ export default function Header({
         {(isPlanPage || isDashboardPage) && (
           <Box
             sx={{
-              px: { xs: 2, sm: 3 },
-              py: { xs: 1, sm: 1.25 },
+              px: { xs: 1.5, sm: 2.5 },
+              py: { xs: 0.5, sm: 0.7 },
               position: 'relative',
               '&::before': {
                 content: '""',
@@ -623,7 +618,6 @@ export default function Header({
                 <DateCarousel
                   selectedDate={selectedDate}
                   onDateChange={onDateChange}
-                  onLoadingChange={onDateCarouselLoadingChange}
                   height={bottomControlHeight}
                 />
               ) : (

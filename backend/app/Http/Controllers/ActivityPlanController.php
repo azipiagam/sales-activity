@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Services\ActivityPlanService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class ActivityPlanController extends Controller
@@ -65,7 +66,7 @@ class ActivityPlanController extends Controller
             'customer_id'          => 'required',
             'customer_name'        => 'required',
             'plan_date'            => 'required|date|after_or_equal:today',
-            'tujuan'               => 'required|in:Visit,Follow Up',
+            'tujuan'               => 'required|in:Visit,Follow Up,Prospek',
             'keterangan_tambahan'  => 'nullable|string',
             // Address resolution: prefer address_id, fall back to direct lat/lng
             'customer_address_id'  => 'nullable|string',
@@ -121,7 +122,7 @@ class ActivityPlanController extends Controller
                 'customer_id'         => 'required',
                 'customer_name'       => 'required',
                 'plan_date'           => 'required|date|after_or_equal:today',
-                'tujuan'              => 'required|in:Visit,Follow Up',
+                'tujuan'              => 'required|in:Visit,Follow Up,Prospek',
                 'keterangan_tambahan' => 'nullable|string',
                 'customer_address_id' => 'nullable|string',
             ]);
@@ -160,9 +161,9 @@ class ActivityPlanController extends Controller
      * Resolve customer_location_lat/lng from customer_address_id.
      *
      * Rules:
-     *  - 'master'  → use lat/lng from master_customer (currently null in schema, so stays null)
-     *  - UUID      → use lat/lng from customer_addresses row
-     *  - null/skip → keep whatever lat/lng was passed directly
+     *  - 'master'  -> use fix_address, then master_customer (if available), then request lat/lng
+     *  - UUID      -> use lat/lng from customer_addresses row
+     *  - null/skip -> keep whatever lat/lng was passed directly
      */
     private function resolveAddressCoordinates(array $data): array
     {
@@ -173,10 +174,25 @@ class ActivityPlanController extends Controller
         }
 
         if ($addressId === 'master') {
-            // master_customer has no lat/lng columns, so we leave them null
-            // (or you could add lat/lng to master_customer later and read from there)
-            $data['customer_location_lat'] = null;
-            $data['customer_location_lng'] = null;
+            // 1) Prefer fix_address coordinates when available.
+            $fixAddress = DB::table('fix_address')
+                ->where('customer_id', $data['customer_id'] ?? null)
+                ->select('lat', 'lng')
+                ->first();
+
+            $resolvedLat = $fixAddress->lat ?? null;
+            $resolvedLng = $fixAddress->lng ?? null;
+
+            // 2) Fallback to master_customer coordinates if the schema provides them.
+            if ($resolvedLat === null || $resolvedLng === null) {
+                $masterCoordinates = $this->getMasterCustomerCoordinates($data['customer_id'] ?? null);
+                $resolvedLat = $resolvedLat ?? ($masterCoordinates['lat'] ?? null);
+                $resolvedLng = $resolvedLng ?? ($masterCoordinates['lng'] ?? null);
+            }
+
+            // 3) Final fallback: keep FE geocoded coordinates sent from AddPlan/AddAddress.
+            $data['customer_location_lat'] = $resolvedLat ?? ($data['customer_location_lat'] ?? null);
+            $data['customer_location_lng'] = $resolvedLng ?? ($data['customer_location_lng'] ?? null);
             return $data;
         }
 
@@ -196,17 +212,58 @@ class ActivityPlanController extends Controller
         return $data;
     }
 
+    /**
+     * Read coordinates from master_customer if coordinate columns are present.
+     * Supports several possible column naming conventions.
+     */
+    private function getMasterCustomerCoordinates($customerId): array
+    {
+        if (!$customerId) {
+            return ['lat' => null, 'lng' => null];
+        }
+
+        $latColumnCandidates = ['lat', 'latitude', 'customer_location_lat', 'location_lat'];
+        $lngColumnCandidates = ['lng', 'longitude', 'customer_location_lng', 'location_lng'];
+
+        $latColumn = collect($latColumnCandidates)->first(
+            fn($column) => Schema::hasColumn('master_customer', $column)
+        );
+        $lngColumn = collect($lngColumnCandidates)->first(
+            fn($column) => Schema::hasColumn('master_customer', $column)
+        );
+
+        if (!$latColumn && !$lngColumn) {
+            return ['lat' => null, 'lng' => null];
+        }
+
+        $selectColumns = array_values(array_filter([$latColumn, $lngColumn]));
+
+        $masterRow = DB::table('master_customer')
+            ->where('id', $customerId)
+            ->select($selectColumns)
+            ->first();
+
+        if (!$masterRow) {
+            return ['lat' => null, 'lng' => null];
+        }
+
+        return [
+            'lat' => $latColumn ? ($masterRow->{$latColumn} ?? null) : null,
+            'lng' => $lngColumn ? ($masterRow->{$lngColumn} ?? null) : null,
+        ];
+    }
+
     public function markAsDone(Request $request, $id)
     {
         $request->validate([
             'result'    => 'nullable|string',
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude'  => 'nullable|numeric|required_with:longitude',
+            'longitude' => 'nullable|numeric|required_with:latitude',
             'accuracy'  => 'nullable|numeric',
             'photo'     => 'nullable|string', // base64
         ]);
 
-        $this->activityPlanService->markAsDone(
+        $doneResult = $this->activityPlanService->markAsDone(
             $id,
             $request->result,
             $request->latitude,
@@ -216,7 +273,9 @@ class ActivityPlanController extends Controller
             $request->sales_internal_id ?? null
         );
 
-        return response()->json(['message' => 'Activity marked as done']);
+        return response()->json(array_merge([
+            'message' => 'Activity marked as done',
+        ], $doneResult));
     }
 
     public function reschedule(Request $request, $id)
@@ -228,6 +287,48 @@ class ActivityPlanController extends Controller
         $this->activityPlanService->reschedule($id, $request->new_date);
 
         return response()->json(['message' => 'Activity plan rescheduled']);
+    }
+
+    /**
+     * Update activity plan (only 'in progress' or 'rescheduled')
+     * URL: PUT /api/activity-plans/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'customer_id'           => 'sometimes|required',
+            'customer_name'         => 'sometimes|required',
+            'plan_date'             => 'sometimes|required|date|after_or_equal:today',
+            'tujuan'                => 'sometimes|required|in:Visit,Follow Up,Prospek',
+            'keterangan_tambahan'   => 'nullable|string',
+            'customer_address_id'   => 'nullable|string',
+            'customer_location_lat' => 'nullable|numeric',
+            'customer_location_lng' => 'nullable|numeric',
+        ]);
+
+        try {
+            $data = $request->only([
+                'customer_id',
+                'customer_name',
+                'plan_date',
+                'tujuan',
+                'keterangan_tambahan',
+                'customer_address_id',
+                'customer_location_lat',
+                'customer_location_lng',
+            ]);
+
+            $result = $this->activityPlanService->update($id, $data);
+
+            return response()->json([
+                'message' => 'Activity plan updated',
+                'data'    => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     public function destroy($id)

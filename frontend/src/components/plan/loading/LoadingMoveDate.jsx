@@ -3,49 +3,33 @@ import React from 'react';
 import { Box } from '@mui/material';
 import Lottie from 'lottie-react';
 import blueLoading from '../../../assets/media/MoveDate.json';
-import BackgroundMain from '../../../assets/media/Background';
+
+const overlaySx = {
+  position: 'fixed',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: 'transparent',
+  backdropFilter: 'blur(2px)',
+  WebkitBackdropFilter: 'blur(2px)',
+  zIndex: 9999,
+};
 
 const LoadingMoveDate = () => {
   return (
-    <Box
-      sx={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#F5F7FA',
-        zIndex: 9999,
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(255, 255, 255, 0.3)', 
-          backdropFilter: 'blur(2px)', 
-          WebkitBackdropFilter: 'blur(2px)',
-          zIndex: 1,
-        },
-      }}
-    >
-      <BackgroundMain />
-
-      <Box 
-        sx={{ 
-          width: 160, 
-          height: 160,
-          position: 'relative',
-          zIndex: 2,
+    <Box sx={overlaySx}>
+      <Box
+        sx={{
+          width: { xs: 120, sm: 132 },
+          height: { xs: 120, sm: 132 },
+          filter: 'drop-shadow(0 8px 20px rgba(22, 58, 107, 0.16))',
         }}
       >
         <Lottie
           animationData={blueLoading}
           loop
+          style={{ width: '100%', height: '100%' }}
         />
       </Box>
     </Box>
