@@ -66,7 +66,7 @@ class ActivityPlanController extends Controller
             'customer_id'          => 'required',
             'customer_name'        => 'required',
             'plan_date'            => 'required|date|after_or_equal:today',
-            'tujuan'               => 'required|in:Visit,Follow Up',
+            'tujuan'               => 'required|in:Visit,Follow Up,Prospek',
             'keterangan_tambahan'  => 'nullable|string',
             // Address resolution: prefer address_id, fall back to direct lat/lng
             'customer_address_id'  => 'nullable|string',
@@ -122,7 +122,7 @@ class ActivityPlanController extends Controller
                 'customer_id'         => 'required',
                 'customer_name'       => 'required',
                 'plan_date'           => 'required|date|after_or_equal:today',
-                'tujuan'              => 'required|in:Visit,Follow Up',
+                'tujuan'              => 'required|in:Visit,Follow Up,Prospek',
                 'keterangan_tambahan' => 'nullable|string',
                 'customer_address_id' => 'nullable|string',
             ]);
@@ -299,7 +299,7 @@ class ActivityPlanController extends Controller
             'customer_id'           => 'sometimes|required',
             'customer_name'         => 'sometimes|required',
             'plan_date'             => 'sometimes|required|date|after_or_equal:today',
-            'tujuan'                => 'sometimes|required|in:Visit,Follow Up',
+            'tujuan'                => 'sometimes|required|in:Visit,Follow Up,Prospek',
             'keterangan_tambahan'   => 'nullable|string',
             'customer_address_id'   => 'nullable|string',
             'customer_location_lat' => 'nullable|numeric',
