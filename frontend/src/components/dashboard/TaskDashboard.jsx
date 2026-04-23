@@ -18,7 +18,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 import {
   buildDashboardTaskData,
 } from '../../utils/dashboardExport';
