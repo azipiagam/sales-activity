@@ -43,7 +43,7 @@ export default function Dashboard({
 
         const completedTasks = Array.isArray(data)
           ? data.filter(task =>
-              task.sales_internal_id === currentUserId && task.status === 'done'
+              String(task.sales_internal_id) === String(currentUserId) && task.status === 'done'
             )
           : [];
 
@@ -98,7 +98,7 @@ export default function Dashboard({
 
     const completedTasks = Array.isArray(allPlans)
       ? allPlans.filter(task =>
-          task.sales_internal_id === currentUserId && task.status === 'done'
+          String(task.sales_internal_id) === String(currentUserId) && task.status === 'done'
         )
       : [];
 

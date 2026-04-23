@@ -114,7 +114,7 @@ const calculateTaskStats = (tasks = [], currentUserId, selectedTaskTypeFilter = 
 
   const userTasks = tasks.filter((task) => {
     const status = normalizeStatus(task.status);
-    const isUserTask = task.sales_internal_id === currentUserId;
+    const isUserTask = String(task.sales_internal_id) === String(currentUserId);
     const isValidStatus = status !== 'cancelled' && status !== 'cancel' && status !== 'deleted';
     return isUserTask && isValidStatus;
   });

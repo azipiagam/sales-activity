@@ -263,7 +263,7 @@ export default function ActiveTask({ selectedDate }) {
       const activeTasksData = Array.isArray(data) 
         ? data.filter(task => {
             const normalizedStatus = (task.status || '').toLowerCase().trim();
-            const isUserTask = task.sales_internal_id === currentUserId;
+            const isUserTask = String(task.sales_internal_id) === String(currentUserId);
             const shouldInclude = normalizedStatus === 'in progress' || 
                    normalizedStatus === 'rescheduled' || 
                    normalizedStatus === 'done' || 
@@ -379,7 +379,7 @@ export default function ActiveTask({ selectedDate }) {
     const activeTasksData = Array.isArray(data)
       ? data.filter(task => {
           const normalizedStatus = (task.status || '').toLowerCase().trim();
-          const isUserTask = task.sales_internal_id === currentUserId;
+          const isUserTask = String(task.sales_internal_id) === String(currentUserId);
           return isUserTask && (
             normalizedStatus === 'in progress' ||
             normalizedStatus === 'rescheduled' ||
