@@ -38,25 +38,41 @@ export const isAuthenticated = () => {
 };
 
 // Baca ?token= dari URL, simpan ke localStorage, lalu bersihkan URL
-export const consumeTokenFromUrl = () => {
+export const consumeTokenFromUrl = async () => {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
 
   if (token) {
     localStorage.setItem('token', token);
 
-    // Bersihkan ?token= dari URL tanpa reload
+    // Bersihkan URL
     params.delete('token');
     const newSearch = params.toString();
     const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
     window.history.replaceState({}, '', newUrl);
+
+    // Ambil data user dari BE
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      if (res.ok) {
+        const user = await res.json();
+        // Simpan dengan key yang sama seperti login manual
+        localStorage.setItem('sales', JSON.stringify(user));
+      }
+    } catch (e) {
+      console.error('Failed to fetch user after token handoff', e);
+    }
 
     return token;
   }
 
   return null;
 };
-
 /**
  * Logout user - clear token dan sales data
  */

@@ -17,7 +17,6 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Ambil user dari central_users
         $user = CentralUser::where('username', $request->username)
             ->where('is_active', 1)
             ->first();
@@ -26,12 +25,17 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $allowedDepartments = ['Gosave GT', 'IT'];
-        if (!in_array($user->department, $allowedDepartments)) {
+        // Ambil nama department via join
+        $department = DB::connection('pilargroup')
+            ->table('master_departments')
+            ->where('id', $user->department_id)
+            ->value('name');
+
+        $allowedDepartments = ['Gosave GT', 'IT', 'Board Of Director'];
+        if (!in_array($department, $allowedDepartments)) {
             return response()->json(['message' => 'Access denied for your department'], 403);
         }
 
-        // Cek akses touchpoint
         $apps = DB::connection('pilargroup')
             ->table('central_user_projects as cup')
             ->join('master_projects as mp', 'cup.project_id', '=', 'mp.id')
@@ -43,27 +47,43 @@ class AuthController extends Controller
             return response()->json(['message' => 'Access denied for this application'], 403);
         }
 
-        // Simpan apps ke dalam token via custom claims
         $token = JWTAuth::claims(['apps' => $apps])->fromUser($user);
+
+        $userData = [
+            'id'           => $user->id,
+            'internal_id'  => $user->internal_id,
+            'username'     => $user->username,
+            'name'         => $user->name,
+            'department'   => $department, // nama string hasil join
+            'job_position' => $user->job_position,
+            'apps'         => $apps,
+        ];
 
         return response()->json([
             'token' => $token,
-            'user'  => [
-                'id'           => $user->id,
-                'internal_id'  => $user->internal_id,
-                'username'     => $user->username,
-                'name'         => $user->name,
-                'department'   => $user->department,
-                'job_position' => $user->job_position,
-                'job_level'    => $user->job_level,
-                'apps'         => $apps,
-            ]
+            'user'  => $userData,
+            'sales' => $userData,
         ]);
     }
 
     public function me(Request $request)
     {
-        return response()->json(auth('api')->user());
+        $user = auth('api')->user();
+        
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $userData = [
+            'id'           => $user->id,
+            'internal_id'  => $user->internal_id,
+            'username'     => $user->username,
+            'name'         => $user->name,
+            'department'   => $user->department,
+            'job_position' => $user->job_position,
+        ];
+
+        return response()->json($userData);
     }
 
     public function logout()

@@ -24,13 +24,13 @@ class CentralUser extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'internal_id'  => $this->internal_id,
-            'username'     => $this->username,
-            'name'         => $this->name,
-            'department'   => $this->department,
-            'job_position' => $this->job_position,
-            'job_level'    => $this->job_level,
-            'apps'         => $this->apps ?? [],
+            'internal_id'   => $this->internal_id,
+            'username'      => $this->username,
+            'name'          => $this->name,
+            'department_id' => $this->department_id,
+            'job_position'  => $this->job_position,
+            'job_level_id'  => $this->job_level_id,
+            'apps'          => $this->apps ?? [],
         ];
     }
 }

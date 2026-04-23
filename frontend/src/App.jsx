@@ -43,14 +43,19 @@ const theme = createTheme({
 });
 
 function ProtectedRoute({ children }) {
-  // Tangkap token dari ?token= sebelum cek auth
-  consumeTokenFromUrl();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    consumeTokenFromUrl().finally(() => setReady(true));
+  }, []);
+
+  if (!ready) return null; // atau loading spinner
 
   if (!isAuthenticated()) {
-    // Redirect ke PG, bukan ke login TP
     window.location.href = 'https://pilargroup.id';
     return null;
   }
+
   return children;
 }
 
