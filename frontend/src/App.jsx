@@ -27,6 +27,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
 import { DEFAULT_DASHBOARD_PERIOD } from './constants/dashboardPeriods';
+import { isAuthenticated, consumeTokenFromUrl } from './utils/auth';
 
 const theme = createTheme({
   palette: {
@@ -43,8 +44,13 @@ const theme = createTheme({
 });
 
 function ProtectedRoute({ children }) {
+  // Tangkap token dari ?token= sebelum cek auth
+  consumeTokenFromUrl();
+
   if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
+    // Redirect ke PG, bukan ke login TP
+    window.location.href = 'https://pilargroup.id';
+    return null;
   }
   return children;
 }

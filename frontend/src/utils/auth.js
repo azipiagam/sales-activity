@@ -31,8 +31,30 @@ export const getSales = () => {
  * Check if user is authenticated
  * @returns {boolean} True jika user sudah login
  */
+// utils/auth.js
+
 export const isAuthenticated = () => {
-  return !!getToken();
+  return !!localStorage.getItem('token');
+};
+
+// Baca ?token= dari URL, simpan ke localStorage, lalu bersihkan URL
+export const consumeTokenFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (token) {
+    localStorage.setItem('token', token);
+
+    // Bersihkan ?token= dari URL tanpa reload
+    params.delete('token');
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+    window.history.replaceState({}, '', newUrl);
+
+    return token;
+  }
+
+  return null;
 };
 
 /**

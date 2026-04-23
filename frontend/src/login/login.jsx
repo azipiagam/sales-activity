@@ -21,6 +21,16 @@ import logoPiagam from '../assets/media/logo-piagam2.png';
 
 export default function Login() {
   const navigate = useNavigate();
+    useEffect(() => {
+    consumeTokenFromUrl(); // coba konsumsi dulu kalau ada
+    if (isAuthenticated()) {
+      navigate('/', { replace: true });
+      return;
+    }
+    // Tidak ada token sama sekali → arahkan ke PG
+    window.location.href = 'https://pilargroup.id';
+  }, []);
+  
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
