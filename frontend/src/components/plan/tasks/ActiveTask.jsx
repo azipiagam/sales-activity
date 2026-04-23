@@ -33,7 +33,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../../utils/useAuth';
 import { LoadingManager } from '../loading';
 import { ModalResult } from '../shared';
 

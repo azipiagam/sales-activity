@@ -23,7 +23,7 @@ import { DateCarousel } from '../plan';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { format } from 'date-fns';
 import { getSales } from '../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 import { apiRequest } from '../../services/api';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import logoPiagam from '../../assets/media/logo-piagam2.svg';

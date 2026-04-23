@@ -10,7 +10,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 import {
   DEFAULT_DASHBOARD_PERIOD,
   getDashboardPeriodKey,

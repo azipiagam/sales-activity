@@ -9,7 +9,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 
 export default function LatestCustomerDetail() {
   const navigate = useNavigate();

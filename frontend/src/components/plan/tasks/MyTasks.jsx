@@ -8,7 +8,7 @@ import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../../utils/useAuth';
 import FilterTaskPlan from './FilterTaskPlan';
 
 const fadeOut = keyframes`
