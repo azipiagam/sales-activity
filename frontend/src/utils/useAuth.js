@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSales, isAuthenticated } from './auth';
-
-// Custom event untuk trigger re-render ketika sales data berubah
-const AUTH_UPDATED_EVENT = 'auth:updated';
-
-export const notifyAuthUpdated = () => {
-  window.dispatchEvent(new Event(AUTH_UPDATED_EVENT));
-};
+import { AUTH_UPDATED_EVENT } from './authEvents';
 
 export const useAuth = () => {
   const [sales, setSales] = useState(() => getSales());

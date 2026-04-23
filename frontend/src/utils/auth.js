@@ -3,7 +3,7 @@
  * Helper functions untuk authentication
  */
 
-import { notifyAuthUpdated } from './useAuth';
+import { notifyAuthUpdated } from './authEvents';
 
 /**
  * Get token from localStorage
@@ -61,7 +61,7 @@ export const consumeTokenFromUrl = async () => {
       if (res.ok) {
         const user = await res.json();
         localStorage.setItem('sales', JSON.stringify(user));
-        notifyAuthUpdated(); // <-- trigger re-render semua komponen
+        notifyAuthUpdated();
       }
     } catch (e) {
       console.error('Failed to fetch user after token handoff', e);
