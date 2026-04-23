@@ -134,6 +134,8 @@ const calculateTaskStats = (tasks = [], currentUserId, selectedTaskTypeFilter = 
 };
 
 export default function MyTasks({ selectedDate }) {
+  const { sales } = useAuth();
+  const currentUserId = sales?.internal_id;
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({ plan: 0, done: 0, more: 0 });
@@ -195,9 +197,6 @@ export default function MyTasks({ selectedDate }) {
 
     const fetchStats = async () => {
       try {
-        const { sales } = useAuth();
-        const currentUserId = sales?.internal_id;
-
         let data = getPlansByDate(dateToUse);
         
         if (!data) {
@@ -224,10 +223,6 @@ export default function MyTasks({ selectedDate }) {
   }, [fetchPlansByDate, getPlansByDate, dateToUse, selectedTaskTypeFilter]);
 
   useEffect(() => {
-    // Get current logged in user
-    const { sales } = useAuth();
-    const currentUserId = sales?.internal_id;
-
     const data = getPlansByDate(dateToUse);
     if (data) {
       setStats(calculateTaskStats(data, currentUserId, selectedTaskTypeFilter));

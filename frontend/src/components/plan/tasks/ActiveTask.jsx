@@ -198,6 +198,8 @@ const getDisplayStatusLabel = (task) => {
 };
 
 export default function ActiveTask({ selectedDate }) {
+  const { sales } = useAuth();
+  const currentUserId = sales?.internal_id;
   const navigate = useNavigate();
   const [openModal, setOpenModal] = useState(false);
   const [result, setResult] = useState('');
@@ -235,10 +237,6 @@ export default function ActiveTask({ selectedDate }) {
 
   const fetchActiveTask = useCallback(async () => {
     try {
-      // Get current logged in user
-      const { sales } = useAuth();
-      const currentUserId = sales?.internal_id;
-
       if (!currentUserId) {
         setActiveTasks([]);
         return;
@@ -381,7 +379,7 @@ export default function ActiveTask({ selectedDate }) {
     const activeTasksData = Array.isArray(data)
       ? data.filter(task => {
           const normalizedStatus = (task.status || '').toLowerCase().trim();
-          const isUserTask = task.sales_internal_id === sales?.internal_id;
+          const isUserTask = task.sales_internal_id === currentUserId;
           return isUserTask && (
             normalizedStatus === 'in progress' ||
             normalizedStatus === 'rescheduled' ||
