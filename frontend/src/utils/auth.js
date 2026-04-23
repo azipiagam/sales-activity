@@ -37,35 +37,43 @@ export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
 };
 
-// Baca ?token= dari URL, simpan ke localStorage, lalu bersihkan URL
 export const consumeTokenFromUrl = async () => {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
 
+  console.log('[consumeTokenFromUrl] token from URL:', token ? 'ADA' : 'TIDAK ADA');
+
   if (token) {
     localStorage.setItem('token', token);
 
-    // Bersihkan URL
     params.delete('token');
     const newSearch = params.toString();
     const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
     window.history.replaceState({}, '', newUrl);
 
-    // Ambil data user dari BE
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+      const apiUrl = `${import.meta.env.VITE_API_URL}/auth/me`;
+      console.log('[consumeTokenFromUrl] fetching:', apiUrl);
+
+      const res = await fetch(apiUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
       });
+
+      console.log('[consumeTokenFromUrl] /auth/me status:', res.status);
+
       if (res.ok) {
         const user = await res.json();
-        // Simpan dengan key yang sama seperti login manual
+        console.log('[consumeTokenFromUrl] user data:', user);
         localStorage.setItem('sales', JSON.stringify(user));
+      } else {
+        const errText = await res.text();
+        console.error('[consumeTokenFromUrl] /auth/me error response:', errText);
       }
     } catch (e) {
-      console.error('Failed to fetch user after token handoff', e);
+      console.error('[consumeTokenFromUrl] fetch failed:', e);
     }
 
     return token;
@@ -73,6 +81,7 @@ export const consumeTokenFromUrl = async () => {
 
   return null;
 };
+
 /**
  * Logout user - clear token dan sales data
  */
