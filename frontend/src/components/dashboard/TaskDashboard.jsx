@@ -42,9 +42,6 @@ export default function TaskDashboard({
   onProvinceOptionsChange,
   hideFilters = false,
 }) {
-  const { sales } = useAuth();
-  const salesInternalId = sales?.internal_id;
-
   const [bulananFilter, setBulananFilter] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [provinsiFilter, setProvinsiFilter] = useState('Semua Provinsi');
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
@@ -65,8 +62,7 @@ export default function TaskDashboard({
   };
 
   const { sales } = useAuth();
-  const salesInternalId = sales?.internal_id;
-  const stateStatsCacheKey = salesInternalId ? `state-stats:${salesInternalId}` : null;
+  const stateStatsCacheKey = sales?.internal_id ? `state-stats:${sales.internal_id}` : null;
 
   const [stateStats, setStateStats] = useState(() => {
     if (!stateStatsCacheKey) return null;
