@@ -33,6 +33,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../../services/api';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 import { LoadingManager } from '../loading';
 import { ModalResult } from '../shared';
 
@@ -235,8 +236,8 @@ export default function ActiveTask({ selectedDate }) {
   const fetchActiveTask = useCallback(async () => {
     try {
       // Get current logged in user
-      const currentUser = getSales();
-      const currentUserId = currentUser?.internal_id;
+      const { sales } = useAuth();
+      const currentUserId = sales?.internal_id;
 
       if (!currentUserId) {
         setActiveTasks([]);
@@ -380,7 +381,7 @@ export default function ActiveTask({ selectedDate }) {
     const activeTasksData = Array.isArray(data)
       ? data.filter(task => {
           const normalizedStatus = (task.status || '').toLowerCase().trim();
-          const isUserTask = task.sales_internal_id === getSales()?.internal_id;
+          const isUserTask = task.sales_internal_id === sales?.internal_id;
           return isUserTask && (
             normalizedStatus === 'in progress' ||
             normalizedStatus === 'rescheduled' ||

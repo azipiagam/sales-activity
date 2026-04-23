@@ -8,6 +8,7 @@ import { keyframes } from '@mui/system';
 import { format } from 'date-fns';
 import { useActivityPlans } from '../../../contexts/ActivityPlanContext';
 import { getSales } from '../../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 import FilterTaskPlan from './FilterTaskPlan';
 
 const fadeOut = keyframes`
@@ -194,8 +195,8 @@ export default function MyTasks({ selectedDate }) {
 
     const fetchStats = async () => {
       try {
-        const currentUser = getSales();
-        const currentUserId = currentUser?.internal_id;
+        const { sales } = useAuth();
+        const currentUserId = sales?.internal_id;
 
         let data = getPlansByDate(dateToUse);
         
@@ -224,8 +225,8 @@ export default function MyTasks({ selectedDate }) {
 
   useEffect(() => {
     // Get current logged in user
-    const currentUser = getSales();
-    const currentUserId = currentUser?.internal_id;
+    const { sales } = useAuth();
+    const currentUserId = sales?.internal_id;
 
     const data = getPlansByDate(dateToUse);
     if (data) {

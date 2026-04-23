@@ -9,6 +9,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 
 export default function LatestCustomerDetail() {
   const navigate = useNavigate();
@@ -25,8 +26,8 @@ export default function LatestCustomerDetail() {
           setLoading(true);
         }
 
-        const currentUser = getSales();
-        const salesInternalId = currentUser?.internal_id;
+        const { sales } = useAuth();
+        const salesInternalId = sales?.internal_id;
 
         if (!salesInternalId) {
           if (isMounted) {

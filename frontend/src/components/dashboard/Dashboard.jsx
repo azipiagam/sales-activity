@@ -6,6 +6,7 @@ import Alert from '@mui/material/Alert';
 import { parse, format } from 'date-fns';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import { getSales } from '../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
@@ -31,8 +32,8 @@ export default function Dashboard({
     const fetchDashboard = async () => {
       try {
         // Get current logged in user
-        const currentUser = getSales();
-        const currentUserId = currentUser?.internal_id;
+        const { sales } = useAuth();
+        const currentUserId = sales?.internal_id;
 
         if (!currentUserId) {
           return;
@@ -118,8 +119,8 @@ export default function Dashboard({
 
   useEffect(() => {
     // Get current logged in user
-    const currentUser = getSales();
-    const currentUserId = currentUser?.internal_id;
+    const { sales } = useAuth();
+    const currentUserId = sales?.internal_id;
 
     if (!currentUserId) {
       return;

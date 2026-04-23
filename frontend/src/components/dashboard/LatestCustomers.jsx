@@ -10,6 +10,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 import {
   DEFAULT_DASHBOARD_PERIOD,
   getDashboardPeriodKey,
@@ -33,7 +34,8 @@ const mapCustomersByPeriod = (customerVisitsByPeriod, periodLabel) => {
 export default function LatestCustomers({ refreshKey, periodFilter }) {
   const themeBluePrimary = 'var(--theme-blue-primary)';
   const themeBluePrimaryRgb = '31, 78, 140';
-  const salesInternalId = getSales()?.internal_id;
+  const { sales } = useAuth();
+  const salesInternalId = sales?.internal_id;
   const customersCacheKey = salesInternalId ? `latest-customers:${salesInternalId}` : null;
   const lastRefreshKeyRef = useRef(refreshKey);
   const effectivePeriodFilter = periodFilter || DEFAULT_DASHBOARD_PERIOD;

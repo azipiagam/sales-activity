@@ -3,6 +3,8 @@
  * Helper functions untuk authentication
  */
 
+import { notifyAuthUpdated } from './useAuth';
+
 /**
  * Get token from localStorage
  * @returns {string|null} 
@@ -41,8 +43,6 @@ export const consumeTokenFromUrl = async () => {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
 
-  console.log('[consumeTokenFromUrl] token from URL:', token ? 'ADA' : 'TIDAK ADA');
-
   if (token) {
     localStorage.setItem('token', token);
 
@@ -52,28 +52,19 @@ export const consumeTokenFromUrl = async () => {
     window.history.replaceState({}, '', newUrl);
 
     try {
-      const apiUrl = `${import.meta.env.VITE_API_URL}/auth/me`;
-      console.log('[consumeTokenFromUrl] fetching:', apiUrl);
-
-      const res = await fetch(apiUrl, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
       });
-
-      console.log('[consumeTokenFromUrl] /auth/me status:', res.status);
-
       if (res.ok) {
         const user = await res.json();
-        console.log('[consumeTokenFromUrl] user data:', user);
         localStorage.setItem('sales', JSON.stringify(user));
-      } else {
-        const errText = await res.text();
-        console.error('[consumeTokenFromUrl] /auth/me error response:', errText);
+        notifyAuthUpdated(); // <-- trigger re-render semua komponen
       }
     } catch (e) {
-      console.error('[consumeTokenFromUrl] fetch failed:', e);
+      console.error('Failed to fetch user after token handoff', e);
     }
 
     return token;

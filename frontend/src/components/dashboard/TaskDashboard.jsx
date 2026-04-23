@@ -18,6 +18,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { apiRequest } from '../../services/api';
 import { getSales } from '../../utils/auth';
+import { useAuth } from '../utils/useAuth';
 import {
   buildDashboardTaskData,
 } from '../../utils/dashboardExport';
@@ -41,6 +42,9 @@ export default function TaskDashboard({
   onProvinceOptionsChange,
   hideFilters = false,
 }) {
+  const { sales } = useAuth();
+  const salesInternalId = sales?.internal_id;
+
   const [bulananFilter, setBulananFilter] = useState(DEFAULT_DASHBOARD_PERIOD);
   const [provinsiFilter, setProvinsiFilter] = useState('Semua Provinsi');
   const [bulananAnchorEl, setBulananAnchorEl] = useState(null);
@@ -60,7 +64,8 @@ export default function TaskDashboard({
     return Number.isFinite(width) ? Math.round(width) : undefined;
   };
 
-  const salesInternalId = getSales()?.internal_id;
+  const { sales } = useAuth();
+  const salesInternalId = sales?.internal_id;
   const stateStatsCacheKey = salesInternalId ? `state-stats:${salesInternalId}` : null;
 
   const [stateStats, setStateStats] = useState(() => {
