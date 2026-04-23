@@ -6,7 +6,7 @@ import Alert from '@mui/material/Alert';
 import { parse, format } from 'date-fns';
 import { useActivityPlans } from '../../contexts/ActivityPlanContext';
 import { getSales } from '../../utils/auth';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 import TaskDashboard from './TaskDashboard';
 import LatestCustomers from './LatestCustomers';
 
