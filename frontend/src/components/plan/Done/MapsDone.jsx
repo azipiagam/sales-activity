@@ -97,7 +97,7 @@ export default function MapsDone({
         primaryMarkerColor="#29924f"
         primaryMarkerShape="pin"
         primaryMarkerScale={1.55}
-        primaryMarkerDraggable={hasCurrentLocation}
+        primaryMarkerDraggable={false}
         hidePrimaryMarker={!hasCurrentLocation}
         additionalMarkers={customerMarker}
         radiusCircle={
