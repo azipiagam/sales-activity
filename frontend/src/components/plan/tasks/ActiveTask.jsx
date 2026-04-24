@@ -22,7 +22,7 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import PersonIcon from '@mui/icons-material/Person';
-import LocationOnIcon from '@mui/icons-material/LocationOn';  
+import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -1010,8 +1010,8 @@ export default function ActiveTask({ selectedDate }) {
                     pr: { xs: 1, sm: 2 },
                   }}
                 >
-                  {activeTask.namaCustomer === 'CheckIn' ? (
-                    <LocationOnIcon
+                  {taskActivityType === ACTIVITY_TYPES.PROSPEK ? (
+                    <PersonSearchIcon
                       sx={{
                         fontSize: { xs: '1rem', sm: '1rem', md: '1rem' },
                         color: tone.accent,

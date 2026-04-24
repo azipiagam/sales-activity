@@ -458,15 +458,16 @@ class ActivityPlanService
     }
 
     /**
-     * Create check-in record (no customer)
+     * Create prospect record (no customer)
      */
     public function createCheckIn($data)
     {
-        Log::info('Creating check-in record', ['data' => $data]);
+        Log::info('Creating prospect record', ['data' => $data]);
 
         $id        = Str::uuid()->toString();
         $now       = Carbon::now()->toDateTimeString();
         $timestamp = Carbon::parse($data['timestamp'])->toDateTimeString();
+        $customerName = trim((string) ($data['customer_name'] ?? '')) ?: 'Prospect';
 
         DB::table('activity_plans')->insert([
             'id'                        => $id,
@@ -474,7 +475,7 @@ class ActivityPlanService
             'sales_internal_id'         => $data['sales_internal_id'],
             'sales_name'                => $data['sales_name'],
             'customer_id'               => null,
-            'customer_name'             => 'CheckIn',
+            'customer_name'             => $customerName,
             'plan_date'                 => Carbon::parse($timestamp)->toDateString(),
             'tujuan'                    => 'Visit',
             'keterangan_tambahan'       => 'CheckIn Di Tempat',
@@ -496,7 +497,7 @@ class ActivityPlanService
             'deleted_at'                => null,
         ]);
 
-        Log::info('Check-in record inserted to MySQL', ['id' => $id]);
+        Log::info('Prospect record inserted to MySQL', ['id' => $id]);
 
         return ['id' => $id];
     }

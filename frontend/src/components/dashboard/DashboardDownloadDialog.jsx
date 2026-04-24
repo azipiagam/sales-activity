@@ -120,7 +120,7 @@ export default function DashboardDownloadDialog({
                 lineHeight: 1.2,
               }}
             >
-              Download Dashboard PDF
+              Download Report
             </Typography>
             <Typography
               sx={{
@@ -311,7 +311,7 @@ export default function DashboardDownloadDialog({
             },
           }}
         >
-          {isDownloading ? 'Menyiapkan PDF...' : 'Download PDF'}
+          {isDownloading ? 'Menyiapkan PDF...' : 'Download'}
         </Button>
       </DialogActions>
     </Dialog>

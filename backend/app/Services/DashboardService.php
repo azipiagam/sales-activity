@@ -261,8 +261,8 @@ class DashboardService
 
         if ($normalizedPeriodKey === 'yearly') {
             return [
-                $today->copy()->subMonths(11)->startOfMonth()->toDateString(),
-                $today->toDateString(),
+                $today->copy()->startOfYear()->toDateString(),
+                $today->copy()->endOfYear()->toDateString(),
             ];
         }
 
@@ -278,7 +278,7 @@ class DashboardService
         $end = Carbon::parse($endDate)->startOfMonth();
         $months = [];
 
-        for ($cursor = $end->copy(); $cursor->greaterThanOrEqualTo($start); $cursor->subMonth()) {
+        for ($cursor = $start->copy(); $cursor->lessThanOrEqualTo($end); $cursor->addMonth()) {
             $months[] = [
                 'key' => $cursor->format('Y-m'),
                 'label' => ucfirst($cursor->locale('id')->translatedFormat('F')),

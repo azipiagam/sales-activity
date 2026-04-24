@@ -19,7 +19,7 @@ class CheckInController extends Controller
 
     public function checkIn(Request $request)
     {
-        \Log::info('CheckIn request received', [
+        \Log::info('Prospect request received', [
             'sales_internal_id' => $request->sales_internal_id,
             'sales_name' => $request->sales_name,
             'all_data' => $request->all()
@@ -31,6 +31,7 @@ class CheckInController extends Controller
             'address' => 'nullable|string',
             'city' => 'nullable|string',
             'state' => 'nullable|string',
+            'customer_name' => 'nullable|string|max:255',
             'result' => 'nullable|string',
             'timestamp' => 'required|date',
             'capturedImage' => 'nullable|string', // base64 image
@@ -59,13 +60,13 @@ class CheckInController extends Controller
                         
                         $userPhoto = '/storage/' . $path;
                         
-                        \Log::info('CheckIn photo saved', [
+                        \Log::info('Prospect photo saved', [
                             'path' => $path,
                             'size' => strlen($imageData),
                         ]);
                     }
                 } catch (\Exception $photoError) {
-                    \Log::warning('CheckIn photo save failed', [
+                    \Log::warning('Prospect photo save failed', [
                         'message' => $photoError->getMessage(),
                     ]);
                     // Continue without photo if save fails
@@ -80,26 +81,27 @@ class CheckInController extends Controller
                 'address' => $request->address,
                 'city' => $request->city,
                 'state' => $request->state,
+                'customer_name' => $request->customer_name,
                 'result' => $request->result,
                 'timestamp' => $request->timestamp,
                 'user_photo' => $userPhoto,
             ]);
 
-            \Log::info('CheckIn successful', ['result' => $result]);
+            \Log::info('Prospect successful', ['result' => $result]);
 
             return response()->json([
-                'message' => 'Check-in berhasil disimpan',
+                'message' => 'Prospect berhasil disimpan',
                 'timestamp' => $request->timestamp,
                 'data' => $result,
             ]);
         } catch (\Exception $e) {
-            \Log::error('CheckIn failed', [
+            \Log::error('Prospect failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
-                'message' => 'Gagal menyimpan check-in',
+                'message' => 'Gagal menyimpan prospect',
                 'error' => $e->getMessage(),
             ], 500);
         }

@@ -51,7 +51,8 @@ export default function Header({
   dashboardProvinceOptions,
 }) {
   const headerBaseColor = '#163a6b';
-  const themeBlueOverlay = headerBaseColor;
+  const themeBlueDark = headerBaseColor;
+  const themeBlueOverlay = themeBlueDark;
   const textOnBluePrimary = 'var(--text-on-blue-primary)';
   const textOnBlueAccent = 'var(--text-on-blue-accent)';
   const planDoneAccent = 'var(--plan-done-accent)';
@@ -88,10 +89,10 @@ export default function Header({
   
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour >= 5 && hour < 12) return 'Good Morning !';
-    if (hour >= 12 && hour < 15) return 'Good Afternoon !';
-    if (hour >= 15 && hour < 19) return 'Good Evening !';
-    return 'Good Night';
+    if (hour >= 5 && hour < 12) return 'Selamat pagi!';
+    if (hour >= 12 && hour < 15) return 'Selamat siang!';
+    if (hour >= 15 && hour < 19) return 'Selamat sore!';
+    return 'Selamat malam!';
   };
   
   useEffect(() => {
@@ -247,14 +248,14 @@ export default function Header({
 
   return (
     <>
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: headerBaseColor,
+          backgroundColor: themeBlueDark,
           boxShadow: '0 10px 28px rgba(10, 28, 53, 0.3)',
           overflow: 'hidden',
           '&::before': {
@@ -273,7 +274,7 @@ export default function Header({
             content: '""',
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.08) 100%)',
+            background: 'linear-gradient(180deg, rgba(31,78,140,0.10) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.08) 100%)',
             pointerEvents: 'none',
             zIndex: 0,
           },
@@ -312,7 +313,7 @@ export default function Header({
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 60%)',
+                'radial-gradient(ellipse at 20% 50%, rgba(31,78,140,0.18) 0%, transparent 60%)',
               pointerEvents: 'none',
               zIndex: 0,
             },
@@ -321,7 +322,7 @@ export default function Header({
               position: 'absolute',
               inset: 0,
               background:
-                'radial-gradient(ellipse at 80% 50%, rgba(255,255,255,0.08) 0%, transparent 60%)',
+                'radial-gradient(ellipse at 80% 50%, rgba(31,78,140,0.10) 0%, transparent 60%)',
               pointerEvents: 'none',
               zIndex: 0,
             },
@@ -607,7 +608,7 @@ export default function Header({
                 position: 'absolute',
                 inset: 0,
                 background:
-                  'linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%)',
+                  'linear-gradient(180deg, transparent 0%, rgba(31,78,140,0.06) 50%, transparent 100%)',
                 pointerEvents: 'none',
                 zIndex: 0,
               },
