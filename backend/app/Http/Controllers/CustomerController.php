@@ -39,11 +39,9 @@ class CustomerController extends Controller
                 'mc.email'
             )
             ->where(function($q) use ($salesName, $salesInternalId) {
-                // Match sales_rep with various formats
-                $q->where('mc.sales_rep', $salesName)
-                  ->orWhere('mc.sales_rep', $salesInternalId)
-                  ->orWhere('mc.sales_rep', 'LIKE', "%{$salesName}%")
-                  ->orWhere('mc.sales_rep', 'LIKE', "%{$salesInternalId}%");
+                $q->whereRaw('CAST(mc.sales_rep AS CHAR) = CAST(? AS CHAR)', [$salesInternalId])
+                ->orWhere('mc.sales_rep', $salesName)
+                ->orWhere('mc.sales_rep', 'LIKE', "%{$salesName}%");
             })
             ->where('mc.inactive', 'No')
             ->where(function($q) use ($query) {
