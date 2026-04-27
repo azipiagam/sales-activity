@@ -262,7 +262,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
     if (onOpenAddPlan) onOpenAddPlan();
   }, [handleClose, onOpenAddPlan]);
 
-  // Handle check-in process
+  // Handle prospect process
   const handleCheckIn = useCallback(async () => {
     if (!location) {
       setError('Lokasi belum didapatkan. Silakan ambil lokasi terlebih dahulu.');
@@ -283,12 +283,13 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
         address: finalAddress,
         city: city || '',
         state: state || '',
+        customer_name: 'Prospect',
         result: result,
         timestamp: new Date().toISOString(),
         capturedImage: capturedImage,
       };
 
-      // Call check-in API endpoint
+      // Call prospect API endpoint
       const response = await apiRequest('check-in', {
         method: 'POST',
         body: JSON.stringify(checkInData),
@@ -296,13 +297,13 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Gagal melakukan check-in');
+        throw new Error(errorData.message || 'Gagal melakukan prospect');
       }
 
       const responseData = await response.json();
       setCheckInResult({
         success: true,
-        message: 'Check-in berhasil!',
+        message: 'Prospect berhasil!',
         data: responseData.data,
       });
       setSuccess(true);
@@ -313,20 +314,20 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
         invalidateCache(today);
         await fetchPlansByDate(today, true);
       } catch (refreshError) {
-        console.error('Error refreshing data after check-in:', refreshError);
+        console.error('Error refreshing data after prospect:', refreshError);
       }
       window.dispatchEvent(new CustomEvent('activityPlanCreated', {
-        detail: { source: 'check-in', date: today.toISOString(), checkInData: responseData.data }
+        detail: { source: 'prospect', date: today.toISOString(), checkInData: responseData.data }
       }));
 
       handleClose();
     } catch (error) {
-      console.error('Error during check-in:', error);
+      console.error('Error during prospect:', error);
       setCheckInResult({
         success: false,
-        message: error.message || 'Terjadi kesalahan saat check-in',
+        message: error.message || 'Terjadi kesalahan saat prospect',
       });
-      setError(error.message || 'Terjadi kesalahan saat check-in');
+      setError(error.message || 'Terjadi kesalahan saat prospect');
     } finally {
       setLoading(false);
     }
@@ -400,7 +401,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               }}
             >
             <PersonSearchIcon sx={{ color: 'var(--theme-blue-primary)' }} />
-            Prospek
+            Prospect
           </Typography>
         </Box>
 
@@ -512,11 +513,11 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               fontWeight: 600,
             }}
           >
-            Check-in Result
+            Prospect Result
           </Typography>
           <TextareaAutosize
             minRows={5}
-            placeholder="Enter check-in result..."
+            placeholder="Enter prospect result..."
             value={result}
             onChange={(e) => setResult(e.target.value)}
             disabled={success}
@@ -551,7 +552,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
               fontWeight: 600,
             }}
           >
-            Check In Photo (Optional):
+            Prospect Photo (Optional):
           </Typography>
 
           {/* Tombol Buka Kamera */}
@@ -705,10 +706,10 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
                   fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                   color: '#666',
                   mb: 2,
-                  fontWeight: 600,
+                fontWeight: 600,
                 }}
               >
-                Hasil Check In
+                Hasil Prospect
               </Typography>
 
               <Box
@@ -810,7 +811,7 @@ export default function CheckIn({ open, onClose, onOpenAddPlan, onOpenNavigation
                 {loading ? (
                   <CircularProgress size={24} sx={{ color: 'white' }} />
                 ) : (
-                  'Check In'
+                  'Prospect'
                 )}
               </Button>
             </>

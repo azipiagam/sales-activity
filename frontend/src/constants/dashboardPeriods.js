@@ -20,7 +20,7 @@ export const DASHBOARD_EXPORT_PERIOD_OPTIONS = [
   },
   {
     value: 'Satu Tahun',
-    description: 'Akumulasi 12 bulan terakhir sampai hari ini.',
+    description: 'Data tahun berjalan dari Januari sampai Desember.',
   },
 ];
 

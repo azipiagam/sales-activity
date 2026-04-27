@@ -9,7 +9,14 @@ const PDF_BODY_START_Y = 540;
 const PDF_LINE_HEIGHT = 9;
 const PDF_BODY_FONT_SIZE = 7;
 const MONTHS_PER_PAGE = 4;
-const ROWS_PER_PAGE = 30;
+const YEARLY_MONTHS_PER_PAGE = 1;
+const PDF_BODY_LINE_BUDGET = 56;
+const PAGE_STATIC_LINE_COUNT = 13;
+const TOTAL_ROW_RESERVE_LINES = 2;
+const TABLE_PROVINCE_WIDTH = 20;
+const TABLE_CUSTOMER_WIDTH = 44;
+const TABLE_WEEK_WIDTH = 4;
+const PLACEHOLDER_ROW_MESSAGE = 'Tidak ada data untuk periode ini.';
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -144,23 +151,85 @@ const padCellText = (value, width, align = 'left') => {
     return '';
   }
 
-  const normalizedValue = safeValue || '';
-  const trimmedValue = normalizedValue.length > width
-    ? `${normalizedValue.slice(0, Math.max(width - 3, 0))}${width > 3 ? '...' : ''}`
-    : normalizedValue;
+  if (safeValue.length > width) {
+    return safeValue;
+  }
 
   if (align === 'right') {
-    return trimmedValue.padStart(width, ' ');
+    return safeValue.padStart(width, ' ');
   }
 
   if (align === 'center') {
-    const remaining = width - trimmedValue.length;
+    const remaining = width - safeValue.length;
     const left = Math.floor(remaining / 2);
     const right = remaining - left;
-    return `${' '.repeat(Math.max(left, 0))}${trimmedValue}${' '.repeat(Math.max(right, 0))}`;
+    return `${' '.repeat(Math.max(left, 0))}${safeValue}${' '.repeat(Math.max(right, 0))}`;
   }
 
-  return trimmedValue.padEnd(width, ' ');
+  return safeValue.padEnd(width, ' ');
+};
+
+const splitLongToken = (token, width) => {
+  const chunks = [];
+
+  for (let index = 0; index < token.length; index += width) {
+    chunks.push(token.slice(index, index + width));
+  }
+
+  return chunks;
+};
+
+const wrapCellText = (value, width) => {
+  if (width <= 0) {
+    return [''];
+  }
+
+  const normalizedValue = sanitizePdfText(value).replace(/\s+/g, ' ').trim();
+
+  if (!normalizedValue) {
+    return [''];
+  }
+
+  const lines = [];
+  let currentLine = '';
+
+  const flushCurrentLine = () => {
+    if (currentLine) {
+      lines.push(currentLine);
+      currentLine = '';
+    }
+  };
+
+  normalizedValue.split(' ').forEach((word) => {
+    if (!word) {
+      return;
+    }
+
+    if (word.length > width) {
+      flushCurrentLine();
+      splitLongToken(word, width).forEach((chunk) => {
+        lines.push(chunk);
+      });
+      return;
+    }
+
+    if (!currentLine) {
+      currentLine = word;
+      return;
+    }
+
+    if ((currentLine.length + 1 + word.length) <= width) {
+      currentLine = `${currentLine} ${word}`;
+      return;
+    }
+
+    flushCurrentLine();
+    currentLine = word;
+  });
+
+  flushCurrentLine();
+
+  return lines.length > 0 ? lines : [''];
 };
 
 const chunkArray = (items, size) => {
@@ -181,13 +250,15 @@ const getMonthAbbreviation = (label) =>
   sanitizePdfText(label).slice(0, 3).toUpperCase();
 
 const buildTableColumns = (monthGroup) => [
-  { key: 'province', label: 'Provinsi', width: 14, align: 'left' },
-  { key: 'customer', label: 'Customer', width: 28, align: 'left' },
+  { key: 'province', label: 'Provinsi', width: TABLE_PROVINCE_WIDTH, align: 'left' },
+  { key: 'customer', label: 'Customer', width: TABLE_CUSTOMER_WIDTH, align: 'left' },
   ...monthGroup.flatMap((month) =>
     WEEK_KEYS.map((weekKey, index) => ({
       key: `${month.key}:${weekKey}`,
+      monthKey: month.key,
+      weekKey,
       label: `${getMonthAbbreviation(month.label)}${index + 1}`,
-      width: 5,
+      width: TABLE_WEEK_WIDTH,
       align: 'center',
     }))
   ),
@@ -197,7 +268,7 @@ const buildTableSeparator = (columns) =>
   `+-${columns.map((column) => '-'.repeat(column.width)).join('-+-')}-+`;
 
 const buildTableLine = (columns, values) =>
-  `| ${columns.map((column) => padCellText(values[column.key], column.width, column.align)).join(' | ')} |`;
+  `| ${columns.map((column, index) => padCellText(values[index] ?? '', column.width, column.align)).join(' | ')} |`;
 
 const buildMonthGroupLabel = (monthGroup) =>
   monthGroup.map((month) => `${sanitizePdfText(month.label)} ${month.year}`).join(', ');
@@ -205,63 +276,86 @@ const buildMonthGroupLabel = (monthGroup) =>
 const buildInfoLine = (label, value) =>
   `${padCellText(label, 18, 'left')} : ${sanitizePdfText(value ?? '-')}`;
 
-const buildPdfTableRows = ({ columns, monthGroup, rowChunk, weeklyTotals, showTotal }) => {
-  const lines = [];
+const buildTableRowLines = (columns, row) => {
+  const cellLines = columns.map((column) => {
+    if (column.key === 'province') {
+      return wrapCellText(row?.province || '-', column.width);
+    }
 
-  const dataRows = rowChunk.length > 0
-    ? rowChunk
-    : [{ province: '-', customer: 'Tidak ada data untuk periode ini.', weeks: {} }];
+    if (column.key === 'customer') {
+      return wrapCellText(row?.customer || '-', column.width);
+    }
 
-  dataRows.forEach((row) => {
-    const values = {
-      province: row.province || '-',
-      customer: row.customer || '-',
-    };
+    if (column.monthKey && column.weekKey) {
+      return [formatWeeklyCellValue(row?.weeks?.[column.monthKey]?.[column.weekKey])];
+    }
 
-    monthGroup.forEach((month) => {
-      WEEK_KEYS.forEach((weekKey) => {
-        values[`${month.key}:${weekKey}`] = formatWeeklyCellValue(row?.weeks?.[month.key]?.[weekKey]);
-      });
-    });
-
-    lines.push(buildTableLine(columns, values));
+    return [sanitizePdfText(row?.[column.key] ?? '')];
   });
 
-  if (showTotal) {
-    const totalValues = {
-      province: 'TOTAL',
-      customer: '',
-    };
+  const rowHeight = Math.max(1, ...cellLines.map((lines) => lines.length));
+  const lines = [];
 
-    monthGroup.forEach((month) => {
-      WEEK_KEYS.forEach((weekKey) => {
-        totalValues[`${month.key}:${weekKey}`] = formatWeeklyCellValue(weeklyTotals?.[month.key]?.[weekKey]);
-      });
-    });
-
-    lines.push(buildTableSeparator(columns));
-    lines.push(buildTableLine(columns, totalValues));
+  for (let lineIndex = 0; lineIndex < rowHeight; lineIndex += 1) {
+    lines.push(
+      buildTableLine(
+        columns,
+        cellLines.map((linesForColumn) => linesForColumn[lineIndex] ?? '')
+      )
+    );
   }
 
   return lines;
 };
 
-const buildPageDefinitions = ({ months, rows, weeklyTotals }) => {
-  const monthGroups = chunkArray(months, MONTHS_PER_PAGE);
-  const rowChunks = chunkArray(rows, ROWS_PER_PAGE);
-  const safeRowChunks = rowChunks.length > 0 ? rowChunks : [[]];
+const buildMonthGroupPages = ({ monthGroup, rows, weeklyTotals }) => {
+  const columns = buildTableColumns(monthGroup);
+  const dataRows = rows.length > 0
+    ? rows
+    : [{ province: '-', customer: PLACEHOLDER_ROW_MESSAGE, weeks: {} }];
+  const reservedLines = rows.length > 0 ? TOTAL_ROW_RESERVE_LINES : 0;
+  const dataLineBudget = Math.max(PDF_BODY_LINE_BUDGET - PAGE_STATIC_LINE_COUNT - reservedLines, 1);
+  const pageRowBlocks = [];
+  let currentPageBlocks = [];
+  let currentLineCount = 0;
+
+  dataRows.forEach((row) => {
+    const rowLines = buildTableRowLines(columns, row);
+
+    if (currentPageBlocks.length > 0 && (currentLineCount + rowLines.length) > dataLineBudget) {
+      pageRowBlocks.push(currentPageBlocks);
+      currentPageBlocks = [];
+      currentLineCount = 0;
+    }
+
+    currentPageBlocks.push(rowLines);
+    currentLineCount += rowLines.length;
+  });
+
+  if (currentPageBlocks.length > 0) {
+    pageRowBlocks.push(currentPageBlocks);
+  }
+
+  if (pageRowBlocks.length === 0) {
+    pageRowBlocks.push([]);
+  }
+
+  return pageRowBlocks.map((rowBlocks, pageIndex) => ({
+    monthGroup,
+    rowBlocks,
+    showTotal: rows.length > 0 && pageIndex === pageRowBlocks.length - 1,
+    weeklyTotals,
+  }));
+};
+
+const buildPageDefinitions = ({ months, rows, weeklyTotals, periodKey }) => {
+  const monthGroupSize = periodKey === 'yearly' ? YEARLY_MONTHS_PER_PAGE : MONTHS_PER_PAGE;
+  const monthGroups = chunkArray(months, monthGroupSize);
   const safeMonthGroups = monthGroups.length > 0 ? monthGroups : [[]];
   const pages = [];
 
   safeMonthGroups.forEach((monthGroup) => {
-    safeRowChunks.forEach((rowChunk, chunkIndex) => {
-      pages.push({
-        monthGroup,
-        rowChunk,
-        showTotal: rows.length > 0 && chunkIndex === safeRowChunks.length - 1,
-        weeklyTotals,
-      });
-    });
+    pages.push(...buildMonthGroupPages({ monthGroup, rows, weeklyTotals }));
   });
 
   return pages;
@@ -275,7 +369,7 @@ const buildPageLines = ({
   totalCustomers,
   totalVisits,
   monthGroup,
-  rowChunk,
+  rowBlocks,
   showTotal,
   weeklyTotals,
   pageNumber,
@@ -285,10 +379,17 @@ const buildPageLines = ({
   const separator = buildTableSeparator(columns);
   const headerLine = buildTableLine(
     columns,
-    Object.fromEntries(columns.map((column) => [column.key, column.label]))
+    columns.map((column) => column.label)
   );
+  const totalRowLines = showTotal
+    ? buildTableRowLines(columns, {
+      province: 'TOTAL',
+      customer: '',
+      weeks: weeklyTotals,
+    })
+    : [];
 
-  return [
+  const lines = [
     buildInfoLine('Sales', userName || '-'),
     buildInfoLine('Generated At', generatedAt),
     buildInfoLine('Periode', periodLabel),
@@ -301,15 +402,20 @@ const buildPageLines = ({
     separator,
     headerLine,
     separator,
-    ...buildPdfTableRows({
-      columns,
-      monthGroup,
-      rowChunk,
-      weeklyTotals,
-      showTotal,
-    }),
-    separator,
   ];
+
+  rowBlocks.forEach((rowBlock) => {
+    lines.push(...rowBlock);
+  });
+
+  if (showTotal) {
+    lines.push(separator);
+    lines.push(...totalRowLines);
+  }
+
+  lines.push(separator);
+
+  return lines;
 };
 
 const formatPdfNumber = (value) => Number(value.toFixed(2)).toString();
@@ -427,13 +533,14 @@ const downloadBlob = (blob, fileName) => {
 
 export const downloadDashboardPdf = ({ exportData, periodLabel, provinceLabel, userName = '' }) => {
   const generatedAt = formatExportTimestamp();
+  const periodKey = getDashboardPeriodKey(periodLabel);
   const months = getExportMonths(exportData);
   const rows = getExportRows(exportData);
   const weeklyTotals = buildWeeklyTotals(rows, months);
   const totalVisits = toNumber(exportData?.summary?.total_visits)
     || rows.reduce((accumulator, row) => accumulator + toNumber(row?.total), 0);
   const totalCustomers = toNumber(exportData?.summary?.total_rows) || rows.length;
-  const pageDefinitions = buildPageDefinitions({ months, rows, weeklyTotals });
+  const pageDefinitions = buildPageDefinitions({ months, rows, weeklyTotals, periodKey });
   const totalPages = pageDefinitions.length;
   const pageContents = pageDefinitions.map((page, index) =>
     buildPdfPageContent({
@@ -446,7 +553,7 @@ export const downloadDashboardPdf = ({ exportData, periodLabel, provinceLabel, u
         totalCustomers,
         totalVisits,
         monthGroup: page.monthGroup,
-        rowChunk: page.rowChunk,
+        rowBlocks: page.rowBlocks,
         showTotal: page.showTotal,
         weeklyTotals: page.weeklyTotals,
         pageNumber: index + 1,
