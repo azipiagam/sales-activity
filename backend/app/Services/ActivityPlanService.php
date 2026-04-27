@@ -125,7 +125,7 @@ class ActivityPlanService
         }
 
         $normalizedActivityType = strtolower(trim((string) ($plan->tujuan ?? '')));
-        $isFollowUp = in_array($normalizedActivityType, ['follow up', 'follow_up', 'followup', 'prospek'], true);
+        $isFollowUp = in_array($normalizedActivityType, ['follow up', 'follow_up', 'followup', 'prospect'], true);
 
         $hasLatitude = $latitude !== null && $latitude !== '' && is_numeric($latitude);
         $hasLongitude = $longitude !== null && $longitude !== '' && is_numeric($longitude);
@@ -477,7 +477,7 @@ class ActivityPlanService
             'customer_id'               => null,
             'customer_name'             => $customerName,
             'plan_date'                 => Carbon::parse($timestamp)->toDateString(),
-            'tujuan'                    => 'Prospek',
+            'tujuan'                    => 'Prospect',
             'keterangan_tambahan'       => 'CheckIn Di Tempat',
             'customer_location_lat'     => null,
             'customer_location_lng'     => null,
