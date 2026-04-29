@@ -27,6 +27,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
 import { DEFAULT_DASHBOARD_PERIOD } from './constants/dashboardPeriods';
+import { injectMockAuth } from './utils/mockAuth';
 
 const theme = createTheme({
   palette: {
@@ -44,12 +45,17 @@ const theme = createTheme({
 
 function ProtectedRoute({ children }) {
   const [ready, setReady] = useState(false);
+  const isMockAuth = import.meta.env.VITE_MOCK_AUTH === 'true';
 
   useEffect(() => {
+    if (isMockAuth) {
+      injectMockAuth().finally(() => setReady(true));
+      return;
+    }
     consumeTokenFromUrl().finally(() => setReady(true));
   }, []);
 
-  if (!ready) return null; // atau loading spinner
+  if (!ready) return null;
 
   if (!isAuthenticated()) {
     window.location.href = 'https://pilargroup.id';
