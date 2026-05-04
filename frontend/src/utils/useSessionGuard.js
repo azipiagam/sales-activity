@@ -24,18 +24,29 @@ export function useSessionGuard() {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (import.meta.env.VITE_MOCK_AUTH === 'true') return;
+    console.log('[SessionGuard-TP] mounted')
+    
+    if (import.meta.env.VITE_MOCK_AUTH === 'true') {
+      console.log('[SessionGuard-TP] skipped mock')
+      return
+    }
 
     const token = getStoredToken();
+    console.log('[SessionGuard-TP] token exists:', Boolean(token))
+    
     if (!token) return;
 
     const check = async () => {
+      console.log('[SessionGuard-TP] checking...')
       try {
         const res = await fetch(STATUS_URL, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
+        console.log('[SessionGuard-TP] status:', res.status)
+
         if (res.status === 401) {
+          console.log('[SessionGuard-TP] 401 → handleExpired')
           handleExpired();
           return;
         }
@@ -43,8 +54,10 @@ export function useSessionGuard() {
         if (!res.ok) return;
 
         const data = await res.json();
+        console.log('[SessionGuard-TP] data:', data)
 
         if (!data.valid) {
+          console.log('[SessionGuard-TP] invalid → handleExpired')
           handleExpired();
           return;
         }
@@ -52,17 +65,18 @@ export function useSessionGuard() {
         const storedCv = getStoredCv();
         if (data.token_version !== undefined) {
           if (storedCv === null || Number(storedCv) !== Number(data.token_version)) {
+            console.log('[SessionGuard-TP] cv mismatch → handleExpired')
             handleExpired();
           }
         }
 
-      } catch {
-        // network error sementara, skip
+      } catch(e) {
+        console.log('[SessionGuard-TP] error:', e)
       }
     };
 
     check();
-    intervalRef.current = setInterval(check, POLL_INTERVAL);
+    intervalRef.current = setInterval(check, 5_000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -72,6 +86,7 @@ export function useSessionGuard() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      console.log('[SessionGuard-TP] unmounted')
       clearInterval(intervalRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
