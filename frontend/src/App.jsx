@@ -60,7 +60,8 @@ function ProtectedRoute({ children }) {
   if (!ready) return null;
 
   if (!isAuthenticated()) {
-    window.location.href = 'https://pilargroup.id';
+    const returnUrl = encodeURIComponent(window.location.href);
+    window.location.href = `https://pilargroup.id/login?return_url=${returnUrl}`;
     return null;
   }
 
