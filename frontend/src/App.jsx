@@ -28,6 +28,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { id } from 'date-fns/locale';
 import { DEFAULT_DASHBOARD_PERIOD } from './constants/dashboardPeriods';
 import { injectMockAuth } from './utils/mockAuth';
+import { useSessionGuard } from './utils/useSessionGuard';
 
 const theme = createTheme({
   palette: {
@@ -46,6 +47,7 @@ const theme = createTheme({
 function ProtectedRoute({ children }) {
   const [ready, setReady] = useState(false);
   const isMockAuth = import.meta.env.VITE_MOCK_AUTH === 'true';
+  useSessionGuard();
 
   useEffect(() => {
     if (isMockAuth) {

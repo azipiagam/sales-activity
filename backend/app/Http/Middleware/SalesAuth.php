@@ -29,6 +29,7 @@ class SalesAuth
                 'user_id'           => $payload->get('sub'),
                 'username'          => $payload->get('username'),
                 'department'        => $payload->get('department'),
+                'cv'                => $payload->get('cv'),
             ]);
 
         } catch (TokenExpiredException $e) {

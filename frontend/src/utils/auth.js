@@ -67,17 +67,24 @@ export const consumeTokenFromUrl = async () => {
       console.error('Failed to fetch user after token handoff', e);
     }
 
+    // Extract cv dari JWT dan simpan
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (payload.cv !== undefined) {
+        localStorage.setItem('token_cv', String(payload.cv));
+      }
+    } catch {
+      // ignore
+    }
+
     return token;
   }
 
   return null;
 };
 
-/**
- * Logout user - clear token dan sales data
- */
 export const logout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('sales');
+  localStorage.removeItem('token_cv');
 };
-
